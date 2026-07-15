@@ -279,7 +279,7 @@ psql -U contaec_user -d contaec_db -c "\dx"
 
 ```bash
 # Instalar Python 3 y herramientas de compilación
-apt install -y python3 python3-venv python3-dev python3-pip build-essential libpq-dev
+sudo apt install -y python3 python3-venv python3-dev python3-pip build-essential libpq-dev -y
 # Crear entorno virtual
 cd /opt && mkdir -p contaec && cd contaec
 
