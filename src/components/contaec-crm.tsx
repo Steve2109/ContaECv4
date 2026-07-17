@@ -164,11 +164,11 @@ function getActividadTipoBadge(tipo: string | undefined) {
 }
 
 interface ContaECCRMProps {
-  _user: User;
+  user: User;
   companies: Company[];
 }
 
-export function ContaECCRM({ _user, companies }: ContaECCRMProps) {
+export function ContaECCRM({ user: _user, companies }: ContaECCRMProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() =>
     companies.length > 0 ? companies[0].id : ''
   );
