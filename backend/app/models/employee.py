@@ -339,9 +339,9 @@ class Employee(Base):
         lazy="selectin",
     )
     # Relaciones de nuevos modelos HR (Fase 1)
-    contratos_laborales: Mapped[list["Contrato"]] = relationship(  # noqa: F821
-        "Contrato",
-        foreign_keys="Contrato.employee_id",
+    contratos_laborales: Mapped[list["ContratoLaboral"]] = relationship(  # noqa: F821
+        "ContratoLaboral",
+        foreign_keys="ContratoLaboral.employee_id",
         back_populates="employee",
         cascade="all, delete-orphan",
         lazy="selectin",

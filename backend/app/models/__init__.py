@@ -218,7 +218,7 @@ from app.models.hr_extended2 import (
     UtilidadesParticipacion,
 )
 from app.models.hr_contract import (
-    Contrato as ContratoLaboral,
+    ContratoLaboral,
     ContratoEstado,
     ContratoTipo,
 )

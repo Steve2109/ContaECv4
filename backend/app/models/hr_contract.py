@@ -34,7 +34,7 @@ class ContratoEstado(str, enum.Enum):
     ANULADO = "anulado"
 
 
-class Contrato(Base):
+class ContratoLaboral(Base):
     """
     Modelo de Contrato Laboral.
 
