@@ -371,7 +371,7 @@ function DashboardTab({ companyId }: { companyId: string }) {
 
 // ─── Proyectos Tab ───────────────────────────────────
 
-function ProyectosTab({ companyId, _companies }: { companyId: string; companies: Company[] }) {
+function ProyectosTab({ companyId, companies: _companies }: { companyId: string; companies: Company[] }) {
   const [proyectos, setProyectos] = useState<ProyectoResponse[]>([]);
   const [clients, setClients] = useState<ClientResponse[]>([]);
   const [loading, setLoading] = useState(true);
