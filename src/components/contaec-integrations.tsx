@@ -120,7 +120,7 @@ const BANCOS_EC: Record<string, { swift_bic: string; manual: boolean }> = {
   'Otro': { swift_bic: '', manual: true },
 };
 
-export function ContaECIntegrations({ _user, companies }: ContaECIntegrationsProps) {
+export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrationsProps) {
   const selectedCompany = companies[0];
   const companyId = selectedCompany?.id || '';
 

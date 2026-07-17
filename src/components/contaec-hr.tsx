@@ -93,7 +93,7 @@ interface ContaECHRProps {
   companies: Company[];
 }
 
-export function ContaECHR({ _user, companies }: ContaECHRProps) {
+export function ContaECHR({ user: _user, companies }: ContaECHRProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() =>
     companies.length > 0 ? companies[0].id : ''
   );

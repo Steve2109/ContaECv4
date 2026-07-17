@@ -67,7 +67,7 @@ interface ContaECInventoryProps {
   companies: Company[];
 }
 
-export function ContaECInventory({ _user, companies }: ContaECInventoryProps) {
+export function ContaECInventory({ user: _user, companies }: ContaECInventoryProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() =>
     companies.length > 0 ? companies[0].id : ''
   );

@@ -151,7 +151,7 @@ interface ContaECProjectsProps {
   companies: Company[];
 }
 
-export function ContaECProjects({ _user, companies }: ContaECProjectsProps) {
+export function ContaECProjects({ user: _user, companies }: ContaECProjectsProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() =>
     companies.length > 0 ? companies[0].id : ''
   );
