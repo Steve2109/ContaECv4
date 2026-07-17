@@ -1248,7 +1248,7 @@ function UtilidadesTab({ companyId }: { companyId: string }) {
 
 // ─── IR Tab (Impuesto a la Renta) ────────────────────────────
 
-function IRTab({ _companyId }: { companyId: string }) {
+function IRTab({ companyId: _companyId }: { companyId: string }) {
   const [ingresosGravados, setIngresosGravados] = useState('');
   const [result, setResult] = useState<IRCalculation | null>(null);
   const [calculating, setCalculating] = useState(false);
