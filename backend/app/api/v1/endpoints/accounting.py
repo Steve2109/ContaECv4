@@ -11,6 +11,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.accounting import (
     AsientoContable,
@@ -111,6 +112,7 @@ async def listar_cuentas_contables(
     db: AsyncSession = Depends(get_db),
 ):
     """Lista las cuentas contables de la empresa"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -150,6 +152,7 @@ async def crear_cuenta_contable(
     db: AsyncSession = Depends(get_db),
 ):
     """Crea una nueva cuenta contable"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -193,6 +196,7 @@ async def actualizar_cuenta_contable(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualiza una cuenta contable"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     cuenta = await db.get(CuentaContable, cuenta_id)
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta contable no encontrada")
@@ -216,6 +220,7 @@ async def eliminar_cuenta_contable(
     db: AsyncSession = Depends(get_db),
 ):
     """Elimina (desactiva) una cuenta contable"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     cuenta = await db.get(CuentaContable, cuenta_id)
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta contable no encontrada")
@@ -240,6 +245,7 @@ async def seed_plan_cuentas_default(
     db: AsyncSession = Depends(get_db),
 ):
     """Genera el Plan de Cuentas por defecto para una empresa"""
+    company_id = validate_uuid(company_id, "company_id")
     _check_company_access(user, company_id)
 
     # Check if already has accounts
@@ -381,6 +387,7 @@ async def listar_asientos(
     db: AsyncSession = Depends(get_db),
 ):
     """Lista asientos contables"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -430,6 +437,8 @@ async def crear_asiento(
     db: AsyncSession = Depends(get_db),
 ):
     """Crea un asiento contable con partida doble"""
+    data.referencia_id = clean_uuid_param(data.referencia_id, "referencia_id")
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -546,6 +555,7 @@ async def actualizar_asiento(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualiza un asiento contable (solo en borrador)"""
+    asiento_id = validate_uuid(asiento_id, "asiento_id")
     asiento = await db.get(AsientoContable, asiento_id)
     if not asiento:
         raise HTTPException(status_code=404, detail="Asiento no encontrado")
@@ -614,6 +624,7 @@ async def aprobar_asiento(
     db: AsyncSession = Depends(get_db),
 ):
     """Aprueba un asiento contable"""
+    asiento_id = validate_uuid(asiento_id, "asiento_id")
     asiento = await db.get(AsientoContable, asiento_id)
     if not asiento:
         raise HTTPException(status_code=404, detail="Asiento no encontrado")
@@ -637,6 +648,7 @@ async def anular_asiento(
     db: AsyncSession = Depends(get_db),
 ):
     """Anula un asiento contable y revierte saldos"""
+    asiento_id = validate_uuid(asiento_id, "asiento_id")
     asiento = await db.get(AsientoContable, asiento_id)
     if not asiento:
         raise HTTPException(status_code=404, detail="Asiento no encontrado")
@@ -677,6 +689,8 @@ async def listar_cuentas_por_cobrar(
     db: AsyncSession = Depends(get_db),
 ):
     """Lista cuentas por cobrar"""
+    client_id = clean_uuid_param(client_id, "client_id")
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -725,6 +739,7 @@ async def crear_cuenta_por_cobrar(
     db: AsyncSession = Depends(get_db),
 ):
     """Crea una cuenta por cobrar"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -754,6 +769,7 @@ async def actualizar_cuenta_por_cobrar(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualiza una cuenta por cobrar"""
+    cxc_id = validate_uuid(cxc_id, "cxc_id")
     cxc = await db.get(CuentaPorCobrar, cxc_id)
     if not cxc:
         raise HTTPException(status_code=404, detail="Cuenta por cobrar no encontrada")
@@ -777,6 +793,7 @@ async def envejecimiento_cartera(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene el envejecimiento de cartera (CxC agrupado por cliente y rango)"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -854,6 +871,7 @@ async def listar_pagos(
     db: AsyncSession = Depends(get_db),
 ):
     """Lista pagos/cobros"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -885,6 +903,10 @@ async def crear_pago(
     db: AsyncSession = Depends(get_db),
 ):
     """Registra un pago/cobro"""
+    data.cuenta_bancaria_id = clean_uuid_param(data.cuenta_bancaria_id, "cuenta_bancaria_id")
+    data.cuenta_por_cobrar_id = clean_uuid_param(data.cuenta_por_cobrar_id, "cuenta_por_cobrar_id")
+    data.cuenta_por_pagar_id = clean_uuid_param(data.cuenta_por_pagar_id, "cuenta_por_pagar_id")
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -952,6 +974,7 @@ async def confirmar_pago(
     db: AsyncSession = Depends(get_db),
 ):
     """Confirma un pago/cobro"""
+    pago_id = validate_uuid(pago_id, "pago_id")
     pago = await db.get(Pago, pago_id)
     if not pago:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
@@ -969,6 +992,7 @@ async def anular_pago(
     db: AsyncSession = Depends(get_db),
 ):
     """Anula un pago/cobro y revierte montos"""
+    pago_id = validate_uuid(pago_id, "pago_id")
     pago = await db.get(Pago, pago_id)
     if not pago:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
@@ -1010,6 +1034,7 @@ async def listar_periodos_fiscales(
     db: AsyncSession = Depends(get_db),
 ):
     """Lista períodos fiscales"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -1035,6 +1060,7 @@ async def crear_periodo_fiscal(
     db: AsyncSession = Depends(get_db),
 ):
     """Crea un período fiscal"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -1070,6 +1096,7 @@ async def cerrar_periodo_fiscal(
     db: AsyncSession = Depends(get_db),
 ):
     """Cierra un período fiscal - impide crear/modificar asientos en ese período"""
+    periodo_id = validate_uuid(periodo_id, "periodo_id")
     periodo = await db.get(PeriodoFiscal, periodo_id)
     if not periodo:
         raise HTTPException(status_code=404, detail="Período fiscal no encontrado")
@@ -1129,6 +1156,7 @@ async def reabrir_periodo_fiscal(
     db: AsyncSession = Depends(get_db),
 ):
     """Reabre un período fiscal cerrado"""
+    periodo_id = validate_uuid(periodo_id, "periodo_id")
     periodo = await db.get(PeriodoFiscal, periodo_id)
     if not periodo:
         raise HTTPException(status_code=404, detail="Período fiscal no encontrado")
@@ -1158,6 +1186,7 @@ async def balance_comprobacion(
     db: AsyncSession = Depends(get_db),
 ):
     """Genera el Balance de Comprobación"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -1223,6 +1252,7 @@ async def libro_diario(
     db: AsyncSession = Depends(get_db),
 ):
     """Genera el Libro Diario"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 
@@ -1273,6 +1303,7 @@ async def libro_mayor(
     db: AsyncSession = Depends(get_db),
 ):
     """Genera el Libro Mayor para una cuenta contable"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     cuenta = await db.get(CuentaContable, cuenta_id)
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta contable no encontrada")
@@ -1347,6 +1378,7 @@ async def contabilidad_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene estadísticas del módulo contable"""
+    company_id = clean_company_id(company_id)
     cid = company_id or _get_company_id_for_user(user)
     _check_company_access(user, cid)
 

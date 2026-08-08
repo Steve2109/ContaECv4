@@ -139,6 +139,13 @@ async function apiDelete<T>(endpoint: string): Promise<T> {
   return apiRequest<T>('DELETE', endpoint);
 }
 
+// Validates that a companyId is a real value (not empty/'undefined'/'null')
+function isValidCompanyId(companyId: string | undefined | null): boolean {
+  if (!companyId) return false;
+  const trimmed = companyId.trim();
+  return trimmed !== '' && trimmed !== 'undefined' && trimmed !== 'null';
+}
+
 // Auth functions
 interface AuthResponse {
   access_token: string;
@@ -1124,11 +1131,10 @@ async function deleteProduct(id: string): Promise<void> {
 // ============ CLIENT API FUNCTIONS ============
 
 async function getClients(companyId: string): Promise<ClientResponse[]> {
-  const id = companyId?.trim();
-  if (!id || id === 'undefined' || id === 'null') {
+  if (!isValidCompanyId(companyId)) {
     return [];
   }
-  return apiGet<ClientResponse[]>(`/v1/clients?company_id=${encodeURIComponent(id)}`);
+  return apiGet<ClientResponse[]>(`/v1/clients?company_id=${encodeURIComponent(companyId.trim())}`);
 }
 
 async function createClient(data: ClientCreate): Promise<ClientResponse> {
@@ -1501,7 +1507,8 @@ async function recordEmployeeCese(id: string, data: EmployeeCese): Promise<Emplo
 }
 
 async function getEmployeeDepartments(companyId: string): Promise<Array<{ departamento: string; count: number }>> {
-  return apiGet(`/v1/employees/departments?company_id=${companyId}`);
+  if (!isValidCompanyId(companyId)) return [];
+  return apiGet(`/v1/employees/departments?company_id=${encodeURIComponent(companyId.trim())}`);
 }
 
 // ============ PAYROLL TYPES ============
@@ -1910,6 +1917,7 @@ async function sendEmailWithTemplate(data: { template_id: string; comprobante_id
 
 // ============ IMPORT/EXPORT ============
 async function importProductsExcel(companyId: string, file: File): Promise<{ success: number; errors: number; error_details: string[] }> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const formData = new FormData();
   formData.append('file', file);
   const token = getToken();
@@ -1926,6 +1934,7 @@ async function importProductsExcel(companyId: string, file: File): Promise<{ suc
 }
 
 async function importProductsCSV(companyId: string, file: File): Promise<{ success: number; errors: number; error_details: string[] }> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const formData = new FormData();
   formData.append('file', file);
   const token = getToken();
@@ -1942,6 +1951,7 @@ async function importProductsCSV(companyId: string, file: File): Promise<{ succe
 }
 
 async function importClientsExcel(companyId: string, file: File): Promise<{ success: number; errors: number; error_details: string[] }> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const formData = new FormData();
   formData.append('file', file);
   const token = getToken();
@@ -1958,6 +1968,7 @@ async function importClientsExcel(companyId: string, file: File): Promise<{ succ
 }
 
 async function importClientsCSV(companyId: string, file: File): Promise<{ success: number; errors: number; error_details: string[] }> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const formData = new FormData();
   formData.append('file', file);
   const token = getToken();
@@ -1974,6 +1985,7 @@ async function importClientsCSV(companyId: string, file: File): Promise<{ succes
 }
 
 async function exportProductsExcel(companyId: string): Promise<Blob> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const token = getToken();
   const response = await fetch(buildUrl(`/v1/exports/products/excel?company_id=${companyId}`), {
     headers: { Authorization: `Bearer ${token}` },
@@ -1983,6 +1995,7 @@ async function exportProductsExcel(companyId: string): Promise<Blob> {
 }
 
 async function exportProductsCSV(companyId: string): Promise<Blob> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const token = getToken();
   const response = await fetch(buildUrl(`/v1/exports/products/csv?company_id=${companyId}`), {
     headers: { Authorization: `Bearer ${token}` },
@@ -1992,6 +2005,7 @@ async function exportProductsCSV(companyId: string): Promise<Blob> {
 }
 
 async function exportComprobantesExcel(companyId: string): Promise<Blob> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const token = getToken();
   const response = await fetch(buildUrl(`/v1/exports/comprobantes/excel?company_id=${companyId}`), {
     headers: { Authorization: `Bearer ${token}` },
@@ -2001,6 +2015,7 @@ async function exportComprobantesExcel(companyId: string): Promise<Blob> {
 }
 
 async function exportComprobantesXMLZip(companyId: string): Promise<Blob> {
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const token = getToken();
   const response = await fetch(buildUrl(`/v1/exports/comprobantes/xml-zip?company_id=${companyId}`), {
     headers: { Authorization: `Bearer ${token}` },
@@ -2164,7 +2179,8 @@ interface WarehouseKardexDetalle {
 
 // Warehouse CRUD
 async function getWarehouses(companyId: string): Promise<Warehouse[]> {
-  return apiGet<Warehouse[]>(`/v1/warehouses?company_id=${companyId}`);
+  if (!isValidCompanyId(companyId)) return [];
+  return apiGet<Warehouse[]>(`/v1/warehouses?company_id=${encodeURIComponent(companyId.trim())}`);
 }
 
 async function getWarehouse(id: string): Promise<Warehouse> {
@@ -2975,7 +2991,8 @@ async function completeCRMActivity(id: string): Promise<CRMActivity> {
 }
 
 async function getCRMSegments(companyId: string): Promise<CRMSegment[]> {
-  return apiGet<CRMSegment[]>(`/v1/crm/segments?company_id=${companyId}`);
+  if (!isValidCompanyId(companyId)) return [];
+  return apiGet<CRMSegment[]>(`/v1/crm/segments?company_id=${encodeURIComponent(companyId.trim())}`);
 }
 
 async function createCRMSegment(data: CRMSegmentCreate): Promise<CRMSegment> {
@@ -2995,7 +3012,8 @@ async function assignClientToSegment(segmentId: string, clientId: string): Promi
 }
 
 async function getCRMAutomations(companyId: string): Promise<CRMAutomation[]> {
-  return apiGet<CRMAutomation[]>(`/v1/crm/automations?company_id=${companyId}`);
+  if (!isValidCompanyId(companyId)) return [];
+  return apiGet<CRMAutomation[]>(`/v1/crm/automations?company_id=${encodeURIComponent(companyId.trim())}`);
 }
 
 async function createCRMAutomation(data: CRMAutomationCreate): Promise<CRMAutomation> {
@@ -3271,7 +3289,8 @@ async function deleteProyecto(id: string): Promise<void> {
 }
 
 async function getProyectoStats(companyId: string): Promise<ProyectoStats> {
-  return apiGet<ProyectoStats>(`/v1/projects/stats?company_id=${companyId}`);
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
+  return apiGet<ProyectoStats>(`/v1/projects/stats?company_id=${encodeURIComponent(companyId.trim())}`);
 }
 
 async function recalcularProyecto(id: string): Promise<ProyectoResponse> {
@@ -3581,7 +3600,8 @@ interface IntegrationStats {
 
 // Integration Stats
 async function getIntegrationStats(companyId: string): Promise<IntegrationStats> {
-  return apiGet<IntegrationStats>(`/v1/integrations/stats?company_id=${companyId}`);
+  if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
+  return apiGet<IntegrationStats>(`/v1/integrations/stats?company_id=${encodeURIComponent(companyId.trim())}`);
 }
 
 // Bank Accounts

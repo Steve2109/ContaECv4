@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user, get_current_active_admin
 from app.models.notification import (
     Notification,
@@ -96,6 +97,7 @@ async def list_notifications(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar notificaciones para el usuario actual con conteo de no leídas"""
+    company_id = clean_company_id(company_id)
     # Obtener IDs de empresas del usuario
     from app.models.company import Company
     company_result = await db.execute(
@@ -196,6 +198,8 @@ async def create_notification(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva notificación (solo administradores)"""
+    data.user_id = clean_uuid_param(data.user_id, "user_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Validar tipo
     valid_types = {t.value for t in NotificationType}
     if data.type not in valid_types:
@@ -318,6 +322,7 @@ async def mark_as_read(
     db: AsyncSession = Depends(get_db),
 ):
     """Marcar una notificación como leída"""
+    notification_id = validate_uuid(notification_id, "notification_id")
     notification = await _get_notification_or_404(db, notification_id)
 
     # Verificar que el usuario tenga acceso a esta notificación
@@ -348,6 +353,7 @@ async def update_notification(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una notificación (is_read, is_active)"""
+    notification_id = validate_uuid(notification_id, "notification_id")
     notification = await _get_notification_or_404(db, notification_id)
 
     # Verificar permisos: solo admin o el propio usuario pueden actualizar
@@ -392,6 +398,7 @@ async def delete_notification(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una notificación (solo administradores)"""
+    notification_id = validate_uuid(notification_id, "notification_id")
     notification = await _get_notification_or_404(db, notification_id)
 
     # Soft delete: marcar como inactiva

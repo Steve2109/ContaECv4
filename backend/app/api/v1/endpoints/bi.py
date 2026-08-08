@@ -17,6 +17,7 @@ from sqlalchemy import select, func, and_, extract, case, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.user import User, UserConfig
 from app.models.company import Company
@@ -94,6 +95,7 @@ async def get_kpis(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene KPIs en tiempo real del negocio"""
+    company_id = clean_company_id(company_id)
     mes, anio = _parse_periodo(periodo)
 
     # Fechas del período actual
@@ -327,6 +329,7 @@ async def get_ventas_mensuales(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene datos de ventas mensuales para gráficos"""
+    company_id = clean_company_id(company_id)
     if not anio:
         anio = datetime.now(timezone.utc).year
 
@@ -382,6 +385,7 @@ async def get_ventas_por_tipo(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene ventas agrupadas por tipo de comprobante"""
+    company_id = clean_company_id(company_id)
     mes, anio = _parse_periodo(periodo)
     fecha_inicio = datetime(anio, mes, 1, tzinfo=timezone.utc)
     if mes == 12:
@@ -433,6 +437,7 @@ async def get_top_productos(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene los productos más vendidos"""
+    company_id = clean_company_id(company_id)
     mes, anio = _parse_periodo(periodo)
     fecha_inicio = datetime(anio, mes, 1, tzinfo=timezone.utc)
     if mes == 12:
@@ -495,6 +500,7 @@ async def get_top_clientes(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene los clientes con mayor volumen de compras"""
+    company_id = clean_company_id(company_id)
     mes, anio = _parse_periodo(periodo)
     fecha_inicio = datetime(anio, mes, 1, tzinfo=timezone.utc)
     if mes == 12:
@@ -555,6 +561,7 @@ async def get_flujo_efectivo(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene resumen de flujo de efectivo mensual"""
+    company_id = clean_company_id(company_id)
     if not anio:
         anio = datetime.now(timezone.utc).year
 
@@ -629,6 +636,7 @@ async def get_alertas(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene alertas inteligentes del sistema"""
+    company_id = clean_company_id(company_id)
     now = datetime.now(timezone.utc)
     alertas = []
     alert_counter = 0
@@ -839,6 +847,7 @@ async def get_cuadro_mando(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtiene el Cuadro de Mando ejecutivo con resumen consolidado"""
+    company_id = clean_company_id(company_id)
     now = datetime.now(timezone.utc)
     mes_actual = now.month
     anio_actual = now.year
@@ -1115,6 +1124,7 @@ async def export_powerbi(
     db: AsyncSession = Depends(get_db),
 ):
     """Exporta datos en formato compatible con Power BI (JSON)"""
+    company_id = clean_company_id(company_id)
 
     # Parse date range
     if periodo_desde:
@@ -1294,6 +1304,7 @@ async def export_powerbi_file(
     db: AsyncSession = Depends(get_db),
 ):
     """Descarga la exportación de Power BI como archivo JSON"""
+    company_id = clean_company_id(company_id)
     # Reuse the export endpoint logic
     export_data = await export_powerbi(
         company_id=company_id,

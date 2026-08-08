@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.core.xml_generator import generate_clave_acceso
 from app.models.client import Client
@@ -152,6 +153,8 @@ async def create_proforma(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva proforma"""
+    data.client_id = clean_uuid_param(data.client_id, "client_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     try:
         company = await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -280,6 +283,7 @@ async def list_proformas(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar proformas del usuario"""
+    company_id = clean_company_id(company_id)
     query = (
         select(Proforma)
         .join(Company, Proforma.company_id == Company.id)
@@ -310,6 +314,7 @@ async def get_proforma_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener estadísticas de proformas"""
+    company_id = clean_company_id(company_id)
     base_query = (
         select(Proforma)
         .join(Company, Proforma.company_id == Company.id)
@@ -356,6 +361,7 @@ async def get_proforma(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una proforma específica"""
+    proforma_id = validate_uuid(proforma_id, "proforma_id")
     result = await db.execute(
         select(Proforma).where(
             Proforma.id == proforma_id,
@@ -383,6 +389,8 @@ async def update_proforma(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una proforma (solo BORRADOR)"""
+    data.client_id = clean_uuid_param(data.client_id, "client_id")
+    proforma_id = validate_uuid(proforma_id, "proforma_id")
     result = await db.execute(
         select(Proforma).where(
             Proforma.id == proforma_id,
@@ -507,6 +515,7 @@ async def delete_proforma(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar lógicamente una proforma (solo BORRADOR)"""
+    proforma_id = validate_uuid(proforma_id, "proforma_id")
     result = await db.execute(
         select(Proforma).where(
             Proforma.id == proforma_id,
@@ -542,6 +551,7 @@ async def enviar_proforma(
     db: AsyncSession = Depends(get_db),
 ):
     """Marcar proforma como ENVIADA"""
+    proforma_id = validate_uuid(proforma_id, "proforma_id")
     result = await db.execute(
         select(Proforma).where(
             Proforma.id == proforma_id,
@@ -580,6 +590,7 @@ async def convertir_proforma(
     db: AsyncSession = Depends(get_db),
 ):
     """Convertir una proforma en Factura electrónica (Comprobante tipo 01)"""
+    proforma_id = validate_uuid(proforma_id, "proforma_id")
     result = await db.execute(
         select(Proforma).where(
             Proforma.id == proforma_id,

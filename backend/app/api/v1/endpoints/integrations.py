@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.integration import (
@@ -92,6 +93,7 @@ async def get_integration_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener estadisticas generales de integraciones"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Bank stats
@@ -211,6 +213,7 @@ async def create_cuenta_bancaria(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una cuenta bancaria"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate tipo_cuenta
@@ -262,6 +265,7 @@ async def list_cuentas_bancarias(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar cuentas bancarias"""
+    company_id = clean_company_id(company_id)
     try:
         query = (
             select(CuentaBancaria)
@@ -301,6 +305,7 @@ async def get_cuenta_bancaria(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una cuenta bancaria por ID"""
+    account_id = validate_uuid(account_id, "account_id")
     result = await db.execute(
         select(CuentaBancaria).where(CuentaBancaria.id == account_id)
     )
@@ -320,6 +325,7 @@ async def update_cuenta_bancaria(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una cuenta bancaria"""
+    account_id = validate_uuid(account_id, "account_id")
     result = await db.execute(
         select(CuentaBancaria).where(CuentaBancaria.id == account_id)
     )
@@ -356,6 +362,7 @@ async def delete_cuenta_bancaria(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una cuenta bancaria (soft delete)"""
+    account_id = validate_uuid(account_id, "account_id")
     result = await db.execute(
         select(CuentaBancaria).where(CuentaBancaria.id == account_id)
     )
@@ -393,6 +400,8 @@ async def create_extracto(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear/importar un extracto bancario"""
+    data.cuenta_bancaria_id = clean_uuid_param(data.cuenta_bancaria_id, "cuenta_bancaria_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verify cuenta bancaria ownership
@@ -446,6 +455,8 @@ async def list_extractos(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar extractos bancarios"""
+    cuenta_bancaria_id = clean_uuid_param(cuenta_bancaria_id, "cuenta_bancaria_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(ExtractoBancario)
         .join(Company, ExtractoBancario.company_id == Company.id)
@@ -488,6 +499,7 @@ async def get_extracto(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un extracto bancario por ID"""
+    statement_id = validate_uuid(statement_id, "statement_id")
     result = await db.execute(
         select(ExtractoBancario).where(ExtractoBancario.id == statement_id)
     )
@@ -515,6 +527,7 @@ async def delete_extracto(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un extracto bancario y sus movimientos"""
+    statement_id = validate_uuid(statement_id, "statement_id")
     result = await db.execute(
         select(ExtractoBancario).where(ExtractoBancario.id == statement_id)
     )
@@ -552,6 +565,9 @@ async def create_movimiento(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un movimiento bancario"""
+    data.cuenta_bancaria_id = clean_uuid_param(data.cuenta_bancaria_id, "cuenta_bancaria_id")
+    data.extracto_id = clean_uuid_param(data.extracto_id, "extracto_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verify cuenta bancaria ownership
@@ -615,6 +631,8 @@ async def list_movimientos(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar movimientos bancarios con filtros"""
+    extracto_id = clean_uuid_param(extracto_id, "extracto_id")
+    cuenta_bancaria_id = clean_uuid_param(cuenta_bancaria_id, "cuenta_bancaria_id")
     query = (
         select(MovimientoBancario)
         .join(Company, MovimientoBancario.company_id == Company.id)
@@ -646,6 +664,7 @@ async def update_movimiento(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un movimiento bancario (conciliacion)"""
+    movement_id = validate_uuid(movement_id, "movement_id")
     result = await db.execute(
         select(MovimientoBancario).where(MovimientoBancario.id == movement_id)
     )
@@ -714,6 +733,7 @@ async def delete_movimiento(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un movimiento bancario"""
+    movement_id = validate_uuid(movement_id, "movement_id")
     result = await db.execute(
         select(MovimientoBancario).where(MovimientoBancario.id == movement_id)
     )
@@ -744,6 +764,7 @@ async def import_bank_csv(
     Nota: En produccion se procesaria el archivo subido.
     Aqui se crea el extracto con los datos proporcionados.
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     cuenta_result = await db.execute(
@@ -775,6 +796,7 @@ async def create_ecommerce_connector(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un conector e-commerce"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     try:
         await _get_company_for_user(db, data.company_id, current_user.id)
     except HTTPException:
@@ -842,6 +864,7 @@ async def list_ecommerce_connectors(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar conectores e-commerce"""
+    company_id = clean_company_id(company_id)
     try:
         query = (
             select(EcommerceConnector)
@@ -880,6 +903,7 @@ async def get_ecommerce_connector(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un conector e-commerce por ID"""
+    connector_id = validate_uuid(connector_id, "connector_id")
     result = await db.execute(
         select(EcommerceConnector).where(EcommerceConnector.id == connector_id)
     )
@@ -899,6 +923,7 @@ async def update_ecommerce_connector(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un conector e-commerce"""
+    connector_id = validate_uuid(connector_id, "connector_id")
     result = await db.execute(
         select(EcommerceConnector).where(EcommerceConnector.id == connector_id)
     )
@@ -935,6 +960,7 @@ async def delete_ecommerce_connector(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un conector e-commerce"""
+    connector_id = validate_uuid(connector_id, "connector_id")
     result = await db.execute(
         select(EcommerceConnector).where(EcommerceConnector.id == connector_id)
     )
@@ -973,6 +999,7 @@ async def test_ecommerce_connection(
     db: AsyncSession = Depends(get_db),
 ):
     """Probar la conexion con la plataforma e-commerce"""
+    connector_id = validate_uuid(connector_id, "connector_id")
     result = await db.execute(
         select(EcommerceConnector).where(EcommerceConnector.id == connector_id)
     )
@@ -1035,6 +1062,7 @@ async def sync_ecommerce(
     db: AsyncSession = Depends(get_db),
 ):
     """Ejecutar sincronizacion con la plataforma e-commerce"""
+    connector_id = validate_uuid(connector_id, "connector_id")
     result = await db.execute(
         select(EcommerceConnector).where(EcommerceConnector.id == connector_id)
     )
@@ -1110,6 +1138,8 @@ async def list_sync_logs(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar logs de sincronizacion e-commerce"""
+    connector_id = clean_uuid_param(connector_id, "connector_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(EcommerceSyncLog)
         .join(Company, EcommerceSyncLog.company_id == Company.id)
@@ -1345,6 +1375,7 @@ async def sync_ecommerce_products(
     (sku->codigo_principal, title->descripcion, price->precio_venta, stock->stock_actual)
     Supports: woocommerce, shopify
     """
+    connector_id = validate_uuid(connector_id, "connector_id")
     from app.models.product import Product, ProductoTipo
 
     connector = await _get_connector_for_user(db, connector_id, current_user.id)
@@ -1494,6 +1525,7 @@ async def sync_ecommerce_orders(
     Creates Factura (Comprobante) in ContaEC from each e-commerce order.
     Maps: order->comprobante, customer->cliente, items->detalles
     """
+    connector_id = validate_uuid(connector_id, "connector_id")
     from app.models.comprobante import Comprobante, ComprobanteDetalle, ComprobanteEstado, ComprobanteTipo
     from app.models.client import Client
 
@@ -1705,6 +1737,7 @@ async def sync_ecommerce_inventory(
     Sync inventory from ContaEC to e-commerce platform.
     Pushes stock levels back to e-commerce platform.
     """
+    connector_id = validate_uuid(connector_id, "connector_id")
     from app.models.product import Product
 
     connector = await _get_connector_for_user(db, connector_id, current_user.id)
@@ -1819,6 +1852,7 @@ async def get_ecommerce_connector_status(
     """
     Get last sync status, errors, and product count for an e-commerce connector.
     """
+    connector_id = validate_uuid(connector_id, "connector_id")
     connector = await _get_connector_for_user(db, connector_id, current_user.id)
 
     last_sync_result = await db.execute(

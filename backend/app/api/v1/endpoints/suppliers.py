@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.supplier import Supplier
@@ -68,6 +69,7 @@ async def create_supplier(
 
     Verifica que la empresa pertenezca al usuario antes de crear el proveedor.
     """
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -143,6 +145,7 @@ async def list_suppliers(
 
     Opcionalmente filtrado por empresa, tipo de identificación y estado activo.
     """
+    company_id = clean_company_id(company_id)
     # Consulta base: proveedores de empresas del usuario
     query = (
         select(Supplier)
@@ -179,6 +182,7 @@ async def get_supplier(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un proveedor específico por su ID"""
+    supplier_id = validate_uuid(supplier_id, "supplier_id")
     result = await db.execute(
         select(Supplier).where(Supplier.id == supplier_id)
     )
@@ -205,6 +209,7 @@ async def update_supplier(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar datos de un proveedor"""
+    supplier_id = validate_uuid(supplier_id, "supplier_id")
     result = await db.execute(
         select(Supplier).where(Supplier.id == supplier_id)
     )
@@ -272,6 +277,7 @@ async def delete_supplier(
     Los proveedores usados en órdenes de compra o cuentas por pagar
     no se eliminan físicamente para mantener la integridad referencial.
     """
+    supplier_id = validate_uuid(supplier_id, "supplier_id")
     result = await db.execute(
         select(Supplier).where(Supplier.id == supplier_id)
     )

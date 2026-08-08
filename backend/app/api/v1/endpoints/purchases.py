@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.purchase import (
@@ -90,6 +91,8 @@ async def create_orden_compra(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva orden de compra"""
+    data.supplier_id = clean_uuid_param(data.supplier_id, "supplier_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar proveedor
@@ -172,6 +175,8 @@ async def list_ordenes_compra(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar órdenes de compra"""
+    supplier_id = clean_uuid_param(supplier_id, "supplier_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(OrdenCompra)
         .join(Company, OrdenCompra.company_id == Company.id)
@@ -202,6 +207,7 @@ async def get_orden_compra(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una orden de compra específica"""
+    orden_id = validate_uuid(orden_id, "orden_id")
     result = await db.execute(
         select(OrdenCompra).where(OrdenCompra.id == orden_id)
     )
@@ -221,6 +227,7 @@ async def update_orden_compra(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una orden de compra"""
+    orden_id = validate_uuid(orden_id, "orden_id")
     result = await db.execute(
         select(OrdenCompra).where(OrdenCompra.id == orden_id)
     )
@@ -259,6 +266,7 @@ async def delete_orden_compra(
     db: AsyncSession = Depends(get_db),
 ):
     """Anular una orden de compra (eliminación lógica)"""
+    orden_id = validate_uuid(orden_id, "orden_id")
     result = await db.execute(
         select(OrdenCompra).where(OrdenCompra.id == orden_id)
     )
@@ -293,6 +301,9 @@ async def create_recepcion_mercaderia(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva recepción de mercadería"""
+    data.supplier_id = clean_uuid_param(data.supplier_id, "supplier_id")
+    data.orden_compra_id = clean_uuid_param(data.orden_compra_id, "orden_compra_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar proveedor
@@ -377,6 +388,8 @@ async def list_recepciones(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar recepciones de mercadería"""
+    supplier_id = clean_uuid_param(supplier_id, "supplier_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(RecepcionMercaderia)
         .join(Company, RecepcionMercaderia.company_id == Company.id)
@@ -407,6 +420,7 @@ async def get_recepcion(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una recepción de mercadería específica"""
+    recepcion_id = validate_uuid(recepcion_id, "recepcion_id")
     result = await db.execute(
         select(RecepcionMercaderia).where(RecepcionMercaderia.id == recepcion_id)
     )
@@ -426,6 +440,7 @@ async def update_recepcion(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una recepción de mercadería"""
+    recepcion_id = validate_uuid(recepcion_id, "recepcion_id")
     result = await db.execute(
         select(RecepcionMercaderia).where(RecepcionMercaderia.id == recepcion_id)
     )
@@ -458,6 +473,7 @@ async def delete_recepcion(
     db: AsyncSession = Depends(get_db),
 ):
     """Desactivar una recepción de mercadería"""
+    recepcion_id = validate_uuid(recepcion_id, "recepcion_id")
     result = await db.execute(
         select(RecepcionMercaderia).where(RecepcionMercaderia.id == recepcion_id)
     )
@@ -491,6 +507,10 @@ async def create_cuenta_por_pagar(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva cuenta por pagar"""
+    data.supplier_id = clean_uuid_param(data.supplier_id, "supplier_id")
+    data.comprobante_id = clean_uuid_param(data.comprobante_id, "comprobante_id")
+    data.orden_compra_id = clean_uuid_param(data.orden_compra_id, "orden_compra_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar proveedor
@@ -546,6 +566,8 @@ async def list_cuentas_por_pagar(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar cuentas por pagar"""
+    supplier_id = clean_uuid_param(supplier_id, "supplier_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(CuentaPorPagar)
         .join(Company, CuentaPorPagar.company_id == Company.id)
@@ -576,6 +598,7 @@ async def get_cuenta_por_pagar(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una cuenta por pagar específica"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     result = await db.execute(
         select(CuentaPorPagar).where(CuentaPorPagar.id == cuenta_id)
     )
@@ -595,6 +618,7 @@ async def update_cuenta_por_pagar(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una cuenta por pagar (registro de pagos)"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     result = await db.execute(
         select(CuentaPorPagar).where(CuentaPorPagar.id == cuenta_id)
     )
@@ -642,6 +666,7 @@ async def delete_cuenta_por_pagar(
     db: AsyncSession = Depends(get_db),
 ):
     """Anular una cuenta por pagar"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     result = await db.execute(
         select(CuentaPorPagar).where(CuentaPorPagar.id == cuenta_id)
     )
@@ -676,6 +701,9 @@ async def create_retencion_compra(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva retención de compra"""
+    data.supplier_id = clean_uuid_param(data.supplier_id, "supplier_id")
+    data.cuenta_por_pagar_id = clean_uuid_param(data.cuenta_por_pagar_id, "cuenta_por_pagar_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar proveedor
@@ -746,6 +774,8 @@ async def list_retenciones(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar retenciones de compra"""
+    supplier_id = clean_uuid_param(supplier_id, "supplier_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(RetencionCompra)
         .join(Company, RetencionCompra.company_id == Company.id)
@@ -776,6 +806,7 @@ async def get_retencion(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una retención de compra específica"""
+    retencion_id = validate_uuid(retencion_id, "retencion_id")
     result = await db.execute(
         select(RetencionCompra).where(RetencionCompra.id == retencion_id)
     )
@@ -795,6 +826,7 @@ async def update_retencion(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una retención de compra"""
+    retencion_id = validate_uuid(retencion_id, "retencion_id")
     result = await db.execute(
         select(RetencionCompra).where(RetencionCompra.id == retencion_id)
     )
@@ -833,6 +865,7 @@ async def delete_retencion(
     db: AsyncSession = Depends(get_db),
 ):
     """Desactivar una retención de compra"""
+    retencion_id = validate_uuid(retencion_id, "retencion_id")
     result = await db.execute(
         select(RetencionCompra).where(RetencionCompra.id == retencion_id)
     )

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.encryption import decrypt_field
 from app.core.ride_generator import generate_ride_pdf
 from app.core.security import get_current_user
@@ -230,6 +231,9 @@ async def create_comprobante(
     7. Establecer estado = BORRADOR
     8. Retornar el comprobante creado
     """
+    data.client_id = clean_uuid_param(data.client_id, "client_id")
+    data.comprobante_modificado_id = clean_uuid_param(data.comprobante_modificado_id, "comprobante_modificado_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # 1. Validar empresa
     company = await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -409,6 +413,7 @@ async def list_comprobantes(
     """
     Listar comprobantes del usuario, opcionalmente filtrados por empresa, tipo o estado.
     """
+    company_id = clean_company_id(company_id)
     # Construir consulta base: solo comprobantes de empresas del usuario
     query = (
         select(Comprobante)
@@ -450,6 +455,7 @@ async def get_comprobante_stats(
     
     Incluye conteo por estado y monto total de comprobantes autorizados.
     """
+    company_id = clean_company_id(company_id)
     # Consulta base: comprobantes de empresas del usuario
     base_query = (
         select(Comprobante)
@@ -507,6 +513,7 @@ async def get_comprobante(
     
     Verifica que el comprobante pertenezca a una empresa del usuario.
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     result = await db.execute(
         select(Comprobante).where(
             Comprobante.id == comprobante_id,
@@ -545,6 +552,7 @@ async def firmar_comprobante(
     6. Actualizar estado a FIRMADO
     7. Retornar vista previa del XML firmado
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # 1. Obtener comprobante
     result = await db.execute(
         select(Comprobante).where(
@@ -856,6 +864,7 @@ async def enviar_comprobante_sri(
     Nota: La autorización es un paso separado (consultar endpoint).
     El servicio de Recepción solo devuelve RECIBIDA o DEVUELTA.
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante
     result = await db.execute(
         select(Comprobante).where(
@@ -962,6 +971,7 @@ async def consultar_comprobante_sri(
     
     Para comprobantes en estado ENVIADO que aún no han sido resueltos.
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante
     result = await db.execute(
         select(Comprobante).where(
@@ -1056,6 +1066,7 @@ async def get_comprobante_xml(
     Si el comprobante está firmado, retorna el XML firmado.
     Si está en borrador, genera el XML sin firma para vista previa.
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     result = await db.execute(
         select(Comprobante).where(
             Comprobante.id == comprobante_id,
@@ -1114,6 +1125,7 @@ async def delete_comprobante(
     Los comprobantes firmados o enviados no pueden eliminarse
     ya que ya tienen existencia legal o en el SRI.
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     result = await db.execute(
         select(Comprobante).where(
             Comprobante.id == comprobante_id,
@@ -1163,6 +1175,7 @@ async def enviar_comprobante_email(
     Adjunta el XML firmado y el RIDE en PDF.
     Requiere configuración SMTP en UserConfig.
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante
     result = await db.execute(
         select(Comprobante).where(
@@ -1372,6 +1385,7 @@ async def procesar_comprobante(
     3. Si sigue EN PROCESO, reintentar hasta 3 veces con delay de 3s
     4. Retornar el estado final del comprobante
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante
     result = await db.execute(
         select(Comprobante).where(
@@ -1543,6 +1557,7 @@ async def download_ride_pdf(
     3. Generar el PDF usando generate_ride_pdf()
     4. Retornar el PDF como FileResponse
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante con relaciones
     result = await db.execute(
         select(Comprobante).where(
@@ -1734,6 +1749,7 @@ async def validar_comprobante(
     Returns:
         { valid: bool, errors: [{field, message}], warnings: [{field, message}] }
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante
     result = await db.execute(
         select(Comprobante).where(
@@ -1916,6 +1932,7 @@ async def corregir_comprobante(
     numero_autorizacion, fecha_autorizacion, sri_mensaje.
     Actualiza los campos proporcionados en el body y recalcula totales.
     """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante
     result = await db.execute(
         select(Comprobante).where(

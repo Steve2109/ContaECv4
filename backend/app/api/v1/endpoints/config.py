@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.core.encryption import encrypt_field, decrypt_field
 from app.core.config import get_settings
@@ -412,6 +413,7 @@ async def test_smtp(
     db: AsyncSession = Depends(get_db),
 ):
     """Probar la configuracion SMTP enviando un correo de prueba"""
+    company_id = clean_company_id(company_id)
     from app.models.company import Company
 
     # Try company-level SMTP first if company_id provided

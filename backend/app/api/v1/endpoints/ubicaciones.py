@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.kardex import Kardex
@@ -151,6 +152,7 @@ async def list_ubicaciones(
     - **zona**: Ubicaciones en una zona especifica
     - **disponible**: True para ubicaciones sin producto, False con producto
     """
+    warehouse_id = clean_uuid_param(warehouse_id, "warehouse_id")
     query = (
         select(WarehouseLocation)
         .join(Warehouse, WarehouseLocation.warehouse_id == Warehouse.id)
@@ -195,6 +197,7 @@ async def get_ubicacion(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener detalle de una ubicacion fisica."""
+    ubicacion_id = validate_uuid(ubicacion_id, "ubicacion_id")
     location = await _get_location_for_user(db, ubicacion_id, current_user.id)
     return WarehouseLocationResponse.model_validate(location)
 
@@ -218,6 +221,8 @@ async def create_ubicacion(
     - Que no exista otra ubicacion con el mismo codigo en el almacen
     - Que capacidad_actual no exceda capacidad_maxima
     """
+    data.producto_id = clean_uuid_param(data.producto_id, "producto_id")
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     warehouse = await _get_warehouse_for_user(db, warehouse_id, current_user.id)
 
     # Validar capacidad
@@ -294,6 +299,7 @@ async def update_ubicacion(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una ubicacion fisica."""
+    ubicacion_id = validate_uuid(ubicacion_id, "ubicacion_id")
     location = await _get_location_for_user(db, ubicacion_id, current_user.id)
 
     update_data = data.model_dump(exclude_unset=True)
@@ -374,6 +380,7 @@ async def deactivate_ubicacion(
     Solo se permite si la ubicacion esta vacia (capacidad_actual == 0)
     y no tiene producto asignado.
     """
+    ubicacion_id = validate_uuid(ubicacion_id, "ubicacion_id")
     location = await _get_location_for_user(db, ubicacion_id, current_user.id)
 
     # Solo desactivar si esta vacia
@@ -430,6 +437,7 @@ async def get_ubicacion_stock(
     Retorna los productos asignados a esta ubicacion con sus cantidades
     obtenidas del ultimo registro kardex.
     """
+    ubicacion_id = validate_uuid(ubicacion_id, "ubicacion_id")
     location = await _get_location_for_user(db, ubicacion_id, current_user.id)
 
     if location.producto_id is None:
@@ -486,6 +494,7 @@ async def get_warehouse_map(
     Retorna un diccionario donde cada clave es una zona y el valor es la lista
     de ubicaciones en esa zona, facilitando la renderizacion de un mapa visual.
     """
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     warehouse = await _get_warehouse_for_user(db, warehouse_id, current_user.id)
 
     result = await db.execute(

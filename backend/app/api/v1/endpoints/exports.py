@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.client import Client
 from app.models.company import Company
@@ -93,6 +94,7 @@ async def export_products_excel(
     db: AsyncSession = Depends(get_db),
 ):
     """Exportar productos a archivo Excel (.xlsx)."""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(Product).where(Product.company_id == company_id)
@@ -190,6 +192,7 @@ async def export_products_csv(
     db: AsyncSession = Depends(get_db),
 ):
     """Exportar productos a archivo CSV."""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(Product).where(Product.company_id == company_id)
@@ -256,6 +259,7 @@ async def export_clients_excel(
     db: AsyncSession = Depends(get_db),
 ):
     """Exportar clientes a archivo Excel (.xlsx)."""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(Client).where(Client.company_id == company_id)
@@ -346,6 +350,7 @@ async def export_comprobantes_excel(
     db: AsyncSession = Depends(get_db),
 ):
     """Exportar comprobantes a archivo Excel (.xlsx)."""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(Comprobante).where(Comprobante.company_id == company_id)
@@ -446,6 +451,7 @@ async def export_comprobantes_pdf(
     Genera un PDF con un resumen/tabla de los comprobantes filtrados.
     Para RIDEs individuales usar /comprobantes/{id}/ride.
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(Comprobante).where(Comprobante.company_id == company_id)
@@ -573,6 +579,8 @@ async def export_kardex_excel(
     db: AsyncSession = Depends(get_db),
 ):
     """Exportar movimientos de kardex a archivo Excel (.xlsx)."""
+    product_id = clean_uuid_param(product_id, "product_id")
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(Kardex).where(
@@ -673,6 +681,7 @@ async def export_comprobantes_xml_zip(
 
     Incluye todos los XML firmados/autorizados de los comprobantes filtrados.
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(Comprobante).where(

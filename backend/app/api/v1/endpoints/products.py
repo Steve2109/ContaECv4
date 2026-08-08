@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.product import Product
@@ -67,6 +68,7 @@ async def create_product(
     Verifica que la empresa pertenezca al usuario antes de crear el producto.
     Valida el límite de productos según el plan de licencia.
     """
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -154,6 +156,7 @@ async def list_products(
 
     Opcionalmente filtrado por empresa, tipo (B/S) y estado activo.
     """
+    company_id = clean_company_id(company_id)
     try:
         # Consulta base: productos de empresas del usuario
         query = (
@@ -199,6 +202,7 @@ async def get_product(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un producto específico por su ID"""
+    product_id = validate_uuid(product_id, "product_id")
     result = await db.execute(
         select(Product).where(Product.id == product_id)
     )
@@ -224,6 +228,7 @@ async def update_product(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar datos de un producto o servicio"""
+    product_id = validate_uuid(product_id, "product_id")
     result = await db.execute(
         select(Product).where(Product.id == product_id)
     )
@@ -278,6 +283,7 @@ async def delete_product(
     Los productos usados en comprobantes existentes no se eliminan
     físicamente para mantener la integridad referencial.
     """
+    product_id = validate_uuid(product_id, "product_id")
     result = await db.execute(
         select(Product).where(Product.id == product_id)
     )

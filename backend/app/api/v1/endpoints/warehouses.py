@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.kardex import Kardex, KardexTipoMovimiento
@@ -131,6 +132,7 @@ async def list_warehouses(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar almacenes de la empresa"""
+    company_id = clean_company_id(company_id)
     try:
         query = (
             select(Warehouse)
@@ -167,6 +169,7 @@ async def create_warehouse(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un nuevo almacén"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar que el código sea único por empresa
@@ -226,6 +229,7 @@ async def get_warehouse(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un almacén específico con sus ubicaciones"""
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     result = await db.execute(
         select(Warehouse).where(Warehouse.id == warehouse_id)
     )
@@ -245,6 +249,7 @@ async def update_warehouse(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un almacén"""
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     result = await db.execute(
         select(Warehouse).where(Warehouse.id == warehouse_id)
     )
@@ -307,6 +312,7 @@ async def deactivate_warehouse(
     db: AsyncSession = Depends(get_db),
 ):
     """Desactivar un almacén (eliminación lógica)"""
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     result = await db.execute(
         select(Warehouse).where(Warehouse.id == warehouse_id)
     )
@@ -349,6 +355,8 @@ async def list_warehouse_locations(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar ubicaciones de un almacén"""
+    product_id = clean_uuid_param(product_id, "product_id")
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     result = await db.execute(
         select(Warehouse).where(Warehouse.id == warehouse_id)
     )
@@ -383,6 +391,8 @@ async def create_warehouse_location(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una ubicación dentro de un almacén"""
+    data.producto_id = clean_uuid_param(data.producto_id, "producto_id")
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     result = await db.execute(
         select(Warehouse).where(Warehouse.id == warehouse_id)
     )
@@ -448,6 +458,7 @@ async def update_warehouse_location(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una ubicación de almacén"""
+    location_id = validate_uuid(location_id, "location_id")
     result = await db.execute(
         select(WarehouseLocation).where(WarehouseLocation.id == location_id)
     )
@@ -533,6 +544,7 @@ async def deactivate_warehouse_location(
     db: AsyncSession = Depends(get_db),
 ):
     """Desactivar una ubicación de almacén"""
+    location_id = validate_uuid(location_id, "location_id")
     result = await db.execute(
         select(WarehouseLocation).where(WarehouseLocation.id == location_id)
     )
@@ -572,6 +584,7 @@ async def get_warehouse_stock(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener resumen de stock de un almacén"""
+    warehouse_id = validate_uuid(warehouse_id, "warehouse_id")
     result = await db.execute(
         select(Warehouse).where(Warehouse.id == warehouse_id)
     )
@@ -649,6 +662,9 @@ async def create_transfer(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva transferencia entre almacenes"""
+    data.warehouse_origen_id = clean_uuid_param(data.warehouse_origen_id, "warehouse_origen_id")
+    data.warehouse_destino_id = clean_uuid_param(data.warehouse_destino_id, "warehouse_destino_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar almacén de origen
@@ -737,6 +753,8 @@ async def list_transfers(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar transferencias entre almacenes"""
+    warehouse_id = clean_uuid_param(warehouse_id, "warehouse_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(WarehouseTransfer)
         .join(Company, WarehouseTransfer.company_id == Company.id)
@@ -768,6 +786,7 @@ async def get_transfer(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una transferencia específica con sus detalles"""
+    transfer_id = validate_uuid(transfer_id, "transfer_id")
     result = await db.execute(
         select(WarehouseTransfer).where(WarehouseTransfer.id == transfer_id)
     )
@@ -786,6 +805,7 @@ async def send_transfer(
     db: AsyncSession = Depends(get_db),
 ):
     """Marcar transferencia como enviada (pendiente → en_transito)"""
+    transfer_id = validate_uuid(transfer_id, "transfer_id")
     result = await db.execute(
         select(WarehouseTransfer).where(WarehouseTransfer.id == transfer_id)
     )
@@ -825,6 +845,7 @@ async def receive_transfer(
     Marcar transferencia como recibida (en_transito → recibida).
     Actualiza kardex para ambos almacenes: salida del origen y entrada al destino.
     """
+    transfer_id = validate_uuid(transfer_id, "transfer_id")
     result = await db.execute(
         select(WarehouseTransfer).where(WarehouseTransfer.id == transfer_id)
     )
@@ -970,6 +991,7 @@ async def cancel_transfer(
     db: AsyncSession = Depends(get_db),
 ):
     """Anular una transferencia (pendiente → anulada)"""
+    transfer_id = validate_uuid(transfer_id, "transfer_id")
     result = await db.execute(
         select(WarehouseTransfer).where(WarehouseTransfer.id == transfer_id)
     )
@@ -1015,6 +1037,9 @@ async def get_kardex_detallado(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener kardex detallado con información de almacén"""
+    product_id = clean_uuid_param(product_id, "product_id")
+    warehouse_id = clean_uuid_param(warehouse_id, "warehouse_id")
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = (

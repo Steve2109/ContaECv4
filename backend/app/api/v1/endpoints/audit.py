@@ -13,6 +13,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.audit_log import AuditLog
 from app.models.user import User
@@ -40,6 +41,7 @@ async def list_audit_logs(
     Solo administradores pueden ver todos los registros.
     Usuarios normales solo ven sus propios registros.
     """
+    user_id = clean_uuid_param(user_id, "user_id")
     query = select(AuditLog)
 
     # Si no es admin, solo ver sus propios registros
@@ -146,6 +148,7 @@ async def export_audit_logs(
 
     Solo disponible para administradores.
     """
+    user_id = clean_uuid_param(user_id, "user_id")
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

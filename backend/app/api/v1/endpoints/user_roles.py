@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.company import Company
@@ -411,6 +412,7 @@ async def check_permission(
     Verificar si el usuario actual tiene un permiso específico en una empresa.
     Los administradores del sistema tienen todos los permisos.
     """
+    company_id = validate_uuid(company_id, "company_id")
     # Los admin del sistema tienen todos los permisos
     if current_user.is_admin:
         return PermissionCheck(

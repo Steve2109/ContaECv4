@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.email_service import EmailServiceError, send_comprobante_email
 from app.core.encryption import decrypt_field
 from app.core.config import get_settings
@@ -130,6 +131,7 @@ async def get_email_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una plantilla de correo específica"""
+    template_id = validate_uuid(template_id, "template_id")
     result = await db.execute(
         select(EmailTemplate).where(EmailTemplate.id == template_id)
     )
@@ -159,6 +161,7 @@ async def update_email_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una plantilla de correo"""
+    template_id = validate_uuid(template_id, "template_id")
     result = await db.execute(
         select(EmailTemplate).where(EmailTemplate.id == template_id)
     )
@@ -218,6 +221,7 @@ async def delete_email_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Desactivar una plantilla de correo (eliminación lógica)"""
+    template_id = validate_uuid(template_id, "template_id")
     result = await db.execute(
         select(EmailTemplate).where(EmailTemplate.id == template_id)
     )
@@ -261,6 +265,7 @@ async def preview_email_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Previsualizar una plantilla con datos de ejemplo"""
+    template_id = validate_uuid(template_id, "template_id")
     result = await db.execute(
         select(EmailTemplate).where(EmailTemplate.id == template_id)
     )
@@ -296,6 +301,8 @@ async def send_email_with_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Enviar un correo electrónico usando una plantilla y un comprobante"""
+    data.template_id = clean_uuid_param(data.template_id, "template_id")
+    data.comprobante_id = clean_uuid_param(data.comprobante_id, "comprobante_id")
     # Obtener la plantilla
     result = await db.execute(
         select(EmailTemplate).where(EmailTemplate.id == data.template_id)

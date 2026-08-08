@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.ir_calculation import (
     calcular_retencion_mensual,
     generar_reporte_ir_empleado,
@@ -57,6 +58,8 @@ async def generar_rdep_xml(
     **Retorna:**
     - Archivo XML descargable con estructura RDEP
     """
+    employee_id = clean_uuid_param(employee_id, "employee_id")
+    company_id = validate_uuid(company_id, "company_id")
     # Verificar empresa
     company = await _get_company_for_user(db, company_id, current_user.id)
     if not company:
@@ -88,6 +91,7 @@ async def obtener_rdep_data(
     **Retorna:**
     - Lista de empleados con ingresos, deducciones y retenciones anuales
     """
+    company_id = validate_uuid(company_id, "company_id")
     company = await _get_company_for_user(db, company_id, current_user.id)
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
@@ -153,6 +157,7 @@ async def generar_anexos_iess(
     **Retorna:**
     - Lista de empleados con aportes personales y patronales
     """
+    company_id = validate_uuid(company_id, "company_id")
     company = await _get_company_for_user(db, company_id, current_user.id)
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
@@ -221,6 +226,7 @@ async def generar_sut_decimos(
     **Retorna:**
     - Consolidado de pagos de décimos por empleado
     """
+    company_id = validate_uuid(company_id, "company_id")
     if tipo_decimo not in ["tercero", "cuarto"]:
         raise HTTPException(400, "tipo_decimo debe ser 'tercero' o 'cuarto'")
 
@@ -291,6 +297,8 @@ async def reporte_ir_retenciones(
     **Retorna:**
     - Lista de empleados con base imponible, tasa y retención calculada
     """
+    employee_id = clean_uuid_param(employee_id, "employee_id")
+    company_id = validate_uuid(company_id, "company_id")
     company = await _get_company_for_user(db, company_id, current_user.id)
     if not company:
         raise HTTPException(404, "Empresa no encontrada")

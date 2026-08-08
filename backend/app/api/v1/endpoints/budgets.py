@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.budget import (
     PresupuestoAlerta,
@@ -210,6 +211,7 @@ async def create_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un nuevo presupuesto anual con cuentas"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate cuenta_tipo values
@@ -305,6 +307,7 @@ async def list_presupuestos(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar presupuestos anuales con filtros"""
+    company_id = clean_company_id(company_id)
     query = (
         select(PresupuestoAnual)
         .join(Company, PresupuestoAnual.company_id == Company.id)
@@ -335,6 +338,7 @@ async def get_presupuesto_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener estadísticas generales de presupuestos"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Total presupuestos
@@ -411,6 +415,7 @@ async def get_comparativo_general(
     db: AsyncSession = Depends(get_db),
 ):
     """Comparativo presupuestado vs ejecutado para un año y empresa"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Get presupuesto for the year
@@ -495,6 +500,7 @@ async def get_alertas_summary(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener resumen de alertas presupuestarias"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Count by tipo
@@ -547,6 +553,7 @@ async def list_alertas(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar alertas presupuestarias con filtros"""
+    company_id = clean_company_id(company_id)
     query = (
         select(PresupuestoAlerta)
         .join(Company, PresupuestoAlerta.company_id == Company.id)
@@ -577,6 +584,7 @@ async def get_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un presupuesto anual con cuentas y ejecuciones"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -597,6 +605,7 @@ async def get_comparativo_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Comparativo detallado para un presupuesto específico"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -664,6 +673,7 @@ async def update_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un presupuesto anual (solo en estado borrador)"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -709,6 +719,7 @@ async def delete_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un presupuesto anual (solo en estado borrador)"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -756,6 +767,7 @@ async def approve_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Aprobar un presupuesto (borrador → aprobado)"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -798,6 +810,7 @@ async def close_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Cerrar un presupuesto (aprobado → cerrado)"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -845,6 +858,7 @@ async def add_cuenta_to_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Agregar una cuenta a un presupuesto (solo en borrador)"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -935,6 +949,7 @@ async def update_cuenta(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar monto de una cuenta presupuestaria (solo en borrador)"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     result = await db.execute(
         select(PresupuestoCuenta).where(PresupuestoCuenta.id == cuenta_id)
     )
@@ -1010,6 +1025,7 @@ async def delete_cuenta(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una cuenta presupuestaria (solo en borrador)"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     result = await db.execute(
         select(PresupuestoCuenta).where(PresupuestoCuenta.id == cuenta_id)
     )
@@ -1066,6 +1082,7 @@ async def register_ejecucion_mensual(
     db: AsyncSession = Depends(get_db),
 ):
     """Registrar ejecución mensual para una cuenta presupuestaria"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     result = await db.execute(
         select(PresupuestoCuenta).where(PresupuestoCuenta.id == cuenta_id)
     )
@@ -1165,6 +1182,7 @@ async def get_ejecucion_for_cuenta(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener ejecución mensual de una cuenta presupuestaria"""
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     result = await db.execute(
         select(PresupuestoCuenta).where(PresupuestoCuenta.id == cuenta_id)
     )
@@ -1199,6 +1217,7 @@ async def update_ejecucion(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar monto de una ejecución mensual"""
+    ejecucion_id = validate_uuid(ejecucion_id, "ejecucion_id")
     result = await db.execute(
         select(PresupuestoEjecucionMensual).where(PresupuestoEjecucionMensual.id == ejecucion_id)
     )
@@ -1277,6 +1296,7 @@ async def mark_alerta_read(
     db: AsyncSession = Depends(get_db),
 ):
     """Marcar una alerta como leída"""
+    alerta_id = validate_uuid(alerta_id, "alerta_id")
     result = await db.execute(
         select(PresupuestoAlerta).where(PresupuestoAlerta.id == alerta_id)
     )
@@ -1301,6 +1321,7 @@ async def mark_alerta_resolved(
     db: AsyncSession = Depends(get_db),
 ):
     """Marcar una alerta como resuelta"""
+    alerta_id = validate_uuid(alerta_id, "alerta_id")
     result = await db.execute(
         select(PresupuestoAlerta).where(PresupuestoAlerta.id == alerta_id)
     )
@@ -1331,6 +1352,7 @@ async def recalcular_presupuesto(
     db: AsyncSession = Depends(get_db),
 ):
     """Recalcular ejecutado/disponible para todas las cuentas de un presupuesto"""
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -1438,6 +1460,7 @@ async def get_budget_alertas_realtime(
     - CRITICAL: ejecutado >= 95% of presupuesto
     - OVER: ejecutado > 100% of presupuesto (sobregiro)
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     presupuesto_query = select(PresupuestoAnual).where(
@@ -1515,6 +1538,7 @@ async def get_budget_ejecucion_detail(
     Compares presupuesto_mes vs ejecutado_mes from actual accounting entries.
     Includes accumulated totals.
     """
+    presupuesto_id = validate_uuid(presupuesto_id, "presupuesto_id")
     result = await db.execute(
         select(PresupuestoAnual).where(PresupuestoAnual.id == presupuesto_id)
     )
@@ -1625,6 +1649,7 @@ async def export_budget_to_excel(
     Export budget execution to Excel file.
     Returns an Excel file with budget vs actual comparison for all accounts.
     """
+    company_id = validate_uuid(company_id, "company_id")
     if not HAS_OPENPYXL:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,

@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.email_receiver import (
     EmailReceiverError,
     download_attachment,
@@ -208,6 +209,7 @@ async def list_email_attachments(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar adjuntos de un correo electrónico específico"""
+    email_id = validate_uuid(email_id, "email_id")
     # Obtener configuración
     config_result = await db.execute(
         select(UserConfig).where(UserConfig.user_id == current_user.id)
@@ -278,6 +280,7 @@ async def download_email_attachment(
     db: AsyncSession = Depends(get_db),
 ):
     """Descargar un adjunto específico de un correo electrónico"""
+    email_id = validate_uuid(email_id, "email_id")
     config_result = await db.execute(
         select(UserConfig).where(UserConfig.user_id == current_user.id)
     )

@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.ml_ai import (
@@ -103,6 +104,7 @@ async def get_ml_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener estadísticas generales de ML/IA"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Predicciones
@@ -231,6 +233,7 @@ async def create_prediction(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una predicción ML (ejecuta el algoritmo de predicción)"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     try:
@@ -282,6 +285,7 @@ async def list_predictions(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar predicciones ML"""
+    company_id = clean_company_id(company_id)
     query = (
         select(MLPrediccion)
         .join(Company, MLPrediccion.company_id == Company.id)
@@ -310,6 +314,7 @@ async def get_prediction(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una predicción por ID"""
+    prediction_id = validate_uuid(prediction_id, "prediction_id")
     result = await db.execute(
         select(MLPrediccion).where(MLPrediccion.id == prediction_id)
     )
@@ -328,6 +333,7 @@ async def delete_prediction(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una predicción"""
+    prediction_id = validate_uuid(prediction_id, "prediction_id")
     result = await db.execute(
         select(MLPrediccion).where(MLPrediccion.id == prediction_id)
     )
@@ -365,6 +371,7 @@ async def scan_fraud(
     db: AsyncSession = Depends(get_db),
 ):
     """Ejecutar escaneo de fraude para una empresa"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     try:
@@ -405,6 +412,7 @@ async def list_fraud_alerts(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar alertas de fraude"""
+    company_id = clean_company_id(company_id)
     query = (
         select(MLAlertaFraude)
         .join(Company, MLAlertaFraude.company_id == Company.id)
@@ -435,6 +443,7 @@ async def get_fraud_alert(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una alerta de fraude por ID"""
+    alert_id = validate_uuid(alert_id, "alert_id")
     result = await db.execute(
         select(MLAlertaFraude).where(MLAlertaFraude.id == alert_id)
     )
@@ -454,6 +463,7 @@ async def update_fraud_alert(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una alerta de fraude (resolver/investigar)"""
+    alert_id = validate_uuid(alert_id, "alert_id")
     result = await db.execute(
         select(MLAlertaFraude).where(MLAlertaFraude.id == alert_id)
     )
@@ -503,6 +513,7 @@ async def create_chatbot_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una sesión de chatbot"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     try:
         await _get_company_for_user(db, data.company_id, current_user.id)
     except HTTPException:
@@ -549,6 +560,7 @@ async def list_chatbot_sessions(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar sesiones del chatbot"""
+    company_id = clean_company_id(company_id)
     query = (
         select(MLChatbotSesion)
         .join(Company, MLChatbotSesion.company_id == Company.id)
@@ -576,6 +588,7 @@ async def chat_with_bot(
     db: AsyncSession = Depends(get_db),
 ):
     """Enviar un mensaje al chatbot y recibir respuesta"""
+    data.sesion_id = clean_uuid_param(data.sesion_id, "sesion_id")
     # Verify session belongs to user
     result = await db.execute(
         select(MLChatbotSesion).where(MLChatbotSesion.id == data.sesion_id)
@@ -644,6 +657,7 @@ async def get_session_messages(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener mensajes de una sesión del chatbot"""
+    session_id = validate_uuid(session_id, "session_id")
     result = await db.execute(
         select(MLChatbotSesion).where(MLChatbotSesion.id == session_id)
     )
@@ -671,6 +685,7 @@ async def close_chatbot_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Cerrar una sesión del chatbot"""
+    session_id = validate_uuid(session_id, "session_id")
     result = await db.execute(
         select(MLChatbotSesion).where(MLChatbotSesion.id == session_id)
     )
@@ -708,6 +723,7 @@ async def generate_recommendations(
     db: AsyncSession = Depends(get_db),
 ):
     """Generar recomendaciones ML para una empresa"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     try:
@@ -753,6 +769,7 @@ async def list_recommendations(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar recomendaciones"""
+    company_id = clean_company_id(company_id)
     query = (
         select(MLRecomendacion)
         .join(Company, MLRecomendacion.company_id == Company.id)
@@ -783,6 +800,7 @@ async def update_recommendation(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una recomendación (aplicar/descartar)"""
+    rec_id = validate_uuid(rec_id, "rec_id")
     result = await db.execute(
         select(MLRecomendacion).where(MLRecomendacion.id == rec_id)
     )
@@ -825,6 +843,7 @@ async def delete_recommendation(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una recomendación"""
+    rec_id = validate_uuid(rec_id, "rec_id")
     result = await db.execute(
         select(MLRecomendacion).where(MLRecomendacion.id == rec_id)
     )
@@ -864,6 +883,7 @@ async def list_category_rules(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar reglas de categorización"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     query = select(MLCategoriaRegla).where(
@@ -888,6 +908,7 @@ async def create_category_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una regla de categorización"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     try:
         await _get_company_for_user(db, data.company_id, current_user.id)
     except HTTPException:
@@ -946,6 +967,7 @@ async def update_category_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una regla de categorización"""
+    rule_id = validate_uuid(rule_id, "rule_id")
     result = await db.execute(
         select(MLCategoriaRegla).where(MLCategoriaRegla.id == rule_id)
     )
@@ -999,6 +1021,7 @@ async def delete_category_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una regla de categorización"""
+    rule_id = validate_uuid(rule_id, "rule_id")
     result = await db.execute(
         select(MLCategoriaRegla).where(MLCategoriaRegla.id == rule_id)
     )

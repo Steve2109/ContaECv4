@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.purchase import CuentaPorPagar
@@ -125,6 +126,8 @@ async def list_cuentas_por_pagar(
     - **estado**: Filtrar por estado (pendiente, parcial, pagada, vencida, anulada)
     - **vencimiento_proximo**: Días dentro de los cuales vence la cuenta
     """
+    supplier_id = clean_uuid_param(supplier_id, "supplier_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(CuentaPorPagar)
         .join(Company, CuentaPorPagar.company_id == Company.id)
@@ -169,6 +172,7 @@ async def get_cuenta_por_pagar(
     """
     Obtener el detalle de una cuenta por pagar específica.
     """
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     cuenta = await _get_cuenta_or_404(db, cuenta_id, current_user)
     _check_overdue(cuenta)
     return CuentaPorPagarResponse.model_validate(cuenta)
@@ -194,6 +198,7 @@ async def registrar_pago(
     - **referencia**: Número de referencia del pago
     - **observaciones**: Notas adicionales sobre el pago
     """
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     cuenta = await _get_cuenta_or_404(db, cuenta_id, current_user)
 
     if not cuenta.is_active:
@@ -281,6 +286,8 @@ async def list_cuentas_vencidas(
     """
     Listar cuentas por pagar vencidas (fecha_vencimiento < hoy y no pagadas).
     """
+    supplier_id = clean_uuid_param(supplier_id, "supplier_id")
+    company_id = clean_company_id(company_id)
     now = datetime.now(timezone.utc)
 
     query = (
@@ -333,6 +340,8 @@ async def get_resumen_cuentas(
     Obtener resumen de cuentas por pagar: total pendiente, total vencidas,
     próximas a vencer, y desglose por estado.
     """
+    supplier_id = clean_uuid_param(supplier_id, "supplier_id")
+    company_id = clean_company_id(company_id)
     now = datetime.now(timezone.utc)
     cutoff_proximo = now + timedelta(days=dias_proximos)
 
@@ -431,6 +440,7 @@ async def export_cuentas_excel(
 
     Aplica los mismos filtros que el listado.
     """
+    company_id = clean_company_id(company_id)
     await _get_company_for_user(db, company_id, current_user.id) if company_id else None
 
     query = (
@@ -595,6 +605,7 @@ async def export_cuentas_csv(
     """
     Exportar cuentas por pagar a archivo CSV.
     """
+    company_id = clean_company_id(company_id)
     if company_id:
         await _get_company_for_user(db, company_id, current_user.id)
 
@@ -676,6 +687,7 @@ async def renegociar_cuenta(
     - **dias_extension**: Días a extender desde la fecha actual o de vencimiento
     - **motivo**: Motivo de la renegociación (requerido)
     """
+    cuenta_id = validate_uuid(cuenta_id, "cuenta_id")
     cuenta = await _get_cuenta_or_404(db, cuenta_id, current_user)
 
     if not cuenta.is_active:

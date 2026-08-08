@@ -12,6 +12,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.kardex import Kardex, KardexTipoMovimiento
@@ -130,6 +131,9 @@ async def create_kardex_movement(
     Calcula automáticamente el saldo acumulado (cantidad y valor)
     basado en el último movimiento registrado del producto.
     """
+    data.product_id = clean_uuid_param(data.product_id, "product_id")
+    data.referencia_id = clean_uuid_param(data.referencia_id, "referencia_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -235,6 +239,8 @@ async def list_kardex_movements(
     Filtra por empresa, producto, tipo de movimiento y rango de fechas.
     Solo muestra movimientos de las empresas del usuario.
     """
+    product_id = clean_uuid_param(product_id, "product_id")
+    company_id = clean_company_id(company_id)
     # Consulta base: movimientos de empresas del usuario
     query = (
         select(Kardex)
@@ -288,6 +294,8 @@ async def get_product_kardex(
     Retorna todos los movimientos ordenados por fecha (ascendente)
     para ver la evolución del inventario.
     """
+    company_id = validate_uuid(company_id, "company_id")
+    product_id = validate_uuid(product_id, "product_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, company_id, current_user.id)
 
@@ -325,6 +333,8 @@ async def get_product_saldo(
 
     Retorna la cantidad actual en stock, el valor total y el costo promedio ponderado.
     """
+    company_id = validate_uuid(company_id, "company_id")
+    product_id = validate_uuid(product_id, "product_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, company_id, current_user.id)
 
@@ -359,6 +369,9 @@ async def create_kardex_ajuste(
     El ajuste puede ser positivo (incrementar stock) o negativo (decrementar stock).
     Se registra automáticamente como tipo 'ajuste' en el kardex.
     """
+    data.product_id = clean_uuid_param(data.product_id, "product_id")
+    data.referencia_id = clean_uuid_param(data.referencia_id, "referencia_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -458,6 +471,7 @@ async def get_kardex_reporte(
     - fifo: First In, First Out
     - lifo: Last In, First Out
     """
+    company_id = validate_uuid(company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, company_id, current_user.id)
 

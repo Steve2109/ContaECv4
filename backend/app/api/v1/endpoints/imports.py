@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.client import Client, TipoIdentificacion
 from app.models.company import Company
@@ -167,6 +168,7 @@ async def import_products_excel(
     El archivo debe tener una fila de encabezados y los datos en las filas siguientes.
     Opcionalmente se puede proveer un header_map JSON para mapear columnas.
     """
+    company_id = validate_uuid(company_id, "company_id")
     # Verificar tipo de archivo
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(
@@ -326,6 +328,7 @@ async def import_products_csv(
 
     El archivo debe tener una fila de encabezados y los datos separados por el delimiter especificado.
     """
+    company_id = validate_uuid(company_id, "company_id")
     # Verificar tipo de archivo
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(
@@ -480,6 +483,7 @@ async def import_clients_excel(
 
     El archivo debe tener una fila de encabezados y los datos en las filas siguientes.
     """
+    company_id = validate_uuid(company_id, "company_id")
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -612,6 +616,7 @@ async def import_clients_csv(
     """
     Importar clientes desde un archivo CSV.
     """
+    company_id = validate_uuid(company_id, "company_id")
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

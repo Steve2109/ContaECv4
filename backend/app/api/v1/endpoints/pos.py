@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.kardex import Kardex, KardexTipoMovimiento
@@ -103,6 +104,8 @@ async def open_cash_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Abrir una nueva sesión de caja"""
+    data.warehouse_id = clean_uuid_param(data.warehouse_id, "warehouse_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     try:
         await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -175,6 +178,7 @@ async def list_cash_sessions(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar sesiones de caja"""
+    company_id = clean_company_id(company_id)
     query = (
         select(POSCashSession)
         .join(Company, POSCashSession.company_id == Company.id)
@@ -201,6 +205,7 @@ async def get_cash_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una sesión de caja específica con sus tickets y arqueos"""
+    session_id = validate_uuid(session_id, "session_id")
     result = await db.execute(
         select(POSCashSession).where(POSCashSession.id == session_id)
     )
@@ -220,6 +225,7 @@ async def close_cash_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Cerrar una sesión de caja con arqueo final"""
+    session_id = validate_uuid(session_id, "session_id")
     result = await db.execute(
         select(POSCashSession).where(POSCashSession.id == session_id)
     )
@@ -280,6 +286,7 @@ async def create_partial_arqueo(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un arqueo parcial durante la sesión de caja"""
+    session_id = validate_uuid(session_id, "session_id")
     result = await db.execute(
         select(POSCashSession).where(POSCashSession.id == session_id)
     )
@@ -332,6 +339,7 @@ async def get_cash_session_resumen(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener resumen de sesión de caja para arqueo"""
+    session_id = validate_uuid(session_id, "session_id")
     result = await db.execute(
         select(POSCashSession).where(POSCashSession.id == session_id)
     )
@@ -392,6 +400,8 @@ async def create_ticket(
     Crear un nuevo ticket de venta POS.
     Actualiza kardex (salida del almacén) y opcionalmente crea un comprobante.
     """
+    data.cash_session_id = clean_uuid_param(data.cash_session_id, "cash_session_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar que la sesión de caja esté abierta
@@ -593,6 +603,8 @@ async def list_tickets(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar tickets POS"""
+    session_id = clean_uuid_param(session_id, "session_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(POSTicket)
         .join(Company, POSTicket.company_id == Company.id)
@@ -621,6 +633,7 @@ async def get_ticket(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un ticket POS específico con sus detalles"""
+    ticket_id = validate_uuid(ticket_id, "ticket_id")
     result = await db.execute(
         select(POSTicket).where(POSTicket.id == ticket_id)
     )
@@ -642,6 +655,7 @@ async def void_ticket(
     Anular un ticket POS.
     Revierte kardex (entrada al almacén) y actualiza totales de la sesión.
     """
+    ticket_id = validate_uuid(ticket_id, "ticket_id")
     result = await db.execute(
         select(POSTicket).where(POSTicket.id == ticket_id)
     )
@@ -748,6 +762,7 @@ async def get_printable_ticket(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener datos de impresión de ticket (formato JSON para receipt)"""
+    ticket_id = validate_uuid(ticket_id, "ticket_id")
     result = await db.execute(
         select(POSTicket).where(POSTicket.id == ticket_id)
     )
@@ -826,6 +841,7 @@ async def get_ticket_pdf(
     Generar PDF de ticket imprimible en formato termico 80mm.
     Retorna un StreamingResponse con el PDF listo para descargar/imprimir.
     """
+    ticket_id = validate_uuid(ticket_id, "ticket_id")
     result = await db.execute(
         select(POSTicket).where(POSTicket.id == ticket_id)
     )
@@ -1001,6 +1017,7 @@ async def cerrar_arqueo(
     Calcula el efectivo real contado por billetes/monedas,
     compara con el esperado por el sistema, y flag diferencias.
     """
+    arqueo_id = validate_uuid(arqueo_id, "arqueo_id")
     result = await db.execute(
         select(POSArqueo).where(POSArqueo.id == arqueo_id)
     )
@@ -1110,6 +1127,7 @@ async def get_arqueos_resumen(
     Resumen de todos los arqueos con filtro por rango de fechas.
     Incluye totales de sobrante/faltante y lista detallada.
     """
+    company_id = clean_company_id(company_id)
     # Query base con join a sesion y company para filtrar por usuario
     query = (
         select(POSArqueo)
@@ -1206,6 +1224,7 @@ async def get_arqueo_reporte(
     Obtener datos completos de un arqueo para generar reporte PDF.
     Incluye info de sesion, tickets, y desglose de efectivo.
     """
+    arqueo_id = validate_uuid(arqueo_id, "arqueo_id")
     result = await db.execute(
         select(POSArqueo).where(POSArqueo.id == arqueo_id)
     )
@@ -1291,6 +1310,7 @@ async def get_arqueo_pdf(
     Generar PDF de reporte de arqueo de caja.
     Formato carta con desglose detallado.
     """
+    arqueo_id = validate_uuid(arqueo_id, "arqueo_id")
     # Obtener datos del arqueo
     result = await db.execute(
         select(POSArqueo).where(POSArqueo.id == arqueo_id)
@@ -1501,6 +1521,7 @@ async def search_product_by_barcode(
     db: AsyncSession = Depends(get_db),
 ):
     """Buscar producto por código de barras para POS"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     result = await db.execute(

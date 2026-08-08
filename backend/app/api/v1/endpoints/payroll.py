@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.hr_constants import (
     CENACES_RATE,
     DECIMO_CUARTO_SALARIO_BASICO,
@@ -218,6 +219,7 @@ async def generate_payroll(
     vacaciones, fondo de reserva) para cada empleado activo de la empresa.
     Verifica que no exista ya un rol para el mismo período.
     """
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -313,6 +315,7 @@ async def list_payroll(
 
     Opcionalmente filtrado por empresa, estado y año.
     """
+    company_id = clean_company_id(company_id)
     query = (
         select(RolPago)
         .join(Company, RolPago.company_id == Company.id)
@@ -347,6 +350,7 @@ async def get_payroll(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un rol de pago con todos sus detalles"""
+    rol_id = validate_uuid(rol_id, "rol_id")
     result = await db.execute(
         select(RolPago)
         .join(Company, RolPago.company_id == Company.id)
@@ -376,6 +380,7 @@ async def approve_payroll(
 
     Solo se pueden aprobar roles en estado 'borrador'.
     """
+    rol_id = validate_uuid(rol_id, "rol_id")
     result = await db.execute(
         select(RolPago)
         .join(Company, RolPago.company_id == Company.id)
@@ -418,6 +423,7 @@ async def pay_payroll(
     Actualiza los acumulados de décimos, vacaciones y fondo de reserva
     de cada empleado.
     """
+    rol_id = validate_uuid(rol_id, "rol_id")
     result = await db.execute(
         select(RolPago)
         .join(Company, RolPago.company_id == Company.id)
@@ -472,6 +478,7 @@ async def get_employee_payroll_history(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener el historial de roles de pago de un empleado"""
+    employee_id = validate_uuid(employee_id, "employee_id")
     # Verificar que el empleado pertenece a una empresa del usuario
     result = await db.execute(
         select(Employee)
@@ -521,6 +528,8 @@ async def calculate_decimo_tercero(
     El décimo tercero equivale a un sueldo mensual por cada año trabajado,
     proporcional a los meses trabajados. Se paga en diciembre de cada año.
     """
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     query = select(Employee).where(
@@ -577,6 +586,8 @@ async def calculate_decimo_cuarto(
     El décimo cuarto equivale al salario básico unificado por cada año trabajado,
     proporcional a los meses trabajados. Se paga en agosto (Sierra) o marzo (Costa).
     """
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     query = select(Employee).where(
@@ -632,6 +643,7 @@ async def calculate_vacation_balance(
     15 días de vacaciones por cada año completo de servicio.
     Se acumulan hasta un máximo de 30 días.
     """
+    employee_id = validate_uuid(employee_id, "employee_id")
     # Verificar que el empleado pertenece a una empresa del usuario
     result = await db.execute(
         select(Employee)
@@ -683,6 +695,7 @@ async def calculate_fondos_reserva(
     El empleado tiene derecho a fondo de reserva después de 1 año de servicio.
     Equivale a un sueldo mensual por cada año completo.
     """
+    employee_id = validate_uuid(employee_id, "employee_id")
     result = await db.execute(
         select(Employee)
         .join(Company, Employee.company_id == Company.id)
@@ -730,6 +743,7 @@ async def generate_iess_report(
     Incluye aportes personales, patronales, IEE, SECAP y CENACES
     desglosados por empleado.
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Buscar el rol de pago del período
@@ -811,6 +825,7 @@ async def generate_rdep_report(
     Incluye remuneraciones, descuentos, líquido y aportes del empleador
     desglosados por empleado.
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     result = await db.execute(
@@ -884,6 +899,7 @@ async def export_payroll_excel(
     Genera un archivo Excel con todos los detalles del rol de pago
     incluyendo ingresos, descuentos, aportes y líquido por empleado.
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     result = await db.execute(
@@ -1023,6 +1039,7 @@ async def create_carga_familiar(
     Permite agregar hijos, cónyuge u otros dependientes del empleado
     para efectos de impuesto a la renta y beneficios sociales.
     """
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
     # Verificar que el empleado pertenece a una empresa del usuario
     result = await db.execute(
         select(Employee)
@@ -1064,6 +1081,7 @@ async def list_cargas_familiares(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar las cargas familiares de un empleado"""
+    employee_id = validate_uuid(employee_id, "employee_id")
     # Verificar que el empleado pertenece a una empresa del usuario
     result = await db.execute(
         select(Employee)
@@ -1098,6 +1116,7 @@ async def delete_carga_familiar(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar (desactivar) una carga familiar"""
+    carga_id = validate_uuid(carga_id, "carga_id")
     result = await db.execute(
         select(CargaFamiliar)
         .join(Employee, CargaFamiliar.employee_id == Employee.id)
@@ -1136,6 +1155,8 @@ async def create_evaluacion(
     Permite registrar el puntaje, objetivos, fortalezas, áreas de mejora
     y plan de acción para un período específico.
     """
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
+    data.evaluador_id = clean_uuid_param(data.evaluador_id, "evaluador_id")
     # Verificar que el empleado pertenece a una empresa del usuario
     result = await db.execute(
         select(Employee)
@@ -1188,6 +1209,7 @@ async def list_evaluaciones(
 
     Filtrado opcional por empleado, período y estado.
     """
+    employee_id = clean_uuid_param(employee_id, "employee_id")
     query = (
         select(EvaluacionDesempeno)
         .join(Employee, EvaluacionDesempeno.employee_id == Employee.id)
@@ -1220,6 +1242,7 @@ async def update_evaluacion(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una evaluación de desempeño"""
+    evaluacion_id = validate_uuid(evaluacion_id, "evaluacion_id")
     result = await db.execute(
         select(EvaluacionDesempeno)
         .join(Employee, EvaluacionDesempeno.employee_id == Employee.id)
@@ -1263,6 +1286,7 @@ async def create_asistencia(
     Registra la hora de entrada, salida, horas trabajadas y tipo de día.
     Compatible con datos de dispositivos biométricos.
     """
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
     # Verificar que el empleado pertenece a una empresa del usuario
     result = await db.execute(
         select(Employee)
@@ -1314,6 +1338,7 @@ async def list_asistencia(
 
     Filtrado opcional por empleado y rango de fechas.
     """
+    employee_id = clean_uuid_param(employee_id, "employee_id")
     query = (
         select(Asistencia)
         .join(Employee, Asistencia.employee_id == Employee.id)
@@ -1352,6 +1377,7 @@ async def get_asistencia_resumen(
     Agrega horas trabajadas, horas extras y conteo de días por tipo
     (normal, descanso, festivo, vacaciones, permiso, enfermedad).
     """
+    employee_id = clean_uuid_param(employee_id, "employee_id")
     query = (
         select(Asistencia)
         .join(Employee, Asistencia.employee_id == Employee.id)
@@ -1492,6 +1518,8 @@ async def calculate_liquidacion(
     vacaciones, fondo de reserva, bono de desahucio e indemnización
     conforme al Código del Trabajo ecuatoriano.
     """
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que el empleado pertenece a la empresa del usuario
     result = await db.execute(
         select(Employee)
@@ -1624,6 +1652,8 @@ async def list_liquidaciones(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar liquidaciones laborales filtradas por empresa y/o empleado"""
+    employee_id = clean_uuid_param(employee_id, "employee_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(LiquidacionLaboral)
         .join(Company, LiquidacionLaboral.company_id == Company.id)
@@ -1658,6 +1688,7 @@ async def approve_liquidacion(
 
     Solo se pueden aprobar liquidaciones en estado 'borrador'.
     """
+    liquidacion_id = validate_uuid(liquidacion_id, "liquidacion_id")
     result = await db.execute(
         select(LiquidacionLaboral)
         .join(Company, LiquidacionLaboral.company_id == Company.id)
@@ -1700,6 +1731,7 @@ async def pay_liquidacion(
 
     Solo se pueden pagar liquidaciones en estado 'aprobada'.
     """
+    liquidacion_id = validate_uuid(liquidacion_id, "liquidacion_id")
     result = await db.execute(
         select(LiquidacionLaboral)
         .join(Company, LiquidacionLaboral.company_id == Company.id)
@@ -1756,6 +1788,7 @@ async def calculate_utilidades(
     - 5% se distribuye en proporción a las cargas familiares
     Se calcula en base a días trabajados y sueldo acumulado.
     """
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Verificar que no exista ya una distribución para el año
@@ -1877,6 +1910,7 @@ async def list_utilidades(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar distribuciones de utilidades filtradas por empresa y/o año"""
+    company_id = clean_company_id(company_id)
     query = (
         select(UtilidadesParticipacion)
         .join(Company, UtilidadesParticipacion.company_id == Company.id)
@@ -1911,6 +1945,7 @@ async def approve_utilidades(
 
     Solo se pueden aprobar distribuciones en estado 'borrador'.
     """
+    utilidad_id = validate_uuid(utilidad_id, "utilidad_id")
     result = await db.execute(
         select(UtilidadesParticipacion)
         .join(Company, UtilidadesParticipacion.company_id == Company.id)
@@ -1947,6 +1982,7 @@ async def get_utilidades_detalle(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener el detalle de distribución de utilidades por empleado"""
+    utilidad_id = validate_uuid(utilidad_id, "utilidad_id")
     result = await db.execute(
         select(UtilidadesParticipacion)
         .join(Company, UtilidadesParticipacion.company_id == Company.id)
@@ -2053,6 +2089,7 @@ async def export_bank_payment(
     (banco, tipo de cuenta, número de cuenta, monto a pagar) para ser
     importado directamente por el banco.
     """
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Parsear período
@@ -2168,6 +2205,7 @@ async def export_rol_pago_pdf(
     Exportar rol de pago a PDF con formato de nómina ecuatoriana.
     Incluye detalle por empleado: ingresos, descuentos, aportes, líquido.
     """
+    company_id = validate_uuid(company_id, "company_id")
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -2310,6 +2348,7 @@ async def export_iess_batch_pdf(
     Exportar reporte batch IESS en formato para presentación al IESS.
     Incluye aportes personales y patronales por empleado.
     """
+    company_id = validate_uuid(company_id, "company_id")
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -2423,6 +2462,7 @@ async def export_rdep_pdf(
     Exportar reporte RDEP (Relación de Deducciones del Empleado al Patrono)
     en formato PDF para presentación al SRI.
     """
+    company_id = validate_uuid(company_id, "company_id")
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle

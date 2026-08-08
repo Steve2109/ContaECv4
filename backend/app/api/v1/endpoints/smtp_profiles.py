@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.email_service import EmailServiceError, send_test_email
 from app.core.encryption import decrypt_field, encrypt_field
 from app.core.config import get_settings
@@ -186,6 +187,7 @@ async def update_smtp_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un perfil SMTP"""
+    profile_id = validate_uuid(profile_id, "profile_id")
     profile = await _get_profile_or_404(profile_id, current_user, db)
 
     # Si se establece como default, quitar default de otros perfiles
@@ -236,6 +238,7 @@ async def delete_smtp_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un perfil SMTP (eliminación física)"""
+    profile_id = validate_uuid(profile_id, "profile_id")
     profile = await _get_profile_or_404(profile_id, current_user, db)
 
     was_default = profile.is_default
@@ -285,6 +288,7 @@ async def test_smtp_connection(
     db: AsyncSession = Depends(get_db),
 ):
     """Probar la conexión SMTP de un perfil"""
+    profile_id = validate_uuid(profile_id, "profile_id")
     profile = await _get_profile_or_404(profile_id, current_user, db)
 
     # Descifrar la contraseña
@@ -360,6 +364,7 @@ async def set_default_smtp_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Establecer un perfil SMTP como el perfil por defecto"""
+    profile_id = validate_uuid(profile_id, "profile_id")
     profile = await _get_profile_or_404(profile_id, current_user, db)
 
     if not profile.is_active:
@@ -409,6 +414,7 @@ async def reset_daily_counter(
     db: AsyncSession = Depends(get_db),
 ):
     """Reiniciar el contador diario de envíos de un perfil SMTP"""
+    profile_id = validate_uuid(profile_id, "profile_id")
     profile = await _get_profile_or_404(profile_id, current_user, db)
 
     profile.sent_today = 0

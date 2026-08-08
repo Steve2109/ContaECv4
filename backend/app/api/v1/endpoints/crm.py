@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.client import Client
 from app.models.company import Company
@@ -105,6 +106,7 @@ async def get_crm_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener estadísticas generales del CRM"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Total leads
@@ -197,6 +199,7 @@ async def create_pipeline(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un nuevo pipeline de ventas"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     pipeline = CRMPipeline(
@@ -233,6 +236,7 @@ async def list_pipelines(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar pipelines con filtros"""
+    company_id = clean_company_id(company_id)
     query = (
         select(CRMPipeline)
         .join(Company, CRMPipeline.company_id == Company.id)
@@ -257,6 +261,7 @@ async def get_pipeline(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un pipeline por ID con sus etapas"""
+    pipeline_id = validate_uuid(pipeline_id, "pipeline_id")
     result = await db.execute(
         select(CRMPipeline).where(CRMPipeline.id == pipeline_id)
     )
@@ -279,6 +284,7 @@ async def update_pipeline(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un pipeline"""
+    pipeline_id = validate_uuid(pipeline_id, "pipeline_id")
     result = await db.execute(
         select(CRMPipeline).where(CRMPipeline.id == pipeline_id)
     )
@@ -318,6 +324,7 @@ async def delete_pipeline(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un pipeline"""
+    pipeline_id = validate_uuid(pipeline_id, "pipeline_id")
     result = await db.execute(
         select(CRMPipeline).where(CRMPipeline.id == pipeline_id)
     )
@@ -357,6 +364,7 @@ async def list_stages(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar etapas de un pipeline"""
+    pipeline_id = validate_uuid(pipeline_id, "pipeline_id")
     result = await db.execute(
         select(CRMPipeline).where(CRMPipeline.id == pipeline_id)
     )
@@ -388,6 +396,7 @@ async def create_stage(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una etapa en un pipeline"""
+    pipeline_id = validate_uuid(pipeline_id, "pipeline_id")
     result = await db.execute(
         select(CRMPipeline).where(CRMPipeline.id == pipeline_id)
     )
@@ -433,6 +442,7 @@ async def update_stage(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una etapa de pipeline"""
+    stage_id = validate_uuid(stage_id, "stage_id")
     result = await db.execute(
         select(CRMPipelineStage).where(CRMPipelineStage.id == stage_id)
     )
@@ -478,6 +488,7 @@ async def delete_stage(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una etapa de pipeline"""
+    stage_id = validate_uuid(stage_id, "stage_id")
     result = await db.execute(
         select(CRMPipelineStage).where(CRMPipelineStage.id == stage_id)
     )
@@ -523,6 +534,8 @@ async def create_lead(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un nuevo lead"""
+    data.client_id = clean_uuid_param(data.client_id, "client_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate source if provided
@@ -587,6 +600,7 @@ async def list_leads(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar leads con filtros"""
+    company_id = clean_company_id(company_id)
     query = (
         select(CRMLead)
         .join(Company, CRMLead.company_id == Company.id)
@@ -615,6 +629,7 @@ async def get_lead(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un lead por ID"""
+    lead_id = validate_uuid(lead_id, "lead_id")
     result = await db.execute(
         select(CRMLead).where(CRMLead.id == lead_id)
     )
@@ -637,6 +652,7 @@ async def update_lead(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un lead"""
+    lead_id = validate_uuid(lead_id, "lead_id")
     result = await db.execute(
         select(CRMLead).where(CRMLead.id == lead_id)
     )
@@ -695,6 +711,7 @@ async def delete_lead(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un lead"""
+    lead_id = validate_uuid(lead_id, "lead_id")
     result = await db.execute(
         select(CRMLead).where(CRMLead.id == lead_id)
     )
@@ -735,6 +752,7 @@ async def convert_lead_to_opportunity(
     db: AsyncSession = Depends(get_db),
 ):
     """Convertir un lead en oportunidad de venta"""
+    lead_id = validate_uuid(lead_id, "lead_id")
     result = await db.execute(
         select(CRMLead).where(CRMLead.id == lead_id)
     )
@@ -828,6 +846,11 @@ async def create_opportunity(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva oportunidad"""
+    data.pipeline_id = clean_uuid_param(data.pipeline_id, "pipeline_id")
+    data.stage_id = clean_uuid_param(data.stage_id, "stage_id")
+    data.lead_id = clean_uuid_param(data.lead_id, "lead_id")
+    data.client_id = clean_uuid_param(data.client_id, "client_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate pipeline_id
@@ -907,6 +930,8 @@ async def list_opportunities(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar oportunidades con filtros"""
+    pipeline_id = clean_uuid_param(pipeline_id, "pipeline_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(CRMOpportunity)
         .join(Company, CRMOpportunity.company_id == Company.id)
@@ -935,6 +960,7 @@ async def get_opportunity(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una oportunidad por ID con detalles"""
+    opportunity_id = validate_uuid(opportunity_id, "opportunity_id")
     result = await db.execute(
         select(CRMOpportunity).where(CRMOpportunity.id == opportunity_id)
     )
@@ -1001,6 +1027,7 @@ async def update_opportunity(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una oportunidad"""
+    opportunity_id = validate_uuid(opportunity_id, "opportunity_id")
     result = await db.execute(
         select(CRMOpportunity).where(CRMOpportunity.id == opportunity_id)
     )
@@ -1066,6 +1093,7 @@ async def delete_opportunity(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una oportunidad"""
+    opportunity_id = validate_uuid(opportunity_id, "opportunity_id")
     result = await db.execute(
         select(CRMOpportunity).where(CRMOpportunity.id == opportunity_id)
     )
@@ -1107,6 +1135,8 @@ async def move_opportunity_stage(
     db: AsyncSession = Depends(get_db),
 ):
     """Mover una oportunidad a una etapa diferente del pipeline"""
+    data.stage_id = clean_uuid_param(data.stage_id, "stage_id")
+    opportunity_id = validate_uuid(opportunity_id, "opportunity_id")
     result = await db.execute(
         select(CRMOpportunity).where(CRMOpportunity.id == opportunity_id)
     )
@@ -1167,6 +1197,9 @@ async def create_activity(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva actividad"""
+    data.opportunity_id = clean_uuid_param(data.opportunity_id, "opportunity_id")
+    data.lead_id = clean_uuid_param(data.lead_id, "lead_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate type
@@ -1229,6 +1262,9 @@ async def list_activities(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar actividades con filtros"""
+    opportunity_id = clean_uuid_param(opportunity_id, "opportunity_id")
+    lead_id = clean_uuid_param(lead_id, "lead_id")
+    company_id = clean_company_id(company_id)
     query = (
         select(CRMActivity)
         .join(Company, CRMActivity.company_id == Company.id)
@@ -1261,6 +1297,7 @@ async def get_activity(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una actividad por ID"""
+    activity_id = validate_uuid(activity_id, "activity_id")
     result = await db.execute(
         select(CRMActivity).where(CRMActivity.id == activity_id)
     )
@@ -1283,6 +1320,7 @@ async def update_activity(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una actividad"""
+    activity_id = validate_uuid(activity_id, "activity_id")
     result = await db.execute(
         select(CRMActivity).where(CRMActivity.id == activity_id)
     )
@@ -1349,6 +1387,7 @@ async def delete_activity(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una actividad"""
+    activity_id = validate_uuid(activity_id, "activity_id")
     result = await db.execute(
         select(CRMActivity).where(CRMActivity.id == activity_id)
     )
@@ -1389,6 +1428,7 @@ async def create_segment(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un nuevo segmento de contactos"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate type if provided
@@ -1441,6 +1481,7 @@ async def list_segments(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar segmentos con filtros"""
+    company_id = clean_company_id(company_id)
     query = (
         select(CRMContactSegment)
         .join(Company, CRMContactSegment.company_id == Company.id)
@@ -1469,6 +1510,7 @@ async def get_segment(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un segmento por ID"""
+    segment_id = validate_uuid(segment_id, "segment_id")
     result = await db.execute(
         select(CRMContactSegment).where(CRMContactSegment.id == segment_id)
     )
@@ -1491,6 +1533,7 @@ async def update_segment(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un segmento"""
+    segment_id = validate_uuid(segment_id, "segment_id")
     result = await db.execute(
         select(CRMContactSegment).where(CRMContactSegment.id == segment_id)
     )
@@ -1546,6 +1589,7 @@ async def delete_segment(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un segmento"""
+    segment_id = validate_uuid(segment_id, "segment_id")
     result = await db.execute(
         select(CRMContactSegment).where(CRMContactSegment.id == segment_id)
     )
@@ -1587,6 +1631,9 @@ async def add_clients_to_segment(
     db: AsyncSession = Depends(get_db),
 ):
     """Agregar clientes a un segmento"""
+    for _uid in (data.client_ids or []):
+        clean_uuid_param(_uid, "client_id")
+    segment_id = validate_uuid(segment_id, "segment_id")
     result = await db.execute(
         select(CRMContactSegment).where(CRMContactSegment.id == segment_id)
     )
@@ -1649,6 +1696,7 @@ async def create_automation(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una nueva automatización"""
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate trigger_type
@@ -1699,6 +1747,7 @@ async def list_automations(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar automatizaciones con filtros"""
+    company_id = clean_company_id(company_id)
     query = (
         select(CRMAutomation)
         .join(Company, CRMAutomation.company_id == Company.id)
@@ -1727,6 +1776,7 @@ async def get_automation(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener una automatización por ID"""
+    automation_id = validate_uuid(automation_id, "automation_id")
     result = await db.execute(
         select(CRMAutomation).where(CRMAutomation.id == automation_id)
     )
@@ -1749,6 +1799,7 @@ async def update_automation(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una automatización"""
+    automation_id = validate_uuid(automation_id, "automation_id")
     result = await db.execute(
         select(CRMAutomation).where(CRMAutomation.id == automation_id)
     )
@@ -1804,6 +1855,7 @@ async def delete_automation(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una automatización"""
+    automation_id = validate_uuid(automation_id, "automation_id")
     result = await db.execute(
         select(CRMAutomation).where(CRMAutomation.id == automation_id)
     )
@@ -1844,6 +1896,7 @@ async def trigger_automation(
     db: AsyncSession = Depends(get_db),
 ):
     """Ejecutar manualmente una automatización"""
+    automation_id = validate_uuid(automation_id, "automation_id")
     result = await db.execute(
         select(CRMAutomation).where(CRMAutomation.id == automation_id)
     )

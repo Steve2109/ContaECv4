@@ -11,6 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.email_log import EmailLog, EmailLogEstado, EmailLogTipo
 from app.models.user import User
@@ -82,6 +83,7 @@ async def list_email_logs(
     - `fecha_desde`: Filtrar desde fecha
     - `fecha_hasta`: Filtrar hasta fecha
     """
+    comprobante_id = clean_uuid_param(comprobante_id, "comprobante_id")
     query = select(EmailLog).where(
         EmailLog.user_id == current_user.id,
     )
@@ -157,6 +159,7 @@ async def get_email_log(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un log de correo específico"""
+    log_id = validate_uuid(log_id, "log_id")
     log = await _get_log_or_404(db, log_id, current_user)
     return EmailLogUpdate.model_validate(log)
 
@@ -176,6 +179,7 @@ async def retry_email_send(
     - Número de intentos < max_intentos
     - La fecha de próximo intento ya pasó (si existe)
     """
+    log_id = validate_uuid(log_id, "log_id")
     log = await _get_log_or_404(db, log_id, current_user)
 
     if not log.puede_reintentar:
@@ -209,6 +213,7 @@ async def delete_email_log(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un log de correo"""
+    log_id = validate_uuid(log_id, "log_id")
     log = await _get_log_or_404(db, log_id, current_user)
 
     await db.delete(log)

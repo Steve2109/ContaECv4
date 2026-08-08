@@ -9,6 +9,7 @@ from sqlalchemy import func, select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.employee import Employee, EstadoEmpleado
@@ -103,6 +104,7 @@ async def create_employee(
 
     Valida el límite de empleados según el plan de licencia.
     """
+    data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, data.company_id, current_user.id)
 
@@ -201,6 +203,7 @@ async def list_employees(
 
     Opcionalmente filtrado por empresa, estado, departamento y estado activo.
     """
+    company_id = clean_company_id(company_id)
     # Consulta base: empleados de empresas del usuario
     query = (
         select(Employee)
@@ -245,6 +248,7 @@ async def list_departments(
 
     Retorna los departamentos únicos con el número de empleados activos en cada uno.
     """
+    company_id = validate_uuid(company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, company_id, current_user.id)
 
@@ -282,6 +286,7 @@ async def get_employee(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un empleado específico por su ID"""
+    employee_id = validate_uuid(employee_id, "employee_id")
     employee = await _get_employee_for_user(db, employee_id, current_user.id)
     return EmployeeResponse.model_validate(employee)
 
@@ -294,6 +299,7 @@ async def update_employee(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar datos de un empleado"""
+    employee_id = validate_uuid(employee_id, "employee_id")
     employee = await _get_employee_for_user(db, employee_id, current_user.id)
 
     # Actualizar campos proporcionados
@@ -328,6 +334,7 @@ async def delete_employee(
     No elimina el registro, solo marca is_active=False y
     cambia el estado a 'cese'.
     """
+    employee_id = validate_uuid(employee_id, "employee_id")
     employee = await _get_employee_for_user(db, employee_id, current_user.id)
 
     # Eliminación lógica
@@ -353,6 +360,7 @@ async def record_cese(
     Registra la fecha de salida y cambia el estado a 'cese'.
     Calcula las provisiones pendientes al momento del cese.
     """
+    employee_id = validate_uuid(employee_id, "employee_id")
     employee = await _get_employee_for_user(db, employee_id, current_user.id)
 
     if employee.estado == EstadoEmpleado.CESE:

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.database import get_db
+from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
 from app.models.project import (
@@ -108,6 +109,8 @@ async def create_proyecto(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un nuevo proyecto"""
+    data.cliente_id = clean_uuid_param(data.cliente_id, "cliente_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     await _get_company_for_user(db, data.company_id, current_user.id)
 
     # Validate estado if provided
@@ -163,6 +166,7 @@ async def list_proyectos(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar proyectos con filtros"""
+    company_id = clean_company_id(company_id)
     query = (
         select(Proyecto)
         .join(Company, Proyecto.company_id == Company.id)
@@ -191,6 +195,7 @@ async def get_proyecto_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener estadísticas generales de proyectos"""
+    company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
 
     # Total proyectos
@@ -301,6 +306,7 @@ async def get_proyecto(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un proyecto por ID con todas sus relaciones"""
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
     return ProyectoResponse.model_validate(proyecto)
 
@@ -314,6 +320,7 @@ async def update_proyecto(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un proyecto"""
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     update_data = data.model_dump(exclude_unset=True)
@@ -365,6 +372,7 @@ async def delete_proyecto(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un proyecto (soft delete)"""
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     if proyecto.estado == ProyectoEstado.EN_PROGRESO.value:
@@ -403,6 +411,7 @@ async def list_tareas(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar tareas de un proyecto"""
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     query = (
@@ -431,6 +440,8 @@ async def create_tarea(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear una tarea en un proyecto"""
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     # Validate estado if provided
@@ -492,6 +503,7 @@ async def update_tarea(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar una tarea de proyecto"""
+    tarea_id = validate_uuid(tarea_id, "tarea_id")
     result = await db.execute(
         select(ProyectoTarea).where(ProyectoTarea.id == tarea_id)
     )
@@ -543,6 +555,7 @@ async def delete_tarea(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar una tarea de proyecto (soft delete)"""
+    tarea_id = validate_uuid(tarea_id, "tarea_id")
     result = await db.execute(
         select(ProyectoTarea).where(ProyectoTarea.id == tarea_id)
     )
@@ -585,6 +598,7 @@ async def list_recursos(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar recursos de un proyecto"""
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     query = (
@@ -613,6 +627,8 @@ async def create_recurso(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un recurso en un proyecto"""
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     # Validate tipo_recurso
@@ -666,6 +682,7 @@ async def update_recurso(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un recurso de proyecto"""
+    recurso_id = validate_uuid(recurso_id, "recurso_id")
     result = await db.execute(
         select(ProyectoRecurso).where(ProyectoRecurso.id == recurso_id)
     )
@@ -711,6 +728,7 @@ async def delete_recurso(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un recurso de proyecto (soft delete)"""
+    recurso_id = validate_uuid(recurso_id, "recurso_id")
     result = await db.execute(
         select(ProyectoRecurso).where(ProyectoRecurso.id == recurso_id)
     )
@@ -752,6 +770,8 @@ async def list_timesheets(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar timesheets de un proyecto"""
+    employee_id = clean_uuid_param(employee_id, "employee_id")
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     query = (
@@ -777,6 +797,10 @@ async def create_timesheet(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un registro de timesheet en un proyecto"""
+    data.tarea_id = clean_uuid_param(data.tarea_id, "tarea_id")
+    data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
+    project_id = validate_uuid(project_id, "project_id")
+    data.company_id = validate_uuid(data.company_id, "company_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     # Verify company_id matches
@@ -832,6 +856,7 @@ async def update_timesheet(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar un registro de timesheet"""
+    ts_id = validate_uuid(ts_id, "ts_id")
     result = await db.execute(
         select(ProyectoTimesheet).where(ProyectoTimesheet.id == ts_id)
     )
@@ -877,6 +902,7 @@ async def delete_timesheet(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un registro de timesheet"""
+    ts_id = validate_uuid(ts_id, "ts_id")
     result = await db.execute(
         select(ProyectoTimesheet).where(ProyectoTimesheet.id == ts_id)
     )
@@ -918,6 +944,7 @@ async def list_costos(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar costos de un proyecto"""
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     query = (
@@ -943,6 +970,8 @@ async def create_costo(
     db: AsyncSession = Depends(get_db),
 ):
     """Crear un costo en un proyecto"""
+    data.comprobante_id = clean_uuid_param(data.comprobante_id, "comprobante_id")
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     costo = ProyectoCosto(
@@ -981,6 +1010,7 @@ async def delete_costo(
     db: AsyncSession = Depends(get_db),
 ):
     """Eliminar un costo de proyecto"""
+    costo_id = validate_uuid(costo_id, "costo_id")
     result = await db.execute(
         select(ProyectoCosto).where(ProyectoCosto.id == costo_id)
     )
@@ -1033,6 +1063,7 @@ async def recalcular_proyecto(
     - Calcula proyecto.progreso = promedio de todas las tareas.progreso
     - Actualiza tarea.horas_reales = suma de timesheet horas para esa tarea
     """
+    project_id = validate_uuid(project_id, "project_id")
     proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
 
     # 1. Sum timesheets costo_total
