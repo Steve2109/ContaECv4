@@ -4,6 +4,7 @@ CRUD de clientes para facturación electrónica
 con tipos de identificación según catálogos del SRI (Tabla 7)
 """
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -23,6 +24,27 @@ router = APIRouter(prefix="/clients", tags=["Clientes"])
 # ==========================================
 # Funciones auxiliares
 # ==========================================
+
+def _validate_uuid(value: str, param_name: str) -> str:
+    """
+    Valida que un parámetro sea un UUID válido.
+
+    Evita que un valor inválido (p.ej. 'abc', 'undefined') llegue a PostgreSQL,
+    donde al compararlo contra una columna tipo UUID generaría un DataError (500).
+
+    Raises:
+        HTTPException: 400 si el valor no es un UUID válido
+    """
+    cleaned = value.strip()
+    try:
+        uuid.UUID(cleaned)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El parámetro {param_name} debe ser un UUID válido.",
+        )
+    return cleaned
+
 
 async def _get_company_for_user(
     db: AsyncSession,
@@ -106,6 +128,9 @@ async def create_client(
     Verifica que la empresa pertenezca al usuario antes de crear el cliente.
     No se puede crear otro cliente Consumidor Final (tipo 07) ya que es automático.
     """
+    # Validar que company_id sea un UUID válido antes de consultar la base de datos
+    data.company_id = _validate_uuid(data.company_id, "company_id")
+    
     # Verificar que la empresa pertenece al usuario
     await _get_company_for_user(db, data.company_id, current_user.id)
     
@@ -169,14 +194,21 @@ async def list_clients(
     Incluye el cliente Consumidor Final por defecto si no existe.
     """
     try:
-        # Consulta base: clientes de empresas del usuario
+        # 1. Validar formato de company_id si es proporcionado
+        if company_id:
+            cleaned_id = company_id.strip()
+            if cleaned_id in ("", "undefined", "null"):
+                return []
+            company_id = _validate_uuid(cleaned_id, "company_id")
+
+        # 2. Consulta base: clientes de empresas del usuario
         query = (
             select(Client)
             .join(Company, Client.company_id == Company.id)
             .where(Company.user_id == current_user.id)
         )
 
-        # Filtro de empresa
+        # 3. Filtro de empresa
         if company_id:
             await _get_company_for_user(db, company_id, current_user.id)
             query = query.where(Client.company_id == company_id)
@@ -185,6 +217,7 @@ async def list_clients(
             try:
                 await _ensure_consumidor_final(db, company_id)
             except Exception:
+                await db.rollback()  # Previene abortar la sesión SQLAlchemy
                 logger.warning(f"Could not ensure Consumidor Final for company {company_id}", exc_info=True)
 
         # Filtro de tipo de identificación
@@ -209,8 +242,8 @@ async def list_clients(
                 logger.warning(f"Could not serialize client {c.id}", exc_info=True)
                 # Still include client with nulls for problematic fields
                 response_clients.append(ClientResponse(
-                    id=c.id,
-                    company_id=c.company_id,
+                    id=str(c.id),
+                    company_id=str(c.company_id),
                     tipo_identificacion=c.tipo_identificacion,
                     identificacion=c.identificacion,
                     razon_social=c.razon_social,
@@ -241,6 +274,7 @@ async def get_client(
     db: AsyncSession = Depends(get_db),
 ):
     """Obtener un cliente específico por su ID"""
+    client_id = _validate_uuid(client_id, "client_id")
     result = await db.execute(
         select(Client).where(Client.id == client_id)
     )
@@ -266,6 +300,7 @@ async def update_client(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualizar datos de un cliente"""
+    client_id = _validate_uuid(client_id, "client_id")
     result = await db.execute(
         select(Client).where(Client.id == client_id)
     )
@@ -327,6 +362,7 @@ async def delete_client(
     No se puede desactivar el cliente Consumidor Final ya que es
     obligatorio según el SRI para facturas sin identificación.
     """
+    client_id = _validate_uuid(client_id, "client_id")
     result = await db.execute(
         select(Client).where(Client.id == client_id)
     )

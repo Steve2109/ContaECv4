@@ -1124,7 +1124,11 @@ async function deleteProduct(id: string): Promise<void> {
 // ============ CLIENT API FUNCTIONS ============
 
 async function getClients(companyId: string): Promise<ClientResponse[]> {
-  return apiGet<ClientResponse[]>(`/v1/clients?company_id=${companyId}`);
+  const id = companyId?.trim();
+  if (!id || id === 'undefined' || id === 'null') {
+    return [];
+  }
+  return apiGet<ClientResponse[]>(`/v1/clients?company_id=${encodeURIComponent(id)}`);
 }
 
 async function createClient(data: ClientCreate): Promise<ClientResponse> {
