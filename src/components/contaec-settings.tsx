@@ -42,7 +42,6 @@ import {
   RotateCcw,
   HardDrive,
   RefreshCw,
-  Trash2,
   Building2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -75,7 +74,6 @@ import {
   testSMTP,
   switchEnvironmentMode,
   updateProfile,
-  setBackupKey,
   changePassword,
   uploadCompanyLogo,
   validateSignature,
@@ -352,7 +350,7 @@ function ProfileTab({
   config: UserConfig;
   onConfigUpdate: () => void;
 }) {
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const [fullName, setFullName] = useState(config.user.full_name);
   const [phone, setPhone] = useState(config.user.phone || '');
   const [language, setLanguage] = useState(config.user.language || 'es_EC');
@@ -987,8 +985,8 @@ function SignatureTab({
 // ─── Environment Tab ────────────────────────────────────────────
 function EnvironmentTab({
   config,
-  companyConfig,
-  selectedCompanyId,
+  companyConfig: _companyConfig,
+  selectedCompanyId: _selectedCompanyId,
   onConfigUpdate,
 }: {
   config: UserConfig;
@@ -1233,7 +1231,7 @@ function EnvironmentTab({
 // ─── SMTP Tab ───────────────────────────────────────────────────
 function SMTPTab({
   config,
-  companyConfig,
+  companyConfig: _companyConfig,
   selectedCompanyId,
   onConfigUpdate,
 }: {
@@ -1882,8 +1880,8 @@ function BackupsTab({ config, selectedCompanyId }: { config: UserConfig; selecte
 // ─── Security Tab ───────────────────────────────────────────────
 function SecurityTab({
   config,
-  companyConfig,
-  selectedCompanyId,
+  companyConfig: _companyConfig,
+  selectedCompanyId: _selectedCompanyId,
   onConfigUpdate,
 }: {
   config: UserConfig;
@@ -1894,7 +1892,7 @@ function SecurityTab({
   const [vtEnabled, setVtEnabled] = useState(config.virustotal_enabled);
   const [vtToggling, setVtToggling] = useState(false);
   const [clamavAvailable, setClamavAvailable] = useState(config.clamav_available);
-  const [virustotalAvailable, setVirustotalAvailable] = useState(config.virustotal_available);
+  const [virustotalAvailable] = useState(config.virustotal_available);
   const [recheckingClamav, setRecheckingClamav] = useState(false);
   const [backupKey, setBackupKey] = useState('');
   const [backupKeyConfirm, setBackupKeyConfirm] = useState('');

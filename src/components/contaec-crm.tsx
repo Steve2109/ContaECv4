@@ -1558,7 +1558,7 @@ function CreateSegmentDialog({ open, onOpenChange, companyId, onCreated }: {
     if (rules && rules.trim()) {
       try {
         parsedRules = JSON.parse(rules);
-      } catch (_e) {
+      } catch {
         toast.error('Reglas JSON inválidas. Use formato: {"campo": "valor"}');
         return;
       }
@@ -1650,7 +1650,7 @@ function CreateAutomationDialog({ open, onOpenChange, companyId, onCreated }: {
     if (triggerConditions && triggerConditions.trim()) {
       try {
         parsedConditions = JSON.parse(triggerConditions);
-      } catch (_e) {
+      } catch {
         toast.error('Condiciones JSON inválidas. Ejemplo: {"campo": "stage", "valor": "propuesta"}');
         return;
       }
@@ -1660,7 +1660,7 @@ function CreateAutomationDialog({ open, onOpenChange, companyId, onCreated }: {
     if (actions && actions.trim()) {
       try {
         parsedActions = JSON.parse(actions);
-      } catch (_e) {
+      } catch {
         toast.error('Acciones JSON inválidas. Ejemplo: {"tipo": "email", "destinatario": "lead"}');
         return;
       }

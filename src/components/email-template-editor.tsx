@@ -38,11 +38,7 @@ import {
   Edit,
   Trash2,
   Eye,
-  Copy,
   CheckCircle,
-  Send,
-  FileText,
-  Code,
   RefreshCw,
 } from 'lucide-react';
 import {
@@ -50,9 +46,7 @@ import {
   createEmailTemplate,
   updateEmailTemplate,
   deleteEmailTemplate,
-  previewEmailTemplate,
   previewEmailTemplateCustom,
-  sendEmailWithTemplate,
   type EmailTemplate,
 } from '@/lib/api';
 
@@ -82,14 +76,13 @@ interface EmailTemplateEditorProps {
   companyId?: string;
 }
 
-export function EmailTemplateEditor({ companyId }: EmailTemplateEditorProps) {
+export function EmailTemplateEditor({ companyId: _companyId }: EmailTemplateEditorProps) {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [selectedTemplateForSend, setSelectedTemplateForSend] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -110,7 +103,7 @@ export function EmailTemplateEditor({ companyId }: EmailTemplateEditorProps) {
     try {
       const data = await getEmailTemplates();
       setTemplates(data);
-    } catch (error) {
+    } catch {
       toast.error('Error al cargar plantillas');
     } finally {
       setLoading(false);
@@ -171,7 +164,7 @@ export function EmailTemplateEditor({ companyId }: EmailTemplateEditorProps) {
       await deleteEmailTemplate(template.id);
       toast.success('Plantilla eliminada');
       loadTemplates();
-    } catch (error) {
+    } catch {
       toast.error('Error al eliminar plantilla');
     }
   }
@@ -200,7 +193,7 @@ export function EmailTemplateEditor({ companyId }: EmailTemplateEditorProps) {
 
       setPreviewHtml(result.rendered_html ?? result.cuerpo_html ?? "");
       setIsPreviewOpen(true);
-    } catch (error) {
+    } catch {
       toast.error('Error al generar vista previa');
     }
   }

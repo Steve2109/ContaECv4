@@ -231,7 +231,7 @@ export function ContaECPOS({ user, companies }: ContaECPOSProps) {
 // ═════════════════════════════════════════════════════════════
 
 function POSTerminalView({
-  user,
+  user: _user,
   companyId,
   companies,
 }: {
@@ -963,7 +963,7 @@ function ChangeDialog({
   onOpenChange,
   ticket,
   cambio,
-  company,
+  company: _company,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
