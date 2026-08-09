@@ -451,3 +451,106 @@ async def send_test_email(
         )
     )
     return result
+
+
+async def send_welcome_email(
+    to_email: str,
+    full_name: str = "",
+    trial_end_date=None,
+) -> dict:
+    """
+    Envía el correo de bienvenida/confirmación de cuenta al nuevo usuario
+    usando el SMTP del SISTEMA (configurado en variables de entorno).
+
+    Este correo NO usa el SMTP del usuario (aún no existe al registrarse),
+    sino el buzón de la plataforma (SMTP_HOST/SMTP_USER del .env).
+
+    La función NUNCA lanza excepciones: si el SMTP no está configurado o
+    el envío falla, se registra en el log y se retorna success=False.
+    Esto permite llamarla en segundo plano sin romper el registro.
+
+    Args:
+        to_email: Correo del nuevo usuario
+        full_name: Nombre completo del usuario
+        trial_end_date: Fecha fin del período de prueba (opcional)
+
+    Returns:
+        dict: {"success": bool, "message": str}
+    """
+    # Validar configuración SMTP del sistema
+    if not settings.SMTP_ENABLED or not settings.SMTP_HOST or not settings.SMTP_USER:
+        logger.warning(
+            f"Correo de bienvenida NO enviado a {to_email}: "
+            "SMTP del sistema no configurado (SMTP_ENABLED/SMTP_HOST/SMTP_USER)."
+        )
+        return {"success": False, "message": "SMTP del sistema no configurado."}
+
+    try:
+        nombre = html.escape(full_name or to_email)
+        trial_text = ""
+        if trial_end_date:
+            try:
+                fecha = trial_end_date.strftime("%d/%m/%Y")
+            except Exception:
+                fecha = str(trial_end_date)
+            trial_text = (
+                "<p>Tu cuenta incluye un <strong>período de prueba de 15 días</strong> "
+                f"válido hasta el <strong>{html.escape(fecha)}</strong>, para que explores "
+                "todas las funcionalidades de ContaEC.</p>"
+            )
+
+        # Crear mensaje
+        from email.header import Header
+
+        msg = MIMEMultipart()
+        msg['From'] = f"{settings.SMTP_FROM_NAME or 'ContaEC'} <{settings.SMTP_USER}>"
+        msg['To'] = to_email
+        # Header() codifica el asunto (emoji y acentos) según RFC 2047
+        msg['Subject'] = str(Header("🎉 ¡Tu cuenta en ContaEC ha sido creada!", "utf-8"))
+
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1B5E20; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0; font-size: 22px;">🎉 ¡Bienvenido a ContaEC!</h2>
+                <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9;">Tu cuenta fue creada exitosamente</p>
+            </div>
+            <div style="background-color: #f9f9f9; padding: 24px; border: 1px solid #ddd;">
+                <p>Estimado/a <strong>{nombre}</strong>,</p>
+                <p>¡Felicitaciones! Tu cuenta en <strong>ContaEC</strong> ha sido creada correctamente.</p>
+                <p>Ya puedes iniciar sesión y comenzar a usar el sistema de contabilidad y facturación electrónica.</p>
+                {trial_text}
+                <div style="background-color: #E8F5E9; border-left: 4px solid #1B5E20; padding: 12px 16px; margin: 16px 0;">
+                    <p style="margin: 0; font-size: 14px;"><strong>Acceso:</strong> <a href="https://conta.tymtechnology.shop" style="color: #1B5E20;">https://conta.tymtechnology.shop</a></p>
+                </div>
+                <p style="font-size: 14px;">Si necesitas ayuda, responde este correo o contáctanos al <strong>0960068866</strong>.</p>
+            </div>
+            <div style="background-color: #1B5E20; color: white; padding: 14px 24px; border-radius: 0 0 8px 8px; font-size: 12px; text-align: center;">
+                <p style="margin: 0;">ContaEC - T&M Technology Ec</p>
+                <p style="margin: 3px 0 0 0; opacity: 0.8;">info@tymtechnology.shop | 0960068866</p>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+        # Enviar en executor para no bloquear el event loop
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            partial(
+                _send_email_sync,
+                msg=msg,
+                smtp_host=settings.SMTP_HOST,
+                smtp_port=settings.SMTP_PORT,
+                smtp_user=settings.SMTP_USER,
+                smtp_password=settings.SMTP_PASSWORD,
+                smtp_ssl=settings.SMTP_SSL,
+                to_email=to_email,
+            )
+        )
+        logger.info(f"Correo de bienvenida enviado a {to_email}")
+        return result
+    except Exception as e:
+        logger.error(f"Error al enviar correo de bienvenida a {to_email}: {e}")
+        return {"success": False, "message": f"Error al enviar correo: {str(e)}"}

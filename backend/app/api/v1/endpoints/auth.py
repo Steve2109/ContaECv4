@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from app.core.security import (
     oauth2_scheme,
 )
 from app.core.config import get_settings
+from app.core.email_service import send_welcome_email
 from app.core.token_blacklist import get_token_blacklist
 from app.core.rate_limiter import limiter, AUTH_LOGIN_LIMIT, AUTH_REGISTER_LIMIT, AUTH_CHANGE_PASSWORD_LIMIT, AUTH_REFRESH_LIMIT
 from app.models.user import User, UserConfig, LicenseType
@@ -42,7 +43,12 @@ settings = get_settings()
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 @limiter.limit(AUTH_REGISTER_LIMIT)
-async def register(request: Request, user_data: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register(
+    request: Request,
+    user_data: UserRegister,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     """Registrar un nuevo usuario"""
     # Verificar si el email ya existe
     result = await db.execute(select(User).where(User.email == user_data.email))
@@ -83,6 +89,16 @@ async def register(request: Request, user_data: UserRegister, db: AsyncSession =
     await db.flush()
 
     logger.info(f"Nuevo usuario registrado: {user.email}")
+
+    # Enviar correo de bienvenida en segundo plano (tras enviar la respuesta).
+    # NUNCA debe bloquear ni fallar el registro: si el SMTP no está configurado
+    # o el envío falla, send_welcome_email solo lo registra en el log.
+    background_tasks.add_task(
+        send_welcome_email,
+        to_email=user.email,
+        full_name=user.full_name or user.email,
+        trial_end_date=trial_end,
+    )
 
     # Generar JWT tokens para auto-login tras registro
     access_token = create_access_token(data={"sub": str(user.id), "email": user.email})

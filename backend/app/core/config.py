@@ -147,6 +147,20 @@ class Settings(BaseSettings):
     BACKEND_PORT: int = 8001
 
     # ==========================================
+    # SMTP del Sistema (correos automáticos: bienvenida, notificaciones)
+    # Este buzón es del SISTEMA (ej: info@tymtechnology.shop), distinto
+    # del SMTP que cada usuario configura para sus comprobantes.
+    # SMTP_SSL=True -> puerto 465 (SSL directo) | SMTP_SSL=False -> STARTTLS (587)
+    # ==========================================
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_SSL: bool = False
+    SMTP_FROM_NAME: str = "ContaEC"
+
+    # ==========================================
     # Almacenamiento Volátil
     # ==========================================
     TEMP_DIR: str = "./temp"
