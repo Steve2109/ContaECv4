@@ -122,7 +122,7 @@ function AdminSettingsView({ user }: { user?: { email: string; full_name: string
           priority
         />
         <div>
-          <h2 className="text-2xl font-bold">Configuracion</h2>
+          <h2 className="text-2xl font-bold">Configuración</h2>
           <p className="text-muted-foreground">
             Panel de administracion
           </p>
@@ -250,7 +250,7 @@ function RegularUserSettings() {
           priority
         />
         <div>
-          <h2 className="text-2xl font-bold">Configuracion</h2>
+          <h2 className="text-2xl font-bold">Configuración</h2>
           <p className="text-muted-foreground">
             Administre su perfil, firma electronica, ambiente y seguridad
           </p>
@@ -294,7 +294,7 @@ function RegularUserSettings() {
           </TabsTrigger>
           <TabsTrigger value="signature" className="gap-1.5">
             <KeyRound className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Firma Electronica</span>
+            <span className="hidden sm:inline">Firma Electrónica</span>
           </TabsTrigger>
           <TabsTrigger value="environment" className="gap-1.5">
             <Globe className="h-3.5 w-3.5" />
@@ -408,7 +408,7 @@ function ProfileTab({
           ) : (
             <XCircle className="h-4 w-4" />
           )}
-          <AlertTitle>{message.type === 'success' ? 'Exito' : 'Error'}</AlertTitle>
+          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -419,7 +419,7 @@ function ProfileTab({
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <User className="h-4 w-4 text-primary" />
-              Informacion Personal
+              Información Personal
             </CardTitle>
             <CardDescription>Actualice sus datos personales</CardDescription>
           </CardHeader>
@@ -435,7 +435,7 @@ function ProfileTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="profile-phone">Telefono</Label>
+                <Label htmlFor="profile-phone">Teléfono</Label>
                 <Input
                   id="profile-phone"
                   value={phone}
@@ -446,7 +446,7 @@ function ProfileTab({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="profile-email">Correo Electronico</Label>
+              <Label htmlFor="profile-email">Correo Electrónico</Label>
               <Input id="profile-email" value={config.user.email} disabled className="bg-muted" />
               <p className="text-xs text-muted-foreground">
                 El correo no puede ser modificado. Contacte al administrador si necesita cambiarlo.
@@ -552,7 +552,7 @@ function ProfileTab({
               onChange={handleLogoUpload}
             />
             <p className="text-xs text-muted-foreground text-center">
-              PNG, JPG o SVG. Maximo 2MB.
+              PNG, JPG o SVG. Máximo 2MB.
             </p>
           </CardContent>
         </Card>
@@ -673,7 +673,7 @@ function SignatureTab({
           ) : (
             <XCircle className="h-4 w-4" />
           )}
-          <AlertTitle>{message.type === 'success' ? 'Exito' : 'Error'}</AlertTitle>
+          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -683,7 +683,7 @@ function SignatureTab({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-primary" />
-            Estado de Firma Electronica
+            Estado de Firma Electrónica
           </CardTitle>
           <CardDescription>Estado actual de su firma digital registrada</CardDescription>
         </CardHeader>
@@ -777,7 +777,7 @@ function SignatureTab({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sig-password">Contrasena de la Firma</Label>
+            <Label htmlFor="sig-password">Contraseña de la Firma</Label>
             <div className="relative">
               <Input
                 id="sig-password"
@@ -848,7 +848,7 @@ function SignatureTab({
                   validation.is_valid ? 'text-emerald-600' : 'text-destructive'
                 }`}
               />
-              Resultado de Validacion
+              Resultado de Validación
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -935,7 +935,7 @@ function SignatureTab({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Numero de Serie</span>
+                <span className="text-muted-foreground">Número de Serie</span>
                 <span className="font-mono font-medium">{validation.serial_number}</span>
               </div>
               <div className="flex justify-between">
@@ -1016,7 +1016,7 @@ function EnvironmentTab({
       await switchEnvironmentMode(mode);
       setMessage({
         type: 'success',
-        text: `Ambiente cambiado a ${mode === 'sandbox' ? 'Pruebas' : 'Produccion'} correctamente`,
+        text: `Ambiente cambiado a ${mode === 'sandbox' ? 'Pruebas' : 'Producción'} correctamente`,
       });
       onConfigUpdate();
     } catch (err) {
@@ -1039,7 +1039,7 @@ function EnvironmentTab({
           ) : (
             <XCircle className="h-4 w-4" />
           )}
-          <AlertTitle>{message.type === 'success' ? 'Exito' : 'Error'}</AlertTitle>
+          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -1065,7 +1065,7 @@ function EnvironmentTab({
                   : 'bg-amber-500 hover:bg-amber-600'
               }
             >
-              {config.environment_mode === 'sandbox' ? 'Pruebas' : 'Produccion'}
+              {config.environment_mode === 'sandbox' ? 'Pruebas' : 'Producción'}
             </Badge>
           </div>
         </CardContent>
@@ -1142,7 +1142,7 @@ function EnvironmentTab({
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <Globe className="h-4 w-4 text-emerald-600" />
-                Produccion
+                Producción
               </CardTitle>
               {config.environment_mode === 'production' && (
                 <Badge className="bg-emerald-600">Activo</Badge>
@@ -1181,7 +1181,7 @@ function EnvironmentTab({
               {switching ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Cambiar a Produccion
+              Cambiar a Producción
             </Button>
           </CardContent>
         </Card>
@@ -1273,7 +1273,7 @@ function SMTPTab({
         smtp_protocol: smtpProtocol,
         smtp_ssl: smtpSsl,
       });
-      setMessage({ type: 'success', text: 'Configuracion SMTP guardada correctamente' });
+      setMessage({ type: 'success', text: 'Configuración SMTP guardada correctamente' });
       onConfigUpdate();
     } catch (err) {
       setMessage({
@@ -1314,7 +1314,7 @@ function SMTPTab({
           ) : (
             <XCircle className="h-4 w-4" />
           )}
-          <AlertTitle>{message.type === 'success' ? 'Exito' : 'Error'}</AlertTitle>
+          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -1350,7 +1350,7 @@ function SMTPTab({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Server className="h-4 w-4 text-primary" />
-            Configuracion SMTP
+            Configuración SMTP
           </CardTitle>
           <CardDescription>
             Configure el servidor de correo para el envio de comprobantes
@@ -1390,14 +1390,14 @@ function SMTPTab({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="smtp-password">Contrasena</Label>
+              <Label htmlFor="smtp-password">Contraseña</Label>
               <div className="relative">
                 <Input
                   id="smtp-password"
                   type={showPassword ? 'text' : 'password'}
                   value={smtpPassword}
                   onChange={(e) => setSmtpPassword(e.target.value)}
-                  placeholder="Contrasena o app password"
+                  placeholder="Contraseña o app password"
                   className="pr-10"
                 />
                 <Button
@@ -1453,7 +1453,7 @@ function SMTPTab({
                   Guardando...
                 </>
               ) : (
-                'Guardar Configuracion'
+                'Guardar Configuración'
               )}
             </Button>
             <Button variant="outline" onClick={handleTestSMTP} disabled={testing || !smtpHost}>
@@ -1465,7 +1465,7 @@ function SMTPTab({
               ) : (
                 <>
                   <TestTube className="mr-2 h-4 w-4" />
-                  Probar Configuracion
+                  Probar Configuración
                 </>
               )}
             </Button>
@@ -1480,7 +1480,7 @@ function SMTPTab({
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Configuracion SMTP</span>
+            <span className="text-sm text-muted-foreground">Configuración SMTP</span>
             <Badge variant={config.has_smtp_config ? 'default' : 'secondary'}>
               {config.has_smtp_config ? 'Configurado' : 'No configurado'}
             </Badge>
@@ -1618,7 +1618,7 @@ function BackupsTab({ config, selectedCompanyId }: { config: UserConfig; selecte
           ) : (
             <XCircle className="h-4 w-4" />
           )}
-          <AlertTitle>{message.type === 'success' ? 'Exito' : 'Error'}</AlertTitle>
+          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -1629,13 +1629,13 @@ function BackupsTab({ config, selectedCompanyId }: { config: UserConfig; selecte
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              Resultado de Restauracion
+              Resultado de Restauración
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="rounded-md border px-3 py-2">
-                <span className="text-xs text-muted-foreground">Version</span>
+                <span className="text-xs text-muted-foreground">Versión</span>
                 <p className="font-medium">{restoreResult.backup_version}</p>
               </div>
               <div className="rounded-md border px-3 py-2">
@@ -1836,7 +1836,7 @@ function BackupsTab({ config, selectedCompanyId }: { config: UserConfig; selecte
       <Dialog open={!!restoreConfirm} onOpenChange={(open) => { if (!open) setRestoreConfirm(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirmar Restauracion</DialogTitle>
+            <DialogTitle>Confirmar Restauración</DialogTitle>
             <DialogDescription>
               {restoreConfirm === 'file'
                 ? 'Esta a punto de restaurar datos desde un archivo de respaldo. Los datos existentes se actualizaran o se crearan nuevos registros.'
@@ -1845,7 +1845,7 @@ function BackupsTab({ config, selectedCompanyId }: { config: UserConfig; selecte
           </DialogHeader>
           <Alert variant="destructive" className="my-2">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Precaucion</AlertTitle>
+            <AlertTitle>Precaución</AlertTitle>
             <AlertDescription>
               La restauracion modificara sus datos actuales. Se recomienda crear un respaldo antes de restaurar.
             </AlertDescription>
@@ -2001,7 +2001,7 @@ function SecurityTab({
           ) : (
             <XCircle className="h-4 w-4" />
           )}
-          <AlertTitle>{message.type === 'success' ? 'Exito' : 'Error'}</AlertTitle>
+          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -2122,7 +2122,7 @@ function SecurityTab({
                     type={showBackupKey ? 'text' : 'password'}
                     value={backupKey}
                     onChange={(e) => setBackupKey(e.target.value)}
-                    placeholder="Minimo 8 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     className="pr-10"
                   />
                   <Button
@@ -2185,21 +2185,21 @@ function SecurityTab({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-primary" />
-            Cambiar Contrasena
+            Cambiar Contraseña
           </CardTitle>
           <CardDescription>Cambie su contrasena de acceso al sistema</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="current-password">Contrasena Actual</Label>
-            <Input id="current-password" type="password" placeholder="Contrasena actual" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
+            <Label htmlFor="current-password">Contraseña Actual</Label>
+            <Input id="current-password" type="password" placeholder="Contraseña actual" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="new-password">Nueva Contrasena</Label>
-            <Input id="new-password" type="password" placeholder="Minimo 8 caracteres" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+            <Label htmlFor="new-password">Nueva Contraseña</Label>
+            <Input id="new-password" type="password" placeholder="Mínimo 8 caracteres" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirmar Nueva Contrasena</Label>
+            <Label htmlFor="confirm-password">Confirmar Nueva Contraseña</Label>
             <Input id="confirm-password" type="password" placeholder="Repita la nueva contrasena" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
           </div>
           <Button onClick={handleChangePassword} disabled={changingPw || !currentPw || !newPw || !confirmPw}>
@@ -2211,7 +2211,7 @@ function SecurityTab({
             ) : (
               <>
                 <KeyRound className="mr-2 h-4 w-4" />
-                Cambiar Contrasena
+                Cambiar Contraseña
               </>
             )}
           </Button>

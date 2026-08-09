@@ -570,7 +570,7 @@ function POSTerminalView({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Numero de Caja</Label>
+                <Label>Número de Caja</Label>
                 <Input
                   value={sessionForm.numero_caja}
                   onChange={(e) => setSessionForm({ ...sessionForm, numero_caja: e.target.value })}
@@ -855,7 +855,7 @@ function POSTerminalView({
 
                 {tipoVenta === 'tarjeta' && (
                   <div>
-                    <Label className="text-xs">Ultimos 4 digitos</Label>
+                    <Label className="text-xs">Últimos 4 digitos</Label>
                     <Input
                       maxLength={4}
                       className="h-10"
@@ -926,7 +926,7 @@ function POSTerminalView({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Numero de Caja</Label>
+              <Label>Número de Caja</Label>
               <Input value={sessionForm.numero_caja} onChange={(e) => setSessionForm({ ...sessionForm, numero_caja: e.target.value })} placeholder="CAJA-001" />
             </div>
             <div className="space-y-2">
@@ -1095,7 +1095,7 @@ function formatReceipt(data: POSTicketPrintData): string {
   r += `Cliente: ${ticket.cliente_nombre}\n`;
   r += `RUC/CI: ${ticket.cliente_identificacion}\n`;
   r += dash + '\n';
-  r += pad('Cant', 4) + pad('Descripcion', 16) + pad('P.Unit', 6, 'right') + pad('Total', 6, 'right') + '\n';
+  r += pad('Cant', 4) + pad('Descripción', 16) + pad('P.Unit', 6, 'right') + pad('Total', 6, 'right') + '\n';
   r += dash + '\n';
 
   for (const d of ticket.detalles) {
@@ -1352,7 +1352,7 @@ function SesionesTab({ companyId, companies }: { companyId: string; companies: C
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Numero de Caja</Label>
+              <Label>Número de Caja</Label>
               <Input value={sessionForm.numero_caja} onChange={(e) => setSessionForm({ ...sessionForm, numero_caja: e.target.value })} placeholder="CAJA-001" />
             </div>
             <div className="space-y-2">
@@ -1411,7 +1411,7 @@ function SesionesTab({ companyId, companies }: { companyId: string; companies: C
       <Dialog open={!!showDetailDialog} onOpenChange={(o) => !o && setShowDetailDialog(null)}>
         <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalle de Sesion</DialogTitle>
+            <DialogTitle>Detalle de Sesión</DialogTitle>
           </DialogHeader>
           {showDetailDialog && (
             <div className="space-y-4">
@@ -1437,7 +1437,7 @@ function SesionesTab({ companyId, companies }: { companyId: string; companies: C
 
               {showDetailDialog.ultimos_tickets.length > 0 && (
                 <div>
-                  <Label className="text-sm mb-2 block">Ultimos Tickets</Label>
+                  <Label className="text-sm mb-2 block">Últimos Tickets</Label>
                   <div className="space-y-1">
                     {showDetailDialog.ultimos_tickets.map((t) => (
                       <div key={t.id} className="flex justify-between items-center text-sm bg-gray-50 rounded px-2 py-1">
@@ -1554,7 +1554,7 @@ function ArqueoTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       {/* Session Selector */}
       <div className="flex items-center gap-3">
-        <Label>Sesion de Caja:</Label>
+        <Label>Sesión de Caja:</Label>
         <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
           <SelectTrigger className="w-[250px]">
             <SelectValue placeholder="Seleccione sesion" />
@@ -1814,7 +1814,7 @@ function TicketsTab({ companyId }: { companyId: string }) {
           </SelectContent>
         </Select>
         <Select value={filterSession} onValueChange={setFilterSession}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Sesion" /></SelectTrigger>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Sesión" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las sesiones</SelectItem>
             {sessions.map((s) => (
@@ -1890,7 +1890,7 @@ function TicketsTab({ companyId }: { companyId: string }) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Cliente:</span> {showDetail.cliente_nombre}</div>
-                <div><span className="text-muted-foreground">Identificacion:</span> {showDetail.cliente_identificacion}</div>
+                <div><span className="text-muted-foreground">Identificación:</span> {showDetail.cliente_identificacion}</div>
                 <div><span className="text-muted-foreground">Tipo Venta:</span> {getTipoVentaBadge(showDetail.tipo_venta)}</div>
                 <div><span className="text-muted-foreground">Estado:</span> {getTicketEstadoBadge(showDetail.estado)}</div>
                 <div><span className="text-muted-foreground">Fecha:</span> {formatDateTime(showDetail.created_at)}</div>

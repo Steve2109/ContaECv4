@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Component, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -126,19 +126,19 @@ import {
 
 const TIPOS_COMPROBANTE: { codigo: string; descripcion: string }[] = [
   { codigo: '01', descripcion: 'Factura' },
-  { codigo: '03', descripcion: 'Liquidacion de Compra' },
-  { codigo: '04', descripcion: 'Nota de Credito' },
-  { codigo: '05', descripcion: 'Nota de Debito' },
+  { codigo: '03', descripcion: 'Liquidación de Compra' },
+  { codigo: '04', descripcion: 'Nota de Crédito' },
+  { codigo: '05', descripcion: 'Nota de Débito' },
   { codigo: '06', descripcion: 'Guia de Remision' },
-  { codigo: '07', descripcion: 'Comprobante de Retencion' },
+  { codigo: '07', descripcion: 'Comprobante de Retención' },
 ];
 
 const TIPOS_IDENTIFICACION: { codigo: string; descripcion: string }[] = [
   { codigo: '04', descripcion: 'RUC' },
-  { codigo: '05', descripcion: 'Cedula' },
+  { codigo: '05', descripcion: 'Cédula' },
   { codigo: '06', descripcion: 'Pasaporte' },
   { codigo: '07', descripcion: 'Consumidor Final' },
-  { codigo: '08', descripcion: 'Identificacion Exterior' },
+  { codigo: '08', descripcion: 'Identificación Exterior' },
 ];
 
 const FORMAS_PAGO: { codigo: string; descripcion: string }[] = [
@@ -185,8 +185,176 @@ function getEstadoBadge(estado: string) {
   }
 }
 
-function formatCurrency(amount: number): string {
-  return amount.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatCurrency(amount: number | null | undefined): string {
+  return (Number(amount) || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+type DescuentoTipo = 'porcentaje' | 'dolares';
+
+type DetalleConDescuento = {
+  cantidad: number;
+  precio_unitario: number;
+  descuento?: number;
+  descuento_tipo?: DescuentoTipo;
+  descuento_valor?: number;
+  iva_codigo?: string;
+  iva_porcentaje: number;
+  ice_porcentaje?: number | null;
+  irbpnr_valor?: number;
+};
+
+/**
+ * Calcula el monto de descuento EFECTIVO de una línea:
+ * - 'porcentaje': % del total de la línea (cantidad * precio_unitario)
+ * - 'dolares' (o sin tipo): monto fijo
+ */
+function getItemDiscount(item: DetalleConDescuento): number {
+  if (item.descuento_tipo === 'porcentaje' && item.descuento_valor != null && item.descuento_valor > 0) {
+    return (item.cantidad * item.precio_unitario * item.descuento_valor) / 100;
+  }
+  return item.descuento || 0;
+}
+
+function getItemSubtotal(item: DetalleConDescuento): number {
+  return item.cantidad * item.precio_unitario - getItemDiscount(item);
+}
+
+/**
+ * Calcula el desglose completo de totales de un documento en formato SRI:
+ * subtotales por tarifa de IVA, descuento, IVA, ICE, IRBPNR, propina y valor total.
+ */
+function computeTotales(items: DetalleConDescuento[]) {
+  let subtotal_sin_impuestos = 0;
+  let subtotal_iva_0 = 0, subtotal_iva_5 = 0, subtotal_iva_8 = 0, subtotal_iva_12 = 0;
+  let subtotal_iva_13 = 0, subtotal_iva_14 = 0, subtotal_iva_15 = 0;
+  let subtotal_no_objeto_iva = 0, subtotal_exento_iva = 0;
+  let total_iva = 0, total_ice = 0, total_descuento = 0, total_irbpnr = 0;
+
+  for (const item of items) {
+    const totalSinImp = getItemSubtotal(item);
+    subtotal_sin_impuestos += totalSinImp;
+    total_iva += totalSinImp * (item.iva_porcentaje / 100);
+    if (item.ice_porcentaje) total_ice += (totalSinImp * item.ice_porcentaje) / 100;
+    total_descuento += getItemDiscount(item);
+    total_irbpnr += (item.irbpnr_valor || 0) * item.cantidad;
+
+    const porc = item.iva_porcentaje;
+    if (porc === 0) {
+      if (item.iva_codigo === '6') subtotal_no_objeto_iva += totalSinImp;
+      else if (item.iva_codigo === '7') subtotal_exento_iva += totalSinImp;
+      else subtotal_iva_0 += totalSinImp;
+    } else if (porc === 5) subtotal_iva_5 += totalSinImp;
+    else if (porc === 8) subtotal_iva_8 += totalSinImp;
+    else if (porc === 12) subtotal_iva_12 += totalSinImp;
+    else if (porc === 13) subtotal_iva_13 += totalSinImp;
+    else if (porc === 14) subtotal_iva_14 += totalSinImp;
+    else if (porc === 15) subtotal_iva_15 += totalSinImp;
+    else subtotal_iva_0 += totalSinImp;
+  }
+
+  const propina = 0;
+  const total = subtotal_sin_impuestos + total_iva + total_ice + total_irbpnr + propina;
+
+  return {
+    subtotal_sin_impuestos,
+    subtotal_iva_0,
+    subtotal_iva_5,
+    subtotal_iva_8,
+    subtotal_iva_12,
+    subtotal_iva_13,
+    subtotal_iva_14,
+    subtotal_iva_15,
+    subtotal_no_objeto_iva,
+    subtotal_exento_iva,
+    total_iva,
+    total_ice,
+    total_descuento,
+    total_irbpnr,
+    propina,
+    total,
+  };
+}
+
+type TotalesSRI = ReturnType<typeof computeTotales>;
+
+/**
+ * Renderiza el desglose de totales en el formato que exige el SRI:
+ * SUBTOTAL IVA 15%, SUBTOTAL IVA 0%, No objeto, Exento, SUBTOTAL SIN IMPUESTOS,
+ * TOTAL DE DESCUENTO, IVA 15%, ICE, IRBPNR, PROPINA, VALOR TOTAL.
+ */
+function TotalesSRI({ totals }: { totals: TotalesSRI }) {
+  const rows = [
+    { label: 'Subtotal IVA 15%', value: totals.subtotal_iva_15 },
+    { label: 'Subtotal IVA 0%', value: totals.subtotal_iva_0 },
+    { label: 'Subtotal No Objeto de IVA', value: totals.subtotal_no_objeto_iva },
+    { label: 'Subtotal Exento de IVA', value: totals.subtotal_exento_iva },
+    ...(totals.subtotal_iva_5 ? [{ label: 'Subtotal IVA 5%', value: totals.subtotal_iva_5 }] : []),
+    ...(totals.subtotal_iva_8 ? [{ label: 'Subtotal IVA 8%', value: totals.subtotal_iva_8 }] : []),
+    ...(totals.subtotal_iva_12 ? [{ label: 'Subtotal IVA 12%', value: totals.subtotal_iva_12 }] : []),
+    ...(totals.subtotal_iva_13 ? [{ label: 'Subtotal IVA 13%', value: totals.subtotal_iva_13 }] : []),
+    ...(totals.subtotal_iva_14 ? [{ label: 'Subtotal IVA 14%', value: totals.subtotal_iva_14 }] : []),
+    { label: 'Subtotal sin impuestos', value: totals.subtotal_sin_impuestos },
+    { label: 'Total de descuento', value: totals.total_descuento },
+    { label: 'IVA 15%', value: totals.total_iva },
+    { label: 'ICE', value: totals.total_ice },
+    { label: 'IRBPNR', value: totals.total_irbpnr },
+    { label: 'Propina', value: totals.propina },
+  ];
+  return (
+    <div className="space-y-1.5">
+      {rows.map((r) => (
+        <div key={r.label} className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{r.label}</span>
+          <span>${formatCurrency(r.value)}</span>
+        </div>
+      ))}
+      <Separator />
+      <div className="flex justify-between font-bold text-base">
+        <span>VALOR TOTAL</span>
+        <span>${formatCurrency(totals.total)}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Adapta los totales calculados por el backend (ComprobanteResponse / ProformaResponse)
+ * al desglose SRI para reutilizar TotalesSRI en vistas de detalle.
+ */
+function totalesFromResponse(d: {
+  subtotal_iva_0: number;
+  subtotal_iva_5: number;
+  subtotal_iva_8: number;
+  subtotal_iva_12: number;
+  subtotal_iva_13: number;
+  subtotal_iva_14: number;
+  subtotal_iva_15: number;
+  subtotal_no_objeto_iva: number;
+  subtotal_exento_iva: number;
+  subtotal_sin_impuestos: number;
+  total_iva: number;
+  total_ice: number;
+  total_descuento: number;
+  total_con_impuestos: number;
+}): TotalesSRI {
+  return {
+    subtotal_sin_impuestos: d.subtotal_sin_impuestos,
+    subtotal_iva_0: d.subtotal_iva_0,
+    subtotal_iva_5: d.subtotal_iva_5,
+    subtotal_iva_8: d.subtotal_iva_8,
+    subtotal_iva_12: d.subtotal_iva_12,
+    subtotal_iva_13: d.subtotal_iva_13,
+    subtotal_iva_14: d.subtotal_iva_14,
+    subtotal_iva_15: d.subtotal_iva_15,
+    subtotal_no_objeto_iva: d.subtotal_no_objeto_iva,
+    subtotal_exento_iva: d.subtotal_exento_iva,
+    total_iva: d.total_iva,
+    total_ice: d.total_ice,
+    total_descuento: d.total_descuento,
+    total_irbpnr: 0,
+    propina: 0,
+    total: d.total_con_impuestos,
+  };
 }
 
 // ─── Main Component ─────────────────────────────────────────────
@@ -209,7 +377,40 @@ interface ContaECInvoicesProps {
 
 type InvoiceTab = 'listado' | 'nueva' | 'proformas' | 'nueva-proforma' | 'productos' | 'clientes';
 
-export function ContaECInvoices({ user: _user, companies, initialTab }: ContaECInvoicesProps) {
+/**
+ * Captura errores de renderizado de la sección para evitar la pantalla
+ * "Application error" de Next.js y mostrar un fallback amigable.
+ */
+class InvoicesErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: unknown) {
+    console.error('ContaECInvoices render error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+          <div className="text-5xl">⚠️</div>
+          <h3 className="text-xl font-bold">Ocurrió un error al cargar esta sección</h3>
+          <p className="text-muted-foreground max-w-md text-sm">
+            Se produjo un error inesperado al renderizar los comprobantes. Recargue la página
+            o contacte a soporte si el problema persiste.
+          </p>
+          <Button onClick={() => this.setState({ hasError: false })}>Reintentar</Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function ContaECInvoicesInner({ user: _user, companies, initialTab }: ContaECInvoicesProps) {
   const [activeTab, setActiveTab] = useState<InvoiceTab>(initialTab || 'listado');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() =>
     companies.length > 0 ? companies[0].id : ''
@@ -219,7 +420,7 @@ export function ContaECInvoices({ user: _user, companies, initialTab }: ContaECI
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold">Comprobantes Electronicos</h2>
+          <h2 className="text-2xl font-bold">Comprobantes Electrónicos</h2>
           <p className="text-muted-foreground">
             Gestione sus comprobantes, productos y clientes
           </p>
@@ -241,7 +442,7 @@ export function ContaECInvoices({ user: _user, companies, initialTab }: ContaECI
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Comprobantes Electronicos</h2>
+          <h2 className="text-2xl font-bold">Comprobantes Electrónicos</h2>
           <p className="text-muted-foreground">
             Gestione sus comprobantes, productos y clientes
           </p>
@@ -324,6 +525,14 @@ export function ContaECInvoices({ user: _user, companies, initialTab }: ContaECI
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export function ContaECInvoices(props: ContaECInvoicesProps) {
+  return (
+    <InvoicesErrorBoundary>
+      <ContaECInvoicesInner {...props} />
+    </InvoicesErrorBoundary>
   );
 }
 
@@ -1020,7 +1229,7 @@ function ComprobanteDetailView({ comp }: { comp: ComprobanteResponse }) {
           <div>
             <span className="text-muted-foreground">Ambiente</span>
             <div className="mt-1">
-              <Badge variant="outline">{comp.ambiente === '1' ? 'Pruebas' : 'Produccion'}</Badge>
+              <Badge variant="outline">{comp.ambiente === '1' ? 'Pruebas' : 'Producción'}</Badge>
             </div>
           </div>
           <div>
@@ -1028,7 +1237,7 @@ function ComprobanteDetailView({ comp }: { comp: ComprobanteResponse }) {
             <div className="font-medium mt-1">{comp.cliente_razon_social}</div>
           </div>
           <div>
-            <span className="text-muted-foreground">Identificacion</span>
+            <span className="text-muted-foreground">Identificación</span>
             <div className="font-mono text-xs mt-1">{comp.cliente_identificacion}</div>
           </div>
           <div>
@@ -1036,36 +1245,15 @@ function ComprobanteDetailView({ comp }: { comp: ComprobanteResponse }) {
             <div className="font-mono text-xs mt-1 break-all">{comp.clave_acceso || '-'}</div>
           </div>
           <div>
-            <span className="text-muted-foreground">Fecha Emision</span>
+            <span className="text-muted-foreground">Fecha Emisión</span>
             <div className="mt-1">{new Date(comp.fecha_emision).toLocaleString('es-EC')}</div>
           </div>
         </div>
 
         <Separator />
 
-        {/* Totals */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal sin impuestos</span>
-            <span className="font-medium">${formatCurrency(comp.subtotal_sin_impuestos)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">IVA</span>
-            <span className="font-medium">${formatCurrency(comp.total_iva)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">ICE</span>
-            <span className="font-medium">${formatCurrency(comp.total_ice)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Descuento</span>
-            <span className="font-medium">${formatCurrency(comp.total_descuento)}</span>
-          </div>
-          <div className="col-span-2 flex justify-between border-t pt-2">
-            <span className="font-semibold">Total con Impuestos</span>
-            <span className="font-bold text-lg">${formatCurrency(comp.total_con_impuestos)}</span>
-          </div>
-        </div>
+        {/* Totales en formato SRI */}
+        <TotalesSRI totals={totalesFromResponse(comp)} />
 
         <Separator />
 
@@ -1194,17 +1382,8 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
     setInfoAdicional(copy);
   }
 
-  // Calculate totals
-  const subtotal = items.reduce((sum, item) => {
-    const totalSinImp = item.cantidad * item.precio_unitario - (item.descuento || 0);
-    return sum + totalSinImp;
-  }, 0);
-  const totalIva = items.reduce((sum, item) => {
-    const totalSinImp = item.cantidad * item.precio_unitario - (item.descuento || 0);
-    return sum + totalSinImp * (item.iva_porcentaje / 100);
-  }, 0);
-  const totalDescuento = items.reduce((sum, item) => sum + (item.descuento || 0), 0);
-  const total = subtotal + totalIva;
+  // Calculate totals (desglose completo estilo SRI)
+  const totals = computeTotales(items);
 
   // Validate step
   function canProceed(): boolean {
@@ -1228,19 +1407,30 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
   async function handleCreate() {
     setCreating(true);
     try {
+      const detalles: ComprobanteDetalleCreate[] =
+        tipoComprobante === '07'
+          ? [{
+              codigo_principal: 'RET',
+              descripcion: 'Comprobante de Retención',
+              cantidad: 1,
+              precio_unitario: baseImponible,
+              iva_codigo: '0',
+              iva_porcentaje: 0,
+            }]
+          : items.map((item) => ({
+              ...item,
+              // Enviar el monto de descuento efectivo calculado (dólares)
+              descuento: getItemDiscount(item) || undefined,
+              descuento_tipo: item.descuento_tipo || undefined,
+              descuento_valor: item.descuento_valor ?? undefined,
+            }));
+
       const comprobanteData: ComprobanteCreate = {
         company_id: companyId,
         client_id: clientId,
         tipo_comprobante: tipoComprobante,
         forma_pago: formaPago,
-        detalles: tipoComprobante === '07' ? [{
-          codigo_principal: 'RET',
-          descripcion: 'Comprobante de Retención',
-          cantidad: 1,
-          precio_unitario: baseImponible,
-          iva_codigo: '0',
-          iva_porcentaje: 0,
-        }] : items,
+        detalles,
         info_adicional: Object.keys(infoAdicional).length > 0 ? infoAdicional : undefined,
       };
 
@@ -1496,7 +1686,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Info className="h-4 w-4 text-primary" />
-              Informacion Adicional
+              Información Adicional
             </CardTitle>
             <CardDescription>Forma de pago e informacion adicional</CardDescription>
           </CardHeader>
@@ -1563,7 +1753,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
             <Separator />
 
             <div>
-              <Label>Informacion Adicional (opcional)</Label>
+              <Label>Información Adicional (opcional)</Label>
               <div className="mt-2 space-y-2">
                 {Object.entries(infoAdicional).map(([key, value]) => (
                   <div key={key} className="flex items-center gap-2">
@@ -1621,7 +1811,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
                 <div className="font-medium">{clients.find((c) => c.id === clientId)?.razon_social || '-'}</div>
               </div>
               <div>
-                <span className="text-muted-foreground">Identificacion</span>
+                <span className="text-muted-foreground">Identificación</span>
                 <div className="font-mono text-xs">{clients.find((c) => c.id === clientId)?.identificacion || '-'}</div>
               </div>
             </div>
@@ -1635,8 +1825,8 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Codigo</TableHead>
-                      <TableHead>Descripcion</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Descripción</TableHead>
                       <TableHead className="text-right">Cant.</TableHead>
                       <TableHead className="text-right">P.Unit.</TableHead>
                       <TableHead className="text-right">IVA</TableHead>
@@ -1652,7 +1842,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
                         <TableCell className="text-right">${formatCurrency(item.precio_unitario)}</TableCell>
                         <TableCell className="text-right">{item.iva_porcentaje}%</TableCell>
                         <TableCell className="text-right font-medium">
-                          ${formatCurrency(item.cantidad * item.precio_unitario - (item.descuento || 0))}
+                          ${formatCurrency(getItemSubtotal(item))}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1663,26 +1853,8 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
 
             <Separator />
 
-            {/* Totals */}
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal sin impuestos</span>
-                <span>${formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">IVA</span>
-                <span>${formatCurrency(totalIva)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Descuento</span>
-                <span>${formatCurrency(totalDescuento)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between font-bold text-base">
-                <span>Total</span>
-                <span>${formatCurrency(total)}</span>
-              </div>
-            </div>
+            {/* Totales en formato SRI */}
+            <TotalesSRI totals={totals} />
 
             {Object.keys(infoAdicional).length > 0 && (
               <>
@@ -1877,7 +2049,7 @@ function ClientSelector({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Tipo Identificacion</Label>
+                <Label>Tipo Identificación</Label>
                 <Select
                   value={newClient.tipo_identificacion}
                   onValueChange={(v) => setNewClient({ ...newClient, tipo_identificacion: v })}
@@ -1895,7 +2067,7 @@ function ClientSelector({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Identificacion</Label>
+                <Label>Identificación</Label>
                 <Input
                   value={newClient.identificacion}
                   onChange={(e) => setNewClient({ ...newClient, identificacion: e.target.value })}
@@ -1904,7 +2076,7 @@ function ClientSelector({
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Razon Social / Nombre</Label>
+              <Label>Razón Social / Nombre</Label>
               <Input
                 value={newClient.razon_social}
                 onChange={(e) => setNewClient({ ...newClient, razon_social: e.target.value })}
@@ -1912,7 +2084,7 @@ function ClientSelector({
               />
             </div>
             <div className="space-y-2">
-              <Label>Direccion</Label>
+              <Label>Dirección</Label>
               <Input
                 value={newClient.direccion}
                 onChange={(e) => setNewClient({ ...newClient, direccion: e.target.value })}
@@ -1930,7 +2102,7 @@ function ClientSelector({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Telefono</Label>
+                <Label>Teléfono</Label>
                 <Input
                   value={newClient.telefono}
                   onChange={(e) => setNewClient({ ...newClient, telefono: e.target.value })}
@@ -1979,8 +2151,8 @@ function ItemsEditor({
 
   const filteredProducts = products.filter(
     (p) =>
-      p.descripcion.toLowerCase().includes(search.toLowerCase()) ||
-      p.codigo_principal.toLowerCase().includes(search.toLowerCase())
+      (p.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.codigo_principal || '').toLowerCase().includes(search.toLowerCase())
   );
 
   function addFromProduct(product: ProductResponse) {
@@ -2008,8 +2180,8 @@ function ItemsEditor({
       cantidad: 1,
       unidad_medida: 'Unidad',
       precio_unitario: 0,
-      iva_codigo: '2',
-      iva_porcentaje: 12,
+      iva_codigo: '4',
+      iva_porcentaje: 15,
     };
     onChange([...items, newItem]);
   }
@@ -2024,12 +2196,8 @@ function ItemsEditor({
     onChange(items.filter((_, i) => i !== index));
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.cantidad * item.precio_unitario - (item.descuento || 0), 0);
-  const totalIva = items.reduce((sum, item) => {
-    const totalSinImp = item.cantidad * item.precio_unitario - (item.descuento || 0);
-    return sum + totalSinImp * (item.iva_porcentaje / 100);
-  }, 0);
-  const totalDesc = items.reduce((sum, item) => sum + (item.descuento || 0), 0);
+  // Totales con desglose completo estilo SRI
+  const totals = computeTotales(items);
 
   return (
     <Card>
@@ -2101,7 +2269,7 @@ function ItemsEditor({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Codigo Principal</Label>
+                    <Label className="text-xs">Código Principal</Label>
                     <Input
                       value={item.codigo_principal}
                       onChange={(e) => updateItem(i, { codigo_principal: e.target.value })}
@@ -2110,11 +2278,11 @@ function ItemsEditor({
                     />
                   </div>
                   <div className="space-y-1 sm:col-span-2 lg:col-span-2">
-                    <Label className="text-xs">Descripcion</Label>
+                    <Label className="text-xs">Descripción</Label>
                     <Input
                       value={item.descripcion}
                       onChange={(e) => updateItem(i, { descripcion: e.target.value })}
-                      placeholder="Descripcion del producto o servicio"
+                      placeholder="Descripción del producto o servicio"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -2141,13 +2309,56 @@ function ItemsEditor({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Descuento</Label>
+                    <Label className="text-xs">Tipo Descuento</Label>
+                    <Select
+                      value={item.descuento_tipo || 'dolares'}
+                      onValueChange={(v) =>
+                        updateItem(i, {
+                          descuento_tipo: v as DescuentoTipo,
+                          descuento: v === 'porcentaje' && item.descuento_valor != null
+                            ? (item.cantidad * item.precio_unitario * item.descuento_valor) / 100
+                            : item.descuento_valor ?? undefined,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dolares">Dólares ($)</SelectItem>
+                        <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Descuento {item.descuento_tipo === 'porcentaje' ? '(%)' : '($)'}</Label>
                     <Input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={item.descuento || ''}
-                      onChange={(e) => updateItem(i, { descuento: parseFloat(e.target.value) || undefined })}
+                      value={item.descuento_valor ?? item.descuento ?? ''}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value) || 0;
+                        updateItem(i, {
+                          descuento_valor: v,
+                          descuento:
+                            item.descuento_tipo === 'porcentaje'
+                              ? (item.cantidad * item.precio_unitario * v) / 100
+                              : v || undefined,
+                        });
+                      }}
+                      placeholder={item.descuento_tipo === 'porcentaje' ? '0' : '0.00'}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">IRBPNR / unidad ($)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.irbpnr_valor ?? ''}
+                      onChange={(e) => updateItem(i, { irbpnr_valor: parseFloat(e.target.value) || undefined })}
                       placeholder="0.00"
                       className="h-8 text-sm"
                     />
@@ -2187,9 +2398,15 @@ function ItemsEditor({
                 </div>
                 {/* Item subtotal */}
                 <div className="text-right text-xs text-muted-foreground">
-                  Subtotal: ${formatCurrency(item.cantidad * item.precio_unitario - (item.descuento || 0))}
+                  Subtotal: ${formatCurrency(getItemSubtotal(item))}
+                  {getItemDiscount(item) > 0 && (
+                    <span className="text-destructive"> - Desc. ${formatCurrency(getItemDiscount(item))}</span>
+                  )}
                   {item.iva_porcentaje > 0 && (
-                    <span> + IVA ${formatCurrency((item.cantidad * item.precio_unitario - (item.descuento || 0)) * item.iva_porcentaje / 100)}</span>
+                    <span> + IVA ${formatCurrency(getItemSubtotal(item) * item.iva_porcentaje / 100)}</span>
+                  )}
+                  {(item.irbpnr_valor || 0) > 0 && (
+                    <span> + IRBPNR ${formatCurrency((item.irbpnr_valor || 0) * item.cantidad)}</span>
                   )}
                 </div>
               </div>
@@ -2202,27 +2419,9 @@ function ItemsEditor({
           </div>
         )}
 
-        {/* Running Totals */}
+        {/* Running Totals en formato SRI */}
         {items.length > 0 && (
-          <div className="rounded-md border bg-muted/50 p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal sin impuestos</span>
-              <span>${formatCurrency(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">IVA</span>
-              <span>${formatCurrency(totalIva)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Descuento</span>
-              <span>-${formatCurrency(totalDesc)}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-bold">
-              <span>Total</span>
-              <span>${formatCurrency(subtotal + totalIva)}</span>
-            </div>
-          </div>
+          <TotalesSRI totals={totals} />
         )}
       </CardContent>
     </Card>
@@ -2363,8 +2562,8 @@ function ProductosTab({ companyId }: { companyId: string }) {
 
   const filtered = products.filter(
     (p) =>
-      p.descripcion.toLowerCase().includes(search.toLowerCase()) ||
-      p.codigo_principal.toLowerCase().includes(search.toLowerCase())
+      (p.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.codigo_principal || '').toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) {
@@ -2400,8 +2599,8 @@ function ProductosTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Codigo</TableHead>
-                    <TableHead>Descripcion</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Descripción</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Precio</TableHead>
                     <TableHead>IVA</TableHead>
@@ -2490,10 +2689,10 @@ function ProductosTab({ companyId }: { companyId: string }) {
               </div>
             </div>
 
-            {/* Row 2: Codigo Principal, Codigo Auxiliar */}
+            {/* Row 2: Código Principal, Código Auxiliar */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Codigo Principal *</Label>
+                <Label>Código Principal *</Label>
                 <Input
                   value={form.codigo_principal}
                   onChange={(e) => setForm({ ...form, codigo_principal: e.target.value })}
@@ -2502,7 +2701,7 @@ function ProductosTab({ companyId }: { companyId: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Codigo Auxiliar</Label>
+                <Label>Código Auxiliar</Label>
                 <Input
                   value={form.codigo_auxiliar || ''}
                   onChange={(e) => setForm({ ...form, codigo_auxiliar: e.target.value })}
@@ -2598,9 +2797,9 @@ function ProductosTab({ companyId }: { companyId: string }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Sin ICE</SelectItem>
-                    <SelectItem value="1">Codigo 1</SelectItem>
-                    <SelectItem value="2">Codigo 2</SelectItem>
-                    <SelectItem value="3">Codigo 3</SelectItem>
+                    <SelectItem value="1">Código 1</SelectItem>
+                    <SelectItem value="2">Código 2</SelectItem>
+                    <SelectItem value="3">Código 3</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2630,7 +2829,7 @@ function ProductosTab({ companyId }: { companyId: string }) {
               />
             </div>
 
-            {/* Row 8: Detalle, Descripcion */}
+            {/* Row 8: Detalle, Descripción */}
             <div className="space-y-2">
               <Label>Detalle</Label>
               <Textarea
@@ -2843,10 +3042,10 @@ function ClientesTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Identificacion</TableHead>
-                    <TableHead>Razon Social</TableHead>
+                    <TableHead>Identificación</TableHead>
+                    <TableHead>Razón Social</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Telefono</TableHead>
+                    <TableHead>Teléfono</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -2911,7 +3110,7 @@ function ClientesTab({ companyId }: { companyId: string }) {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Tipo Identificacion</Label>
+                <Label>Tipo Identificación</Label>
                 <Select
                   value={form.tipo_identificacion}
                   onValueChange={(v) => setForm({ ...form, tipo_identificacion: v })}
@@ -2929,7 +3128,7 @@ function ClientesTab({ companyId }: { companyId: string }) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Identificacion</Label>
+                <Label>Identificación</Label>
                 <Input
                   value={form.identificacion}
                   onChange={(e) => setForm({ ...form, identificacion: e.target.value })}
@@ -2940,7 +3139,7 @@ function ClientesTab({ companyId }: { companyId: string }) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Razon Social / Nombre</Label>
+              <Label>Razón Social / Nombre</Label>
               <Input
                 value={form.razon_social}
                 onChange={(e) => setForm({ ...form, razon_social: e.target.value })}
@@ -2948,7 +3147,7 @@ function ClientesTab({ companyId }: { companyId: string }) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Direccion</Label>
+              <Label>Dirección</Label>
               <Input
                 value={form.direccion || ''}
                 onChange={(e) => setForm({ ...form, direccion: e.target.value })}
@@ -2966,7 +3165,7 @@ function ClientesTab({ companyId }: { companyId: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Telefono</Label>
+                <Label>Teléfono</Label>
                 <Input
                   value={form.telefono || ''}
                   onChange={(e) => setForm({ ...form, telefono: e.target.value })}
@@ -3233,7 +3432,7 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
                   <TableRow>
                     <TableHead>Secuencial</TableHead>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Fecha Emision</TableHead>
+                    <TableHead>Fecha Emisión</TableHead>
                     <TableHead>Validez</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead>Estado</TableHead>
@@ -3435,7 +3634,7 @@ function ProformaDetailView({ prof }: { prof: ProformaResponse }) {
             <div className="mt-1">{getProformaEstadoBadge(prof.estado)}</div>
           </div>
           <div>
-            <span className="text-muted-foreground">Fecha Emision</span>
+            <span className="text-muted-foreground">Fecha Emisión</span>
             <div className="mt-1">{new Date(prof.fecha_emision).toLocaleString('es-EC')}</div>
           </div>
           <div>
@@ -3443,7 +3642,7 @@ function ProformaDetailView({ prof }: { prof: ProformaResponse }) {
             <div className="font-medium mt-1">{prof.cliente_razon_social}</div>
           </div>
           <div>
-            <span className="text-muted-foreground">Identificacion</span>
+            <span className="text-muted-foreground">Identificación</span>
             <div className="font-mono text-xs mt-1">{prof.cliente_identificacion}</div>
           </div>
           {prof.fecha_validez && (
@@ -3460,7 +3659,7 @@ function ProformaDetailView({ prof }: { prof: ProformaResponse }) {
           )}
           {prof.cliente_direccion && (
             <div className="col-span-2">
-              <span className="text-muted-foreground">Direccion</span>
+              <span className="text-muted-foreground">Dirección</span>
               <div className="text-sm mt-1">{prof.cliente_direccion}</div>
             </div>
           )}
@@ -3472,7 +3671,7 @@ function ProformaDetailView({ prof }: { prof: ProformaResponse }) {
           )}
           {prof.cliente_telefono && (
             <div>
-              <span className="text-muted-foreground">Telefono</span>
+              <span className="text-muted-foreground">Teléfono</span>
               <div className="text-sm mt-1">{prof.cliente_telefono}</div>
             </div>
           )}
@@ -3480,29 +3679,8 @@ function ProformaDetailView({ prof }: { prof: ProformaResponse }) {
 
         <Separator />
 
-        {/* Totals */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal sin impuestos</span>
-            <span className="font-medium">${formatCurrency(prof.subtotal_sin_impuestos)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">IVA</span>
-            <span className="font-medium">${formatCurrency(prof.total_iva)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">ICE</span>
-            <span className="font-medium">${formatCurrency(prof.total_ice)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Descuento</span>
-            <span className="font-medium">${formatCurrency(prof.total_descuento)}</span>
-          </div>
-          <div className="col-span-2 flex justify-between border-t pt-2">
-            <span className="font-semibold">Total con Impuestos</span>
-            <span className="font-bold text-lg">${formatCurrency(prof.total_con_impuestos)}</span>
-          </div>
-        </div>
+        {/* Totales en formato SRI */}
+        <TotalesSRI totals={totalesFromResponse(prof)} />
 
         <Separator />
 
@@ -3592,17 +3770,8 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
     load();
   }, [companyId]);
 
-  // Calculate totals
-  const subtotal = items.reduce((sum, item) => {
-    const totalSinImp = item.cantidad * item.precio_unitario - (item.descuento || 0);
-    return sum + totalSinImp;
-  }, 0);
-  const totalIva = items.reduce((sum, item) => {
-    const totalSinImp = item.cantidad * item.precio_unitario - (item.descuento || 0);
-    return sum + totalSinImp * (item.iva_porcentaje / 100);
-  }, 0);
-  const totalDescuento = items.reduce((sum, item) => sum + (item.descuento || 0), 0);
-  const total = subtotal + totalIva;
+  // Calculate totals (desglose completo estilo SRI)
+  const totals = computeTotales(items);
 
   // Validate step
   function canProceed(): boolean {
@@ -3619,7 +3788,13 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
       const proformaData: ProformaCreate = {
         company_id: companyId,
         client_id: clientId || undefined,
-        detalles: items,
+        // Enviar el monto de descuento efectivo calculado (dólares) por línea
+        detalles: items.map((item) => ({
+          ...item,
+          descuento: getItemDiscount(item) || undefined,
+          descuento_tipo: item.descuento_tipo || undefined,
+          descuento_valor: item.descuento_valor ?? undefined,
+        })),
         observaciones: observaciones || undefined,
         forma_pago: formaPago,
         fecha_validez: fechaValidez || undefined,
@@ -3712,7 +3887,7 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
                     <span className="font-medium">{clients.find((c) => c.id === clientId)?.razon_social}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Identificacion: </span>
+                    <span className="text-muted-foreground">Identificación: </span>
                     <span className="font-mono text-xs">{clients.find((c) => c.id === clientId)?.identificacion}</span>
                   </div>
                 </div>
@@ -3752,7 +3927,7 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
                 </div>
               </div>
               <div>
-                <span className="text-muted-foreground">Identificacion</span>
+                <span className="text-muted-foreground">Identificación</span>
                 <div className="font-mono text-xs">
                   {clientId ? clients.find((c) => c.id === clientId)?.identificacion : '9999999999999'}
                 </div>
@@ -3768,8 +3943,8 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Codigo</TableHead>
-                      <TableHead>Descripcion</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Descripción</TableHead>
                       <TableHead className="text-right">Cant.</TableHead>
                       <TableHead className="text-right">P.Unit.</TableHead>
                       <TableHead className="text-right">IVA</TableHead>
@@ -3785,7 +3960,7 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
                         <TableCell className="text-right">${formatCurrency(item.precio_unitario)}</TableCell>
                         <TableCell className="text-right">{item.iva_porcentaje}%</TableCell>
                         <TableCell className="text-right font-medium">
-                          ${formatCurrency(item.cantidad * item.precio_unitario - (item.descuento || 0))}
+                          ${formatCurrency(getItemSubtotal(item))}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -3796,26 +3971,8 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
 
             <Separator />
 
-            {/* Totals */}
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal sin impuestos</span>
-                <span>${formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">IVA</span>
-                <span>${formatCurrency(totalIva)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Descuento</span>
-                <span>${formatCurrency(totalDescuento)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between font-bold text-base">
-                <span>Total</span>
-                <span>${formatCurrency(total)}</span>
-              </div>
-            </div>
+            {/* Totales en formato SRI */}
+            <TotalesSRI totals={totals} />
 
             <Separator />
 
@@ -3919,8 +4076,8 @@ function ProformaItemsEditor({
 
   const filteredProducts = products.filter(
     (p) =>
-      p.descripcion.toLowerCase().includes(search.toLowerCase()) ||
-      p.codigo_principal.toLowerCase().includes(search.toLowerCase())
+      (p.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.codigo_principal || '').toLowerCase().includes(search.toLowerCase())
   );
 
   function addFromProduct(product: ProductResponse) {
@@ -3948,8 +4105,8 @@ function ProformaItemsEditor({
       cantidad: 1,
       unidad_medida: 'Unidad',
       precio_unitario: 0,
-      iva_codigo: '2',
-      iva_porcentaje: 12,
+      iva_codigo: '4',
+      iva_porcentaje: 15,
     };
     onChange([...items, newItem]);
   }
@@ -3963,6 +4120,9 @@ function ProformaItemsEditor({
   function removeItem(index: number) {
     onChange(items.filter((_, i) => i !== index));
   }
+
+  // Totales con desglose completo estilo SRI
+  const totals = computeTotales(items);
 
   return (
     <Card>
@@ -4034,7 +4194,7 @@ function ProformaItemsEditor({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Codigo Principal</Label>
+                    <Label className="text-xs">Código Principal</Label>
                     <Input
                       value={item.codigo_principal}
                       onChange={(e) => updateItem(i, { codigo_principal: e.target.value })}
@@ -4043,11 +4203,11 @@ function ProformaItemsEditor({
                     />
                   </div>
                   <div className="space-y-1 sm:col-span-2 lg:col-span-2">
-                    <Label className="text-xs">Descripcion</Label>
+                    <Label className="text-xs">Descripción</Label>
                     <Input
                       value={item.descripcion}
                       onChange={(e) => updateItem(i, { descripcion: e.target.value })}
-                      placeholder="Descripcion del producto o servicio"
+                      placeholder="Descripción del producto o servicio"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -4074,14 +4234,57 @@ function ProformaItemsEditor({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Descuento</Label>
+                    <Label className="text-xs">Tipo Descuento</Label>
+                    <Select
+                      value={item.descuento_tipo || 'dolares'}
+                      onValueChange={(v) =>
+                        updateItem(i, {
+                          descuento_tipo: v as DescuentoTipo,
+                          descuento: v === 'porcentaje' && item.descuento_valor != null
+                            ? (item.cantidad * item.precio_unitario * item.descuento_valor) / 100
+                            : item.descuento_valor ?? undefined,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dolares">Dólares ($)</SelectItem>
+                        <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Descuento {item.descuento_tipo === 'porcentaje' ? '(%)' : '($)'}</Label>
                     <Input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={item.descuento || ''}
-                      onChange={(e) => updateItem(i, { descuento: parseFloat(e.target.value) || undefined })}
-                      placeholder="0"
+                      value={item.descuento_valor ?? item.descuento ?? ''}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value) || 0;
+                        updateItem(i, {
+                          descuento_valor: v,
+                          descuento:
+                            item.descuento_tipo === 'porcentaje'
+                              ? (item.cantidad * item.precio_unitario * v) / 100
+                              : v || undefined,
+                        });
+                      }}
+                      placeholder={item.descuento_tipo === 'porcentaje' ? '0' : '0.00'}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">IRBPNR / unidad ($)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.irbpnr_valor ?? ''}
+                      onChange={(e) => updateItem(i, { irbpnr_valor: parseFloat(e.target.value) || undefined })}
+                      placeholder="0.00"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -4107,6 +4310,18 @@ function ProformaItemsEditor({
                     </Select>
                   </div>
                 </div>
+                <div className="text-right text-xs text-muted-foreground">
+                  Subtotal: ${formatCurrency(getItemSubtotal(item))}
+                  {getItemDiscount(item) > 0 && (
+                    <span className="text-destructive"> - Desc. ${formatCurrency(getItemDiscount(item))}</span>
+                  )}
+                  {item.iva_porcentaje > 0 && (
+                    <span> + IVA ${formatCurrency(getItemSubtotal(item) * item.iva_porcentaje / 100)}</span>
+                  )}
+                  {(item.irbpnr_valor || 0) > 0 && (
+                    <span> + IRBPNR ${formatCurrency((item.irbpnr_valor || 0) * item.cantidad)}</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -4115,6 +4330,11 @@ function ProformaItemsEditor({
             <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">Agregue items a la proforma</p>
           </div>
+        )}
+
+        {/* Running Totals en formato SRI */}
+        {items.length > 0 && (
+          <TotalesSRI totals={totals} />
         )}
       </CardContent>
     </Card>

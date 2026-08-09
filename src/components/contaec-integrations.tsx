@@ -377,7 +377,7 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
     setSyncing(id);
     try {
       const result = await syncEcommerceConnector(id, tipoSync);
-      toast.success(`Sincronizacion ${result.estado}: ${result.registros_procesados} registros`);
+      toast.success(`Sincronización ${result.estado}: ${result.registros_procesados} registros`);
       loadData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al sincronizar');
@@ -644,9 +644,9 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
                     <TableHeader>
                       <TableRow>
                         <TableHead>Banco</TableHead>
-                        <TableHead>Periodo</TableHead>
+                        <TableHead>Período</TableHead>
                         <TableHead className="text-right">Debitos</TableHead>
-                        <TableHead className="text-right">Creditos</TableHead>
+                        <TableHead className="text-right">Créditos</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Conciliacion</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
@@ -722,7 +722,7 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
                           <TableHead>Fecha</TableHead>
                           <TableHead>Tipo</TableHead>
                           <TableHead className="text-right">Monto</TableHead>
-                          <TableHead>Descripcion</TableHead>
+                          <TableHead>Descripción</TableHead>
                           <TableHead>Referencia</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead className="text-right">Acciones</TableHead>
@@ -735,11 +735,11 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
                             <TableCell>
                               {m.tipo === 'credito' ? (
                                 <Badge className="bg-green-100 text-green-800">
-                                  <ArrowUpCircle className="h-3 w-3 mr-1" /> Credito
+                                  <ArrowUpCircle className="h-3 w-3 mr-1" /> Crédito
                                 </Badge>
                               ) : (
                                 <Badge className="bg-red-100 text-red-800">
-                                  <ArrowDownCircle className="h-3 w-3 mr-1" /> Debito
+                                  <ArrowDownCircle className="h-3 w-3 mr-1" /> Débito
                                 </Badge>
                               )}
                             </TableCell>
@@ -911,7 +911,7 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
                           {c.ultima_sincronizacion && (
                             <div className="text-xs text-muted-foreground flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              Ultima sync: {formatDateTime(c.ultima_sincronizacion)}
+                              Última sync: {formatDateTime(c.ultima_sincronizacion)}
                             </div>
                           )}
 
@@ -1051,7 +1051,7 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Numero de Cuenta *</Label>
+                <Label>Número de Cuenta *</Label>
                 <Input
                   placeholder="2200001234"
                   value={cuentaForm.numero_cuenta}
@@ -1225,7 +1225,7 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
                 />
               </div>
               <div className="space-y-2">
-                <Label>Total Creditos</Label>
+                <Label>Total Créditos</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -1330,7 +1330,7 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
             </div>
             <Separator />
             <div>
-              <Label className="mb-2 block">Opciones de Sincronizacion</Label>
+              <Label className="mb-2 block">Opciones de Sincronización</Label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -1391,13 +1391,13 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Fecha:</span> {formatDate(selectedMovimiento.fecha)}</div>
-                <div><span className="text-muted-foreground">Tipo:</span> {selectedMovimiento.tipo === 'credito' ? 'Credito' : 'Debito'}</div>
+                <div><span className="text-muted-foreground">Tipo:</span> {selectedMovimiento.tipo === 'credito' ? 'Crédito' : 'Débito'}</div>
                 <div><span className="text-muted-foreground">Monto:</span> <span className="font-semibold">{formatCurrency(Number(selectedMovimiento.monto))}</span></div>
                 <div><span className="text-muted-foreground">Saldo Posterior:</span> {selectedMovimiento.saldo_posterior ? formatCurrency(Number(selectedMovimiento.saldo_posterior)) : '-'}</div>
               </div>
               <Separator />
               <div className="space-y-1 text-sm">
-                <div><span className="text-muted-foreground">Descripcion:</span> {selectedMovimiento.descripcion || '-'}</div>
+                <div><span className="text-muted-foreground">Descripción:</span> {selectedMovimiento.descripcion || '-'}</div>
                 <div><span className="text-muted-foreground">Beneficiario:</span> {selectedMovimiento.beneficiario || '-'}</div>
                 <div><span className="text-muted-foreground">Referencia:</span> {selectedMovimiento.referencia || '-'}</div>
                 <div><span className="text-muted-foreground">Documento:</span> {selectedMovimiento.documento || '-'}</div>

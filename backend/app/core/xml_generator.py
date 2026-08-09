@@ -451,6 +451,14 @@ def _build_total_con_impuestos(totales_impuestos: list[dict]) -> etree._Element:
             "baseImponible",
             format_amount(imp_data.get("base_imponible", 0)),
         )
+        # Tarifa del impuesto (ej: 15.00) - requerida por el SRI en el total
+        _add_text_element(
+            total_imp,
+            "tarifa",
+            format_amount(
+                imp_data.get("tarifa", imp_data.get("porcentaje", 0))
+            ),
+        )
         _add_text_element(
             total_imp, "valor", format_amount(imp_data.get("valor", 0))
         )

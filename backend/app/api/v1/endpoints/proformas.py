@@ -78,7 +78,19 @@ def _calcular_totales_proforma(detalles: list) -> dict:
     detalle_resultados = []
 
     for det in detalles:
-        precio_total = det.cantidad * det.precio_unitario - det.descuento
+        # Descuento efectivo según su tipo:
+        # - 'porcentaje': % del total de la línea (cantidad * precio_unitario)
+        # - 'dolares': monto fijo
+        if getattr(det, "descuento_tipo", None) == "porcentaje" and getattr(det, "descuento_valor", None):
+            descuento_monto = (
+                det.cantidad * det.precio_unitario * det.descuento_valor / Decimal("100")
+            ).quantize(Decimal("0.01"))
+        elif getattr(det, "descuento_tipo", None) == "dolares" and getattr(det, "descuento_valor", None):
+            descuento_monto = Decimal(det.descuento_valor).quantize(Decimal("0.01"))
+        else:
+            descuento_monto = det.descuento or Decimal("0")
+
+        precio_total = det.cantidad * det.precio_unitario - descuento_monto
         precio_total = precio_total.quantize(Decimal("0.01"))
 
         iva_valor = (precio_total * (det.iva_porcentaje / 100)).quantize(Decimal("0.01"))
@@ -90,7 +102,7 @@ def _calcular_totales_proforma(detalles: list) -> dict:
         subtotal_sin_impuestos += precio_total
         total_iva += iva_valor
         total_ice += ice_valor
-        total_descuento += det.descuento
+        total_descuento += descuento_monto
 
         porc = det.iva_porcentaje
         if porc == Decimal("0"):
@@ -119,6 +131,7 @@ def _calcular_totales_proforma(detalles: list) -> dict:
             "precio_total_sin_impuestos": precio_total,
             "iva_valor": iva_valor,
             "ice_valor": ice_valor,
+            "descuento": descuento_monto,
         })
 
     total_con_impuestos = (subtotal_sin_impuestos + total_iva + total_ice).quantize(Decimal("0.01"))
@@ -247,7 +260,7 @@ async def create_proforma(
                 cantidad=det_data.cantidad,
                 unidad_medida=det_data.unidad_medida,
                 precio_unitario=det_data.precio_unitario,
-                descuento=det_data.descuento,
+                descuento=det_result["descuento"],
                 precio_total_sin_impuestos=det_result["precio_total_sin_impuestos"],
                 iva_codigo=det_data.iva_codigo,
                 iva_porcentaje=det_data.iva_porcentaje,
@@ -261,6 +274,17 @@ async def create_proforma(
         await db.flush()
 
         logger.info(f"Proforma creada: secuencial={secuencial}, empresa={company.ruc}")
+
+        # Recargar con los detalles cargados explícitamente (evita lazy-load en async:
+        # MissingGreenlet: greenlet_spawn has not been called)
+        from sqlalchemy.orm import selectinload
+
+        result = await db.execute(
+            select(Proforma)
+            .options(selectinload(Proforma.detalles))
+            .where(Proforma.id == proforma.id)
+        )
+        proforma = result.scalars().first()
 
         return ProformaResponse.model_validate(proforma)
     except HTTPException:
@@ -362,8 +386,11 @@ async def get_proforma(
 ):
     """Obtener una proforma específica"""
     proforma_id = validate_uuid(proforma_id, "proforma_id")
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Proforma).where(
+        select(Proforma)
+        .options(selectinload(Proforma.detalles))
+        .where(
             Proforma.id == proforma_id,
             Proforma.is_active == True,
         )
@@ -391,8 +418,11 @@ async def update_proforma(
     """Actualizar una proforma (solo BORRADOR)"""
     data.client_id = clean_uuid_param(data.client_id, "client_id")
     proforma_id = validate_uuid(proforma_id, "proforma_id")
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Proforma).where(
+        select(Proforma)
+        .options(selectinload(Proforma.detalles))
+        .where(
             Proforma.id == proforma_id,
             Proforma.is_active == True,
         )
@@ -447,9 +477,8 @@ async def update_proforma(
 
     # Update detalles if provided
     if data.detalles is not None:
-        # Delete existing detalles
-        for existing_det in proforma.detalles:
-            await db.delete(existing_det)
+        # Eliminar detalles existentes (cascade delete-orphan actualiza la colección en memoria)
+        proforma.detalles.clear()
         await db.flush()
 
         totales = _calcular_totales_proforma(data.detalles)
@@ -480,7 +509,7 @@ async def update_proforma(
                 cantidad=det_data.cantidad,
                 unidad_medida=det_data.unidad_medida,
                 precio_unitario=det_data.precio_unitario,
-                descuento=det_data.descuento,
+                descuento=det_result["descuento"],
                 precio_total_sin_impuestos=det_result["precio_total_sin_impuestos"],
                 iva_codigo=det_data.iva_codigo,
                 iva_porcentaje=det_data.iva_porcentaje,
@@ -490,6 +519,8 @@ async def update_proforma(
                 ice_valor=det_result["ice_valor"],
             )
             db.add(detalle)
+            # Poblar la relación en memoria para evitar lazy-load (MissingGreenlet)
+            proforma.detalles.append(detalle)
 
     if data.observaciones is not None:
         proforma.observaciones = data.observaciones

@@ -304,12 +304,12 @@ function BodegasTab({ companyId }: { companyId: string }) {
                 <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Bodega Principal" />
               </div>
               <div className="space-y-2">
-                <Label>Codigo</Label>
+                <Label>Código</Label>
                 <Input value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value })} placeholder="BOD-001" disabled={!!editingWarehouse} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Direccion</Label>
+              <Label>Dirección</Label>
               <Input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} placeholder="Av. Amazonas 123" />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -324,7 +324,7 @@ function BodegasTab({ companyId }: { companyId: string }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Telefono</Label>
+                <Label>Teléfono</Label>
                 <Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} placeholder="0991234567" />
               </div>
               <div className="flex items-center gap-2 pt-6">
@@ -426,7 +426,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
           capacidad_maxima: form.capacidad_maxima ? Number(form.capacidad_maxima) : undefined,
         };
         await updateWarehouseLocation(editingLocation.id, data);
-        toast.success('Ubicacion actualizada');
+        toast.success('Ubicación actualizada');
       } else {
         const data: WarehouseLocationCreate = {
           warehouse_id: selectedWarehouseId,
@@ -438,7 +438,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
           producto_id: form.producto_id || undefined,
         };
         await createWarehouseLocation(data);
-        toast.success('Ubicacion creada');
+        toast.success('Ubicación creada');
       }
       setShowCreate(false);
       loadLocations();
@@ -452,7 +452,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
   async function handleDelete(id: string) {
     try {
       await deleteWarehouseLocation(id);
-      toast.success('Ubicacion eliminada');
+      toast.success('Ubicación eliminada');
       loadLocations();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar ubicacion');
@@ -469,7 +469,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
           <SelectContent>{warehouses.map((w) => (<SelectItem key={w.id} value={w.id}>{w.nombre}</SelectItem>))}</SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={loadLocations}><RefreshCw className="h-4 w-4" /></Button>
-        <Button onClick={openCreate} disabled={!selectedWarehouseId}><Plus className="mr-2 h-4 w-4" /> Nueva Ubicacion</Button>
+        <Button onClick={openCreate} disabled={!selectedWarehouseId}><Plus className="mr-2 h-4 w-4" /> Nueva Ubicación</Button>
       </div>
 
       {locations.length > 0 ? (
@@ -479,7 +479,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Codigo</TableHead>
+                    <TableHead>Código</TableHead>
                     <TableHead>Zona</TableHead>
                     <TableHead>Rack</TableHead>
                     <TableHead>Estante</TableHead>
@@ -530,7 +530,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingLocation ? 'Editar Ubicacion' : 'Nueva Ubicacion'}</DialogTitle>
+            <DialogTitle>{editingLocation ? 'Editar Ubicación' : 'Nueva Ubicación'}</DialogTitle>
             <DialogDescription>{editingLocation ? 'Modifique los datos de la ubicacion' : 'Cree una nueva ubicacion fisica'}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -558,7 +558,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
               </div>
             </div>
             <div className="p-3 bg-muted rounded-md">
-              <p className="text-sm"><span className="font-medium">Codigo generado:</span> {generateCodigoUbicacion()}</p>
+              <p className="text-sm"><span className="font-medium">Código generado:</span> {generateCodigoUbicacion()}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -758,7 +758,7 @@ function TransferenciasTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Numero</TableHead>
+                    <TableHead>Número</TableHead>
                     <TableHead>Origen</TableHead>
                     <TableHead>Destino</TableHead>
                     <TableHead>Estado</TableHead>
@@ -824,7 +824,7 @@ function TransferenciasTab({ companyId }: { companyId: string }) {
                 <div><span className="text-muted-foreground">Motivo:</span> {detailTransfer.motivo || '-'}</div>
                 <div><span className="text-muted-foreground">Observaciones:</span> {detailTransfer.observaciones || '-'}</div>
                 {detailTransfer.fecha_envio && <div><span className="text-muted-foreground">Fecha Envio:</span> {new Date(detailTransfer.fecha_envio).toLocaleDateString('es-EC')}</div>}
-                {detailTransfer.fecha_recepcion && <div><span className="text-muted-foreground">Fecha Recepcion:</span> {new Date(detailTransfer.fecha_recepcion).toLocaleDateString('es-EC')}</div>}
+                {detailTransfer.fecha_recepcion && <div><span className="text-muted-foreground">Fecha Recepción:</span> {new Date(detailTransfer.fecha_recepcion).toLocaleDateString('es-EC')}</div>}
               </div>
               <Separator />
               <ScrollArea className="max-h-48">
@@ -980,7 +980,7 @@ function TransferenciasTab({ companyId }: { companyId: string }) {
                 )}
                 <div className="space-y-2">
                   <Label>Motivo</Label>
-                  <Input value={wMotivo} onChange={(e) => setWMotivo(e.target.value)} placeholder="Razon de la transferencia" />
+                  <Input value={wMotivo} onChange={(e) => setWMotivo(e.target.value)} placeholder="Razón de la transferencia" />
                 </div>
                 <div className="space-y-2">
                   <Label>Observaciones</Label>
@@ -1122,7 +1122,7 @@ function KardexDetalladoTab({ companyId }: { companyId: string }) {
                   <TableRow>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Bodega</TableHead>
-                    <TableHead>Codigo</TableHead>
+                    <TableHead>Código</TableHead>
                     <TableHead>Producto</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Cantidad</TableHead>

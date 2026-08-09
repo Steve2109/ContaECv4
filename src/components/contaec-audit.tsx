@@ -84,7 +84,7 @@ export function ContaECAudit() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Auditoria</h2>
+        <h2 className="text-2xl font-bold">Auditoría</h2>
         <p className="text-muted-foreground">Registro de acciones y actividades del sistema</p>
       </div>
 
@@ -171,7 +171,7 @@ export function ContaECAudit() {
                     <TableHead>Usuario</TableHead>
                     <TableHead>Accion</TableHead>
                     <TableHead>Entidad</TableHead>
-                    <TableHead>Descripcion</TableHead>
+                    <TableHead>Descripción</TableHead>
                     <TableHead>IP</TableHead>
                   </TableRow>
                 </TableHeader>

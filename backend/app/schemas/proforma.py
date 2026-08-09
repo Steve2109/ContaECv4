@@ -4,6 +4,7 @@ Pydantic models for request/response validation
 """
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -22,6 +23,15 @@ class ProformaDetalleCreate(BaseModel):
     unidad_medida: str = "Unidad"
     precio_unitario: Decimal = Field(ge=0)
     descuento: Decimal = Field(ge=0, default=Decimal("0"))
+    descuento_tipo: Literal["porcentaje", "dolares"] = Field(
+        default="dolares",
+        description="Tipo de descuento: 'porcentaje' (% del total de la línea) o 'dolares' (monto fijo)",
+    )
+    descuento_valor: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Valor bruto del descuento ingresado por el usuario (monto en dólares o porcentaje según descuento_tipo)",
+    )
     iva_codigo: str = "4"
     iva_porcentaje: Decimal = Field(ge=0, default=Decimal("15"))
     ice_codigo: str | None = None
@@ -91,6 +101,15 @@ class ProformaResponse(BaseModel):
     cliente_email: str | None = None
     cliente_telefono: str | None = None
     subtotal_sin_impuestos: Decimal
+    subtotal_iva_0: Decimal = Decimal("0")
+    subtotal_iva_5: Decimal = Decimal("0")
+    subtotal_iva_8: Decimal = Decimal("0")
+    subtotal_iva_12: Decimal = Decimal("0")
+    subtotal_iva_13: Decimal = Decimal("0")
+    subtotal_iva_14: Decimal = Decimal("0")
+    subtotal_iva_15: Decimal = Decimal("0")
+    subtotal_no_objeto_iva: Decimal = Decimal("0")
+    subtotal_exento_iva: Decimal = Decimal("0")
     total_iva: Decimal
     total_ice: Decimal
     total_descuento: Decimal

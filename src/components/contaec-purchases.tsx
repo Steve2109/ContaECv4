@@ -180,8 +180,8 @@ function OrdenesTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Numero</TableHead>
-                    <TableHead>Fecha Emision</TableHead>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Fecha Emisión</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Subtotal</TableHead>
                     <TableHead className="text-right">IVA</TableHead>
@@ -376,12 +376,12 @@ function CuentasTab({ companyId }: { companyId: string }) {
           <div className="space-y-4">
             <div className="space-y-2"><Label>Proveedor</Label><Select value={createForm.supplier_id} onValueChange={(v) => setCreateForm({ ...createForm, supplier_id: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent>{suppliers.map((s) => (<SelectItem key={s.id} value={s.id}>{s.razon_social}</SelectItem>))}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Numero Factura</Label><Input value={createForm.numero_factura} onChange={(e) => setCreateForm({ ...createForm, numero_factura: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Fecha Emision</Label><Input type="date" value={createForm.fecha_emision} onChange={(e) => setCreateForm({ ...createForm, fecha_emision: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Número Factura</Label><Input value={createForm.numero_factura} onChange={(e) => setCreateForm({ ...createForm, numero_factura: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Fecha Emisión</Label><Input type="date" value={createForm.fecha_emision} onChange={(e) => setCreateForm({ ...createForm, fecha_emision: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Monto Total ($)</Label><Input type="number" value={createForm.monto_total} onChange={(e) => setCreateForm({ ...createForm, monto_total: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Dias Credito</Label><Input type="number" value={createForm.dias_credito} onChange={(e) => setCreateForm({ ...createForm, dias_credito: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Dias Crédito</Label><Input type="number" value={createForm.dias_credito} onChange={(e) => setCreateForm({ ...createForm, dias_credito: e.target.value })} /></div>
             </div>
             <div className="space-y-2"><Label>Observaciones</Label><Textarea value={createForm.observaciones} onChange={(e) => setCreateForm({ ...createForm, observaciones: e.target.value })} rows={2} /></div>
             <div className="flex justify-end gap-2">
@@ -441,7 +441,7 @@ function RetencionesTab({ companyId }: { companyId: string }) {
         retencion_renta_porcentaje: Number(form.retencion_renta_porcentaje) || 0,
         observaciones: form.observaciones || undefined,
       });
-      toast.success('Retencion creada');
+      toast.success('Retención creada');
       setShowCreate(false);
       loadData();
     } catch (err) {
@@ -457,7 +457,7 @@ function RetencionesTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
-        <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" /> Nueva Retencion</Button>
+        <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" /> Nueva Retención</Button>
       </div>
 
       {retenciones.length > 0 ? (
@@ -467,7 +467,7 @@ function RetencionesTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Numero</TableHead>
+                    <TableHead>Número</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Base IVA</TableHead>
@@ -499,17 +499,17 @@ function RetencionesTab({ companyId }: { companyId: string }) {
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Nueva Retencion de Compra</DialogTitle><DialogDescription>Cree una retencion en fuente para una compra</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Nueva Retención de Compra</DialogTitle><DialogDescription>Cree una retencion en fuente para una compra</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Proveedor</Label><Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent>{suppliers.map((s) => (<SelectItem key={s.id} value={s.id}>{s.razon_social}</SelectItem>))}</SelectContent></Select></div>
-            <div className="space-y-2"><Label>Fecha Emision</Label><Input type="date" value={form.fecha_emision} onChange={(e) => setForm({ ...form, fecha_emision: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Fecha Emisión</Label><Input type="date" value={form.fecha_emision} onChange={(e) => setForm({ ...form, fecha_emision: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Base Imponible IVA ($)</Label><Input type="number" value={form.base_imponible_iva} onChange={(e) => setForm({ ...form, base_imponible_iva: e.target.value })} /></div>
-              <div className="space-y-2"><Label>% Retencion IVA</Label><Input type="number" value={form.retencion_iva_porcentaje} onChange={(e) => setForm({ ...form, retencion_iva_porcentaje: e.target.value })} /></div>
+              <div className="space-y-2"><Label>% Retención IVA</Label><Input type="number" value={form.retencion_iva_porcentaje} onChange={(e) => setForm({ ...form, retencion_iva_porcentaje: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Base Imponible Renta ($)</Label><Input type="number" value={form.base_imponible_renta} onChange={(e) => setForm({ ...form, base_imponible_renta: e.target.value })} /></div>
-              <div className="space-y-2"><Label>% Retencion Renta</Label><Input type="number" value={form.retencion_renta_porcentaje} onChange={(e) => setForm({ ...form, retencion_renta_porcentaje: e.target.value })} /></div>
+              <div className="space-y-2"><Label>% Retención Renta</Label><Input type="number" value={form.retencion_renta_porcentaje} onChange={(e) => setForm({ ...form, retencion_renta_porcentaje: e.target.value })} /></div>
             </div>
             <div className="space-y-2"><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} rows={2} /></div>
             <div className="flex justify-end gap-2">

@@ -953,6 +953,21 @@ def _build_totales_section(
             Paragraph(total_desc, styles["RideTotalValue"]),
         ])
 
+    # Propina (siempre visible, igual que en el XML del SRI)
+    propina = _format_amount(comprobante_data.get("propina", 0))
+    totales_data.append([
+        Paragraph("Propina:", styles["RideTotalLabel"]),
+        Paragraph(propina, styles["RideTotalValue"]),
+    ])
+
+    # IRBPNR (Impuesto Redimible Botellas Plásticas No Retornables) - solo si tiene valor
+    irbpnr = _format_amount(comprobante_data.get("total_irbpnr", 0))
+    if irbpnr and irbpnr != "0.00":
+        totales_data.append([
+            Paragraph("IRBPNR:", styles["RideTotalLabel"]),
+            Paragraph(irbpnr, styles["RideTotalValue"]),
+        ])
+
     # Retenciones si aplican
     ret_iva_valor = comprobante_data.get("retencion_iva_valor")
     ret_renta_valor = comprobante_data.get("retencion_renta_valor")
@@ -1348,6 +1363,8 @@ def generate_ride_from_model(
         "total_iva": comprobante.total_iva,
         "total_ice": comprobante.total_ice,
         "total_descuento": comprobante.total_descuento,
+        "propina": Decimal("0"),
+        "total_irbpnr": Decimal("0"),
         "total_con_impuestos": comprobante.total_con_impuestos,
         "retencion_iva_codigo": comprobante.retencion_iva_codigo,
         "retencion_iva_porcentaje": comprobante.retencion_iva_porcentaje,

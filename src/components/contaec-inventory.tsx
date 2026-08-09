@@ -389,8 +389,8 @@ function StockTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Codigo</TableHead>
-                    <TableHead>Descripcion</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Descripción</TableHead>
                     <TableHead className="text-right">Precio Unit.</TableHead>
                     <TableHead className="text-right">Stock</TableHead>
                     <TableHead className="text-right">Valor Stock</TableHead>
@@ -450,7 +450,7 @@ function ImportExportTab({ companyId }: { companyId: string }) {
     setImporting(true);
     try {
       const result = await importProductsExcel(companyId, file);
-      toast.success(`Importacion completada: ${result.success} productos procesados`);
+      toast.success(`Importación completada: ${result.success} productos procesados`);
       if (result.errors > 0) {
         toast.warning(`${result.errors} errores encontrados`);
       }
@@ -468,7 +468,7 @@ function ImportExportTab({ companyId }: { companyId: string }) {
     setImporting(true);
     try {
       const result = await importProductsCSV(companyId, file);
-      toast.success(`Importacion completada: ${result.success} productos procesados`);
+      toast.success(`Importación completada: ${result.success} productos procesados`);
       if (result.errors > 0) {
         toast.warning(`${result.errors} errores encontrados`);
       }

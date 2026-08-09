@@ -181,7 +181,7 @@ export function ContaECBI({ user: _user, companies }: ContaECBIProps) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success('Exportacion Power BI descargada exitosamente');
+      toast.success('Exportación Power BI descargada exitosamente');
     } catch {
       toast.error('Error al exportar datos para Power BI');
     } finally {
@@ -344,7 +344,7 @@ export function ContaECBI({ user: _user, companies }: ContaECBIProps) {
                   <PieChartIcon className="h-4 w-4 text-primary" />
                   Ventas por Tipo de Comprobante
                 </CardTitle>
-                <CardDescription>Distribucion por tipo de documento</CardDescription>
+                <CardDescription>Distribución por tipo de documento</CardDescription>
               </CardHeader>
               <CardContent>
                 {ventasPorTipo.length > 0 ? (
@@ -477,7 +477,7 @@ export function ContaECBI({ user: _user, companies }: ContaECBIProps) {
                       <TableRow>
                         <TableHead>#</TableHead>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Identificacion</TableHead>
+                        <TableHead>Identificación</TableHead>
                         <TableHead className="text-right">Comprobantes</TableHead>
                         <TableHead className="text-right">Total Compras</TableHead>
                       </TableRow>
@@ -615,7 +615,7 @@ export function ContaECBI({ user: _user, companies }: ContaECBIProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Download className="h-5 w-5 text-primary" />
-                Exportacion Power BI
+                Exportación Power BI
               </CardTitle>
               <CardDescription>
                 Exporte sus datos en formato compatible con Microsoft Power BI para analisis avanzado
@@ -686,7 +686,7 @@ export function ContaECBI({ user: _user, companies }: ContaECBIProps) {
                   ) : (
                     <>
                       <Download className="mr-2 h-4 w-4" />
-                      Descargar Exportacion Power BI
+                      Descargar Exportación Power BI
                     </>
                   )}
                 </Button>
@@ -747,7 +747,7 @@ function KPIDashboard({ kpis }: { kpis: BIKPIs }) {
           color="primary"
         />
         <KPICard
-          title="Tasa Aprobacion SRI"
+          title="Tasa Aprobación SRI"
           value={`${kpis.tasa_aprobacion.toFixed(1)}%`}
           icon={<Shield className="h-4 w-4" />}
           subtitle={`${kpis.comprobantes_rechazados} rechazados`}
@@ -803,7 +803,7 @@ function KPIDashboard({ kpis }: { kpis: BIKPIs }) {
           icon={<Users className="h-3.5 w-3.5" />}
         />
         <MiniKPICard
-          title="Nomina Total"
+          title="Nómina Total"
           value={formatCurrency(kpis.nomina_total)}
           icon={<DollarSign className="h-3.5 w-3.5" />}
         />
@@ -995,7 +995,7 @@ function CuadroMandoView({ data }: { data: BICuadroMando }) {
             <CuadroMandoItem label="Cuentas por Cobrar" value={formatCurrency(kpis_resumen.cuentas_por_cobrar)} />
             <CuadroMandoItem label="Cuentas por Pagar" value={formatCurrency(kpis_resumen.cuentas_por_pagar)} />
             <CuadroMandoItem label="Flujo Neto del Mes" value={formatCurrency(kpis_resumen.flujo_neto_mes)} highlight={kpis_resumen.flujo_neto_mes >= 0 ? 'positive' : 'negative'} />
-            <CuadroMandoItem label="Nomina Total" value={formatCurrency(kpis_resumen.nomina_total)} />
+            <CuadroMandoItem label="Nómina Total" value={formatCurrency(kpis_resumen.nomina_total)} />
           </CardContent>
         </Card>
 

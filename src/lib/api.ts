@@ -372,6 +372,8 @@ async function lookupRuc(ruc: string): Promise<SRICompanyData> {
 interface SRICatalog {
   codigo: string;
   descripcion: string;
+  // Algunos catálogos (p.ej. tipos de identificación) pueden enviar 'nombre'
+  nombre?: string;
 }
 
 interface SRIIVARate {
@@ -837,7 +839,14 @@ interface ComprobanteDetalleCreate {
   cantidad: number;
   unidad_medida?: string;
   precio_unitario: number;
+  /** Monto de descuento efectivo en dólares (calculado) */
   descuento?: number;
+  /** Tipo de descuento: 'porcentaje' (% del total de la línea) o 'dolares' (monto fijo) */
+  descuento_tipo?: 'porcentaje' | 'dolares';
+  /** Valor bruto del descuento ingresado por el usuario */
+  descuento_valor?: number;
+  /** Valor del impuesto IRBPNR por unidad (para botellas plásticas) */
+  irbpnr_valor?: number;
   iva_codigo: string;
   iva_porcentaje: number;
   ice_codigo?: string;
@@ -892,6 +901,15 @@ interface ComprobanteResponse {
   cliente_identificacion: string;
   cliente_razon_social: string;
   subtotal_sin_impuestos: number;
+  subtotal_iva_0: number;
+  subtotal_iva_5: number;
+  subtotal_iva_8: number;
+  subtotal_iva_12: number;
+  subtotal_iva_13: number;
+  subtotal_iva_14: number;
+  subtotal_iva_15: number;
+  subtotal_no_objeto_iva: number;
+  subtotal_exento_iva: number;
   total_iva: number;
   total_ice: number;
   total_descuento: number;
@@ -1159,7 +1177,14 @@ interface ProformaDetalleCreate {
   cantidad: number;
   unidad_medida?: string;
   precio_unitario: number;
+  /** Monto de descuento efectivo en dólares (calculado) */
   descuento?: number;
+  /** Tipo de descuento: 'porcentaje' (% del total de la línea) o 'dolares' (monto fijo) */
+  descuento_tipo?: 'porcentaje' | 'dolares';
+  /** Valor bruto del descuento ingresado por el usuario */
+  descuento_valor?: number;
+  /** Valor del impuesto IRBPNR por unidad (para botellas plásticas) */
+  irbpnr_valor?: number;
   iva_codigo: string;
   iva_porcentaje: number;
   ice_codigo?: string;
@@ -1210,6 +1235,15 @@ interface ProformaResponse {
   cliente_email: string | null;
   cliente_telefono: string | null;
   subtotal_sin_impuestos: number;
+  subtotal_iva_0: number;
+  subtotal_iva_5: number;
+  subtotal_iva_8: number;
+  subtotal_iva_12: number;
+  subtotal_iva_13: number;
+  subtotal_iva_14: number;
+  subtotal_iva_15: number;
+  subtotal_no_objeto_iva: number;
+  subtotal_exento_iva: number;
   total_iva: number;
   total_ice: number;
   total_descuento: number;

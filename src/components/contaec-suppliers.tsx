@@ -231,12 +231,12 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Identificacion</TableHead>
-                    <TableHead>Razon Social</TableHead>
+                    <TableHead>Identificación</TableHead>
+                    <TableHead>Razón Social</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Telefono</TableHead>
+                    <TableHead>Teléfono</TableHead>
                     <TableHead>Contacto</TableHead>
-                    <TableHead>Plazo Credito</TableHead>
+                    <TableHead>Plazo Crédito</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -278,22 +278,22 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-4 pr-2">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Tipo Identificacion</Label><Select value={form.tipo_identificacion} onValueChange={(v) => setForm({ ...form, tipo_identificacion: v })}><SelectTrigger /><SelectContent><SelectItem value="04">RUC</SelectItem><SelectItem value="05">Cedula</SelectItem><SelectItem value="06">Pasaporte</SelectItem><SelectItem value="08">Exterior</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Identificacion</Label><Input value={form.identificacion} onChange={(e) => setForm({ ...form, identificacion: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Tipo Identificación</Label><Select value={form.tipo_identificacion} onValueChange={(v) => setForm({ ...form, tipo_identificacion: v })}><SelectTrigger /><SelectContent><SelectItem value="04">RUC</SelectItem><SelectItem value="05">Cédula</SelectItem><SelectItem value="06">Pasaporte</SelectItem><SelectItem value="08">Exterior</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label>Identificación</Label><Input value={form.identificacion} onChange={(e) => setForm({ ...form, identificacion: e.target.value })} /></div>
               </div>
-              <div className="space-y-2"><Label>Razon Social</Label><Input value={form.razon_social} onChange={(e) => setForm({ ...form, razon_social: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Razón Social</Label><Input value={form.razon_social} onChange={(e) => setForm({ ...form, razon_social: e.target.value })} /></div>
               <div className="space-y-2"><Label>Nombre Comercial</Label><Input value={form.nombre_comercial} onChange={(e) => setForm({ ...form, nombre_comercial: e.target.value })} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Email</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Telefono</Label><Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Teléfono</Label><Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Contacto Nombre</Label><Input value={form.contacto_nombre} onChange={(e) => setForm({ ...form, contacto_nombre: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Contacto Telefono</Label><Input value={form.contacto_telefono} onChange={(e) => setForm({ ...form, contacto_telefono: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Contacto Teléfono</Label><Input value={form.contacto_telefono} onChange={(e) => setForm({ ...form, contacto_telefono: e.target.value })} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Plazo Credito (dias)</Label><Input type="number" value={form.plazo_credito_dias} onChange={(e) => setForm({ ...form, plazo_credito_dias: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Direccion</Label><Input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Plazo Crédito (dias)</Label><Input type="number" value={form.plazo_credito_dias} onChange={(e) => setForm({ ...form, plazo_credito_dias: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Dirección</Label><Input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></div>
               </div>
               <div className="space-y-2"><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} rows={2} /></div>
               <div className="flex justify-end gap-2">
@@ -356,7 +356,7 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
           <DialogHeader><DialogTitle>Nueva Plantilla</DialogTitle><DialogDescription>Cree una plantilla de correo</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Nombre</Label><Input value={templateForm.nombre} onChange={(e) => setTemplateForm({ ...templateForm, nombre: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Tipo</Label><Select value={templateForm.tipo} onValueChange={(v) => setTemplateForm({ ...templateForm, tipo: v })}><SelectTrigger /><SelectContent><SelectItem value="factura">Factura</SelectItem><SelectItem value="nota_credito">Nota Credito</SelectItem><SelectItem value="nota_debito">Nota Debito</SelectItem><SelectItem value="proforma">Proforma</SelectItem><SelectItem value="general">General</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label>Tipo</Label><Select value={templateForm.tipo} onValueChange={(v) => setTemplateForm({ ...templateForm, tipo: v })}><SelectTrigger /><SelectContent><SelectItem value="factura">Factura</SelectItem><SelectItem value="nota_credito">Nota Crédito</SelectItem><SelectItem value="nota_debito">Nota Débito</SelectItem><SelectItem value="proforma">Proforma</SelectItem><SelectItem value="general">General</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label>Asunto</Label><Input value={templateForm.asunto} onChange={(e) => setTemplateForm({ ...templateForm, asunto: e.target.value })} placeholder="Factura #{{secuencial}}" /></div>
             <div className="space-y-2"><Label>Cuerpo HTML</Label><Textarea value={templateForm.cuerpo_html} onChange={(e) => setTemplateForm({ ...templateForm, cuerpo_html: e.target.value })} rows={5} /></div>
             <div className="flex justify-end gap-2">

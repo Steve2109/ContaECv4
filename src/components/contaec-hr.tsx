@@ -270,7 +270,7 @@ function EmpleadosTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cedula</TableHead>
+                    <TableHead>Cédula</TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Cargo</TableHead>
                     <TableHead>Departamento</TableHead>
@@ -321,7 +321,7 @@ function EmpleadosTab({ companyId }: { companyId: string }) {
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Cedula</Label><Input value={form.cedula} onChange={(e) => setForm({ ...form, cedula: e.target.value })} maxLength={10} disabled={!!editingEmployee} /></div>
+              <div className="space-y-2"><Label>Cédula</Label><Input value={form.cedula} onChange={(e) => setForm({ ...form, cedula: e.target.value })} maxLength={10} disabled={!!editingEmployee} /></div>
               <div className="space-y-2"><Label>Genero</Label><Select value={form.genero} onValueChange={(v) => setForm({ ...form, genero: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent><SelectItem value="M">Masculino</SelectItem><SelectItem value="F">Femenino</SelectItem></SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -342,7 +342,7 @@ function EmpleadosTab({ companyId }: { companyId: string }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Email</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Telefono</Label><Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Teléfono</Label><Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /></div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button>
@@ -423,7 +423,7 @@ function RolesPagoTab({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Periodo</TableHead>
+                    <TableHead>Período</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Remuneraciones</TableHead>
                     <TableHead className="text-right">Descuentos</TableHead>
@@ -484,7 +484,7 @@ function RolesPagoTab({ companyId }: { companyId: string }) {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Mes</Label><Select value={genForm.mes} onValueChange={(v) => setGenForm({ ...genForm, mes: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent>{MESES.map((m, i) => (<SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>))}</SelectContent></Select></div>
-              <div className="space-y-2"><Label>Anio</Label><Input type="number" value={genForm.anio} onChange={(e) => setGenForm({ ...genForm, anio: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Año</Label><Input type="number" value={genForm.anio} onChange={(e) => setGenForm({ ...genForm, anio: e.target.value })} /></div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowGenerate(false)}>Cancelar</Button>
@@ -516,7 +516,7 @@ function DecimosTab({ companyId }: { companyId: string }) {
         const data = await calculateDecimoCuarto({ company_id: companyId, periodo_anio: Number(anio), region });
         setResults(Array.isArray(data) ? data : []);
       }
-      toast.success('Calculo realizado');
+      toast.success('Cálculo realizado');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al calcular');
     } finally {
@@ -528,7 +528,7 @@ function DecimosTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Calculo de Decimos</CardTitle>
+          <CardTitle className="text-base">Cálculo de Decimos</CardTitle>
           <CardDescription>Calcule el decimo tercero y cuarto para sus empleados</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -540,7 +540,7 @@ function DecimosTab({ companyId }: { companyId: string }) {
                 <SelectItem value="cuarto">Decimo Cuarto</SelectItem>
               </SelectContent>
             </Select>
-            <div className="space-y-0"><Label className="sr-only">Anio</Label><Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" /></div>
+            <div className="space-y-0"><Label className="sr-only">Año</Label><Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" /></div>
             {decimoType === 'cuarto' && (
               <Select value={region} onValueChange={setRegion}>
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
@@ -557,7 +557,7 @@ function DecimosTab({ companyId }: { companyId: string }) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Cedula</TableHead>
+                        <TableHead>Cédula</TableHead>
                         <TableHead>Nombre</TableHead>
                         <TableHead className="text-right">Sueldo</TableHead>
                         <TableHead className="text-right">Meses</TableHead>

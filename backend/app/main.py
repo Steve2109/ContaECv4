@@ -296,9 +296,10 @@ async def get_sri_catalogs():
         "retencion_iva": [r.model_dump() for r in RETENCION_IVA],
         "retencion_renta": [r.model_dump() for r in RETENCION_RENTA],
         "tipos_comprobante": [t.model_dump() for t in TIPOS_COMPROBANTE],
-        "tipos_identificacion": [t.model_dump() for t in TIPOS_IDENTIFICACION],
-        "formas_pago": [f.model_dump() for f in FORMAS_PAGO],
-        "estados_comprobante": [e.model_dump() for e in ESTADOS_COMPROBANTE],
+        # El frontend espera {codigo, descripcion}; mapear nombre/siglas -> descripcion
+        "tipos_identificacion": [{"codigo": t.codigo, "descripcion": t.nombre} for t in TIPOS_IDENTIFICACION],
+        "formas_pago": [{"codigo": f.codigo, "descripcion": f.nombre} for f in FORMAS_PAGO],
+        "estados_comprobante": [{"codigo": e.siglas, "descripcion": e.nombre} for e in ESTADOS_COMPROBANTE],
         "contribuyente_tipos": CONTRIBUYENTE_TIPOS,
         "regimen_tipos": REGIMEN_TIPOS,
     }

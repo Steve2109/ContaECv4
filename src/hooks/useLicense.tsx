@@ -168,6 +168,9 @@ export function useLicense(): UseLicenseReturn {
       return true;
     }
 
+    // Durante el período de prueba hay acceso completo a todas las funcionalidades
+    if (license?.is_trial) return true;
+
     // Verificar según el tipo de licencia
     const tier = license?.license_type;
     if (!tier) return false;
@@ -188,7 +191,7 @@ export function useLicense(): UseLicenseReturn {
 
     // Plan Mensual - solo básicos
     return false;
-  }, [license?.license_type]);
+  }, [license?.license_type, license?.is_trial]);
 
   const isAtLimit = useCallback((_limitType: string, _companyId?: string): boolean => {
     // Para trial, usar límites del plan mensual como referencia

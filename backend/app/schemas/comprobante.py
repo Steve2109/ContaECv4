@@ -11,6 +11,8 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -141,7 +143,16 @@ class ComprobanteDetalleCreate(BaseModel):
     descuento: Decimal = Field(
         default=Decimal("0"),
         ge=0,
-        description="Monto de descuento aplicado al detalle",
+        description="Monto de descuento aplicado al detalle (resultado final en dólares)",
+    )
+    descuento_tipo: Literal["porcentaje", "dolares"] = Field(
+        default="dolares",
+        description="Tipo de descuento: 'porcentaje' (% del total de la línea) o 'dolares' (monto fijo)",
+    )
+    descuento_valor: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Valor bruto del descuento ingresado por el usuario (monto en dólares o porcentaje según descuento_tipo)",
     )
     iva_codigo: str = Field(
         default="4",
@@ -308,6 +319,15 @@ class ComprobanteResponse(BaseModel):
     cliente_razon_social: str | None = Field(None, description="Razón social del cliente")
     # Totales
     subtotal_sin_impuestos: Decimal = Field(..., description="Subtotal sin impuestos")
+    subtotal_iva_0: Decimal = Field(default=Decimal("0"), description="Subtotal con IVA 0%")
+    subtotal_iva_5: Decimal = Field(default=Decimal("0"), description="Subtotal con IVA 5%")
+    subtotal_iva_8: Decimal = Field(default=Decimal("0"), description="Subtotal con IVA 8%")
+    subtotal_iva_12: Decimal = Field(default=Decimal("0"), description="Subtotal con IVA 12%")
+    subtotal_iva_13: Decimal = Field(default=Decimal("0"), description="Subtotal con IVA 13%")
+    subtotal_iva_14: Decimal = Field(default=Decimal("0"), description="Subtotal con IVA 14%")
+    subtotal_iva_15: Decimal = Field(default=Decimal("0"), description="Subtotal con IVA 15%")
+    subtotal_no_objeto_iva: Decimal = Field(default=Decimal("0"), description="Subtotal no objeto de IVA")
+    subtotal_exento_iva: Decimal = Field(default=Decimal("0"), description="Subtotal exento de IVA")
     total_iva: Decimal = Field(..., description="Total del IVA")
     total_ice: Decimal = Field(..., description="Total del ICE")
     total_descuento: Decimal = Field(..., description="Total de descuentos")

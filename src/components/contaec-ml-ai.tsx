@@ -263,7 +263,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
     setSaving(true);
     try {
       await createMLPrediccion({ ...prediccionForm, company_id: companyId });
-      toast.success('Prediccion creada exitosamente');
+      toast.success('Predicción creada exitosamente');
       setShowPrediccionDialog(false);
       setPrediccionForm({
         company_id: companyId,
@@ -283,7 +283,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
   const handleDeletePrediccion = async (id: string) => {
     try {
       await deleteMLPrediccion(id);
-      toast.success('Prediccion eliminada');
+      toast.success('Predicción eliminada');
       loadData();
     } catch {
       toast.error('Error al eliminar prediccion');
@@ -362,7 +362,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
         setActiveSesionId(null);
         setMensajes([]);
       }
-      toast.success('Sesion cerrada');
+      toast.success('Sesión cerrada');
       loadData();
     } catch {
       toast.error('Error al cerrar sesion');
@@ -592,7 +592,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
             </div>
             <Button onClick={() => setShowPrediccionDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Nueva Prediccion
+              Nueva Predicción
             </Button>
           </div>
 
@@ -613,7 +613,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
                       <TableRow>
                         <TableHead>Tipo</TableHead>
                         <TableHead>Modelo</TableHead>
-                        <TableHead>Periodo</TableHead>
+                        <TableHead>Período</TableHead>
                         <TableHead>Confianza</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Acciones</TableHead>
@@ -735,7 +735,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
                         <TableHead>Severidad</TableHead>
                         <TableHead>Puntuacion</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead>Descripcion</TableHead>
+                        <TableHead>Descripción</TableHead>
                         <TableHead>Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -840,7 +840,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
                           }}
                         >
                           <div className="flex-1 min-w-0">
-                            <p className="truncate">{sesion.titulo || 'Sesion sin titulo'}</p>
+                            <p className="truncate">{sesion.titulo || 'Sesión sin titulo'}</p>
                             <p className="text-xs text-muted-foreground">
                               {new Date(sesion.created_at).toLocaleDateString('es-EC')}
                             </p>
@@ -1057,7 +1057,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
             <CardContent className="pt-4">
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  Patron Regex: expresion regular que busca coincidencias en la descripcion.
+                  Patrón Regex: expresion regular que busca coincidencias en la descripcion.
                   Ejemplo: <code className="bg-muted px-1 rounded">.*SUPERMERCADO.*</code> para compras en supermercados
                 </p>
                 <p>
@@ -1178,7 +1178,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="Descripcion de la transaccion..."
+                  placeholder="Descripción de la transaccion..."
                   value={testDescripcion}
                   onChange={(e) => setTestDescripcion(e.target.value)}
                   onKeyDown={(e) => {
@@ -1209,18 +1209,18 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog: Nueva Prediccion */}
+      {/* Dialog: Nueva Predicción */}
       <Dialog open={showPrediccionDialog} onOpenChange={setShowPrediccionDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nueva Prediccion</DialogTitle>
+            <DialogTitle>Nueva Predicción</DialogTitle>
             <DialogDescription>
               Configure los parametros para generar una nueva prediccion
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Tipo de Prediccion</Label>
+              <Label>Tipo de Predicción</Label>
               <Select
                 value={prediccionForm.tipo}
                 onValueChange={(v) => setPrediccionForm({ ...prediccionForm, tipo: v })}
@@ -1278,17 +1278,17 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
             </Button>
             <Button onClick={handleCreatePrediccion} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Crear Prediccion
+              Crear Predicción
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Prediccion Detail */}
+      {/* Dialog: Predicción Detail */}
       <Dialog open={showPrediccionDetail} onOpenChange={setShowPrediccionDetail}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalle de Prediccion</DialogTitle>
+            <DialogTitle>Detalle de Predicción</DialogTitle>
             <DialogDescription>
               Resultados y metricas de la prediccion
             </DialogDescription>
@@ -1319,7 +1319,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
               </div>
               <Separator />
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Periodo</p>
+                <p className="text-xs text-muted-foreground mb-1">Período</p>
                 <p className="text-sm">
                   {new Date(selectedPrediccion.periodo_desde).toLocaleDateString('es-EC')} - {new Date(selectedPrediccion.periodo_hasta).toLocaleDateString('es-EC')}
                 </p>
@@ -1366,7 +1366,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
               </div>
             )}
             <div className="space-y-2">
-              <Label>Nota de Resolucion</Label>
+              <Label>Nota de Resolución</Label>
               <Textarea
                 placeholder="Explique por que se descarta esta alerta..."
                 value={alertaResolucion}
@@ -1434,14 +1434,14 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Patron Regex</Label>
+              <Label>Patrón Regex</Label>
               <Input
                 placeholder="Expresion regular (opcional)"
                 value={reglaForm.patron_regex || ''}
                 onChange={(e) => setReglaForm({ ...reglaForm, patron_regex: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
-                Patron Regex: expresion regular que busca coincidencias en la descripcion.
+                Patrón Regex: expresion regular que busca coincidencias en la descripcion.
                 Ejemplo: <code className="bg-muted px-1 rounded">.*SUPERMERCADO.*</code> para compras en supermercados
               </p>
             </div>

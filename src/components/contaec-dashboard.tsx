@@ -190,7 +190,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
       if (allRejected) {
         clearTokens();
         onLogout();
-        toast.error('Sesion expirada. Por favor inicie sesion nuevamente.');
+        toast.error(t('common.session_expired'));
         return;
       }
 
@@ -208,7 +208,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
       if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) setIdentTypes(results[4].value);
       if (results[5].status === 'fulfilled') setInvoiceStats(results[5].value);
     } catch {
-      toast.error('Error al cargar datos del panel');
+      toast.error(t('dash.load_error'));
     } finally {
       setLoading(false);
     }
@@ -238,7 +238,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
           const logoResult = await uploadCompanyFile('logo', logoFile);
           logoPath = logoResult.file_path;
         } catch {
-          toast.warning('Error subiendo logo, se creara la empresa sin logo');
+          toast.warning(t('company.upload_logo_error'));
         }
       }
 
@@ -249,7 +249,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
           const firmaResult = await uploadCompanyFile('firma', firmaFile);
           firmaPath = firmaResult.file_path;
         } catch {
-          toast.warning('Error subiendo firma electronica, se creara la empresa sin firma');
+          toast.warning(t('company.upload_signature_error'));
         }
       }
 
@@ -297,9 +297,9 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
       // Reset file inputs
       if (logoInputRef.current) logoInputRef.current.value = '';
       if (firmaInputRef.current) firmaInputRef.current.value = '';
-      toast.success('Empresa creada exitosamente');
+      toast.success(t('company.created'));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al crear empresa';
+      const msg = err instanceof Error ? err.message : t('company.create_error');
       toast.error(msg);
     } finally {
       setCreatingCompany(false);
@@ -341,6 +341,9 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   const filteredNavItems: { id: NavItem; label: string; icon: React.ReactNode; locked?: boolean; requiredTier?: string }[] = userNavItems.filter(item => {
     if (!item.locked) return true;
     if (!item.requiredTier) return true;
+
+    // Durante el período de prueba hay acceso completo a todas las funcionalidades
+    if (license?.is_trial) return true;
 
     // Plan Anual - todo disponible
     if (currentTier === 'annual') return true;
@@ -395,32 +398,32 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   const renderLockedView = (featureName: keyof typeof FEATURE_LABELS) => (
     <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
       <div className="text-6xl mb-2">🔒</div>
-      <h3 className="text-xl font-bold">{FEATURE_LABELS[featureName]} no disponible</h3>
+      <h3 className="text-xl font-bold">{FEATURE_LABELS[featureName]} {t('locked.not_available')}</h3>
       <p className="text-muted-foreground max-w-md">
-        Esta funcionalidad no está incluida en tu plan actual
-        {license?.license_type && `(Plan ${license.license_type === 'monthly' ? 'Mensual' : license.license_type === 'quarterly' ? 'Trimestral' : license.license_type === 'semiannual' ? 'Semestral' : 'Anual'})`}.
+        {t('locked.not_included')}
+        {license?.license_type && `(${t('locked.plan')} ${t(license.license_type === 'monthly' ? 'license.plan_monthly' : license.license_type === 'quarterly' ? 'license.plan_quarterly' : license.license_type === 'semiannual' ? 'license.plan_semiannual' : 'license.plan_annual')})`}.
       </p>
       <div className="flex gap-2">
         <Button variant="outline" onClick={() => setActiveNav('license')}>
-          Ver Planes Disponibles
+          {t('locked.view_plans')}
         </Button>
         <Button onClick={() => {
-          const msg = `Hola, quiero información sobre ${FEATURE_LABELS[featureName]}. Mi correo es: ${user.email}`;
+          const msg = `${t('locked.whatsapp_msg')} ${FEATURE_LABELS[featureName]}. ${t('locked.my_email')}: ${user.email}`;
           window.open(`https://wa.me/593960068866?text=${encodeURIComponent(msg)}`, '_blank');
         }}>
-          Contactar por WhatsApp
+          {t('locked.whatsapp')}
         </Button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Sidebar */}
+    <div className="h-screen overflow-hidden flex bg-background">
+      {/* Sidebar: scroll independiente del contenido central */}
       <aside
         className={`${
           sidebarOpen ? 'w-64' : 'w-16'
-        } border-r bg-card transition-all duration-300 flex flex-col shrink-0`}
+        } border-r bg-card transition-all duration-300 flex flex-col shrink-0 overflow-hidden`}
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b flex items-center gap-3">
@@ -437,13 +440,13 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
           {sidebarOpen && (
             <div className="overflow-hidden">
               <h2 className="font-bold text-sm leading-tight">ContaEC</h2>
-              <p className="text-[10px] text-muted-foreground truncate">Facturacion Electronica</p>
+              <p className="text-[10px] text-muted-foreground truncate">{t('shell.tagline')}</p>
             </div>
           )}
         </div>
 
-        {/* Nav Items */}
-        <nav className="flex-1 p-2 space-y-1">
+        {/* Nav Items (scroll independiente) */}
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -477,7 +480,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                 <span className="text-xs">🔒</span>
               )}
               {item.icon}
-              {sidebarOpen && <span>{item.label}{item.locked && ' (Premium)'}</span>}
+              {sidebarOpen && <span>{item.label}{item.locked && ` (${t('locked.premium')})`}</span>}
             </button>
           ))}
         </nav>
@@ -491,7 +494,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
             {sidebarOpen ? (
               <>
                 <ChevronLeft className="h-4 w-4" />
-                <span>Colapsar</span>
+                <span>{t('shell.collapse')}</span>
               </>
             ) : (
               <ChevronRight className="h-4 w-4" />
@@ -521,7 +524,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" title="Idioma">
+                <Button variant="ghost" size="icon" title={t('shell.language')}>
                   <Globe className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -567,7 +570,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Cerrar Sesion
+                  {t('shell.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -672,7 +675,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
         {/* Sticky Footer */}
         <footer className="border-t bg-card py-3 px-4 text-center shrink-0">
           <p className="text-xs text-muted-foreground">
-            Desarrollado por <span className="font-semibold text-foreground">T&amp;M Technology Ec</span>
+            {t('shell.developed_by')} <span className="font-semibold text-foreground">T&amp;M Technology Ec</span>
             &nbsp;&mdash;&nbsp; info@tymtechnology.shop &nbsp;|&nbsp; 0960068866
           </p>
         </footer>
@@ -682,15 +685,15 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
       <Dialog open={showNewCompany} onOpenChange={setShowNewCompany}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nueva Empresa</DialogTitle>
+            <DialogTitle>{t('company.new_title')}</DialogTitle>
             <DialogDescription>
-              Registre una nueva empresa para emitir comprobantes electronicos
+              {t('company.new_desc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-2">
             {/* Seccion: Informacion Fiscal */}
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Informacion Fiscal</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.fiscal_info')}</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2 space-y-2">
@@ -721,12 +724,12 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                                 obligado_contabilidad: data.obligado_contabilidad || prev.obligado_contabilidad,
                                 contribuyente_especial: data.contribuyente_especial || prev.contribuyente_especial,
                               }));
-                              toast.success('Datos cargados desde el SRI');
+                              toast.success(t('company.data_from_sri'));
                             } else if (data.message) {
                               toast.warning(data.message);
                             }
                           } catch {
-                            toast.error('Error consultando RUC al SRI');
+                            toast.error(t('company.sri_error'));
                           }
                         }}
                       >
@@ -735,31 +738,31 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nc-cod-est">Cod. Establecimiento</Label>
+                    <Label htmlFor="nc-cod-est">{t('company.code_est')}</Label>
                     <Input id="nc-cod-est" placeholder="001" value={newCompany.cod_establecimiento} onChange={(e) => setNewCompany({ ...newCompany, cod_establecimiento: e.target.value.replace(/\D/g, '').slice(0, 3) })} maxLength={3} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="nc-razon">Razon Social <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="nc-razon">{t('company.name')} <span className="text-red-500">*</span></Label>
                     <Input id="nc-razon" placeholder="Mi Empresa S.A." value={newCompany.razon_social} onChange={(e) => setNewCompany({ ...newCompany, razon_social: e.target.value })} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nc-nombre">Nombre Comercial</Label>
+                    <Label htmlFor="nc-nombre">{t('company.commercial')}</Label>
                     <Input id="nc-nombre" placeholder="Mi Empresa" value={newCompany.nombre_comercial} onChange={(e) => setNewCompany({ ...newCompany, nombre_comercial: e.target.value })} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nc-dir">Direccion Matriz <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="nc-dir">{t('company.address')} <span className="text-red-500">*</span></Label>
                   <Input id="nc-dir" placeholder="Av. Amazonas 123, Quito" value={newCompany.dir_matriz} onChange={(e) => setNewCompany({ ...newCompany, dir_matriz: e.target.value })} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="nc-correo">Correo</Label>
+                    <Label htmlFor="nc-correo">{t('company.email')}</Label>
                     <Input id="nc-correo" type="email" placeholder="info@empresa.com" value={newCompany.correo} onChange={(e) => setNewCompany({ ...newCompany, correo: e.target.value })} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nc-tel">Telefono</Label>
+                    <Label htmlFor="nc-tel">{t('company.phone')}</Label>
                     <Input id="nc-tel" placeholder="0999999999" value={newCompany.telefono} onChange={(e) => setNewCompany({ ...newCompany, telefono: e.target.value })} />
                   </div>
                 </div>
@@ -768,11 +771,11 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
 
             {/* Seccion: Configuracion Fiscal */}
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Configuracion Fiscal</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.fiscal_config')}</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="nc-obligado">Obligado a llevar Contabilidad</Label>
+                    <Label htmlFor="nc-obligado">{t('company.obligated')}</Label>
                     <select
                       id="nc-obligado"
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -784,12 +787,12 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nc-cod-pemi">Cod. Punto Emision</Label>
+                    <Label htmlFor="nc-cod-pemi">{t('company.code_emission')}</Label>
                     <Input id="nc-cod-pemi" placeholder="001" value={newCompany.cod_punto_emision} onChange={(e) => setNewCompany({ ...newCompany, cod_punto_emision: e.target.value.replace(/\D/g, '').slice(0, 3) })} maxLength={3} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Contribuyente Regimen RIMPE</Label>
+                  <Label>{t('company.rimpe')}</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -810,7 +813,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                           <div className="h-2 w-2 rounded-full bg-primary" />
                         )}
                       </div>
-                      <span className="text-sm">RIMPE Emprendedor</span>
+                      <span className="text-sm">{t('company.rimpe_emprendedor')}</span>
                     </button>
                     <button
                       type="button"
@@ -831,10 +834,10 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                           <div className="h-2 w-2 rounded-full bg-primary" />
                         )}
                       </div>
-                      <span className="text-sm">RIMPE Negocio Popular</span>
+                      <span className="text-sm">{t('company.rimpe_popular')}</span>
                     </button>
                   </div>
-                  <p className="text-xs text-muted-foreground">*Solo act. no sujetas al regimen RIMPE. Clic nuevamente para deseleccionar.</p>
+                  <p className="text-xs text-muted-foreground">{t('company.rimpe_note')}</p>
                 </div>
 
                 {/* Campos condicionales para RIMPE Negocio Popular */}
@@ -842,12 +845,12 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                   <div className="pl-2 border-l-2 border-amber-400 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label htmlFor="nc-artesano-rimpe">Codigo Artesano</Label>
-                        <Input id="nc-artesano-rimpe" placeholder="Codigo asignado" value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
+                        <Label htmlFor="nc-artesano-rimpe">{t('company.artisan_code')}</Label>
+                        <Input id="nc-artesano-rimpe" placeholder={t('company.assigned_code')} value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="nc-nom-recibos-rimpe">Nombre de Recibos</Label>
-                        <Input id="nc-nom-recibos-rimpe" placeholder="Nombre que aparece en recibos" value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
+                        <Label htmlFor="nc-nom-recibos-rimpe">{t('company.receipts_name')}</Label>
+                        <Input id="nc-nom-recibos-rimpe" placeholder={t('company.receipts_placeholder')} value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
                       </div>
                     </div>
                   </div>
@@ -859,35 +862,35 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                     onChange={(e) => setNewCompany({ ...newCompany, registro_turistico: e.target.checked })}
                     className="h-4 w-4"
                   />
-                  <span className="text-sm">Registro Turistico</span>
+                  <span className="text-sm">{t('company.tourism')}</span>
                 </label>
               </div>
             </div>
 
             {/* Seccion: Firma Electronica */}
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Firma Electronica y Logo</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.signature')}</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="nc-logo">Logo Empresa</Label>
+                    <Label htmlFor="nc-logo">{t('company.logo')}</Label>
                     <Input id="nc-logo" type="file" accept="image/*" ref={logoInputRef} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nc-firma-archivo">Archivo Firma Electronica (.p12/.pfx)</Label>
+                    <Label htmlFor="nc-firma-archivo">{t('company.signature_file')}</Label>
                     <Input id="nc-firma-archivo" type="file" accept=".p12,.pfx" ref={firmaInputRef} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nc-firma-pass">Contraseña Firma Electronica</Label>
-                  <Input id="nc-firma-pass" type="password" placeholder="Contraseña del archivo .p12" value={newCompany.firma_electronica_password} onChange={(e) => setNewCompany({ ...newCompany, firma_electronica_password: e.target.value })} />
+                  <Label htmlFor="nc-firma-pass">{t('company.signature_pass')}</Label>
+                  <Input id="nc-firma-pass" type="password" placeholder={t('company.signature_pass_placeholder')} value={newCompany.firma_electronica_password} onChange={(e) => setNewCompany({ ...newCompany, firma_electronica_password: e.target.value })} />
                 </div>
               </div>
             </div>
 
             {/* Seccion: Transportista (condicional) */}
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Transporte</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.transport')}</h3>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
                   <input
@@ -896,7 +899,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                     onChange={(e) => setNewCompany({ ...newCompany, operadora_transportista_comercial: e.target.checked })}
                     className="h-4 w-4"
                   />
-                  <span className="text-sm">Soy Operadora Transportista Comercial</span>
+                  <span className="text-sm">{t('company.transport_commercial')}</span>
                 </label>
                 <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
                   <input
@@ -905,40 +908,40 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                     onChange={(e) => setNewCompany({ ...newCompany, operadora_transportista_ligera: e.target.checked })}
                     className="h-4 w-4"
                   />
-                  <span className="text-sm">Soy Operadora Transportista Ligera (Cooperativas de Taxis, etc.)</span>
+                  <span className="text-sm">{t('company.transport_light')}</span>
                 </label>
               </div>
               {(newCompany.operadora_transportista_comercial || newCompany.operadora_transportista_ligera) && (
                 <div className="mt-3 space-y-3 pl-2 border-l-2 border-primary/30">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="nc-ruc-op-comercial">RUC Operadora Transportista Comercial</Label>
-                      <p className="text-xs text-muted-foreground">(solo si eres Socio Transportista)</p>
+                      <Label htmlFor="nc-ruc-op-comercial">{t('company.ruc_operator_commercial')}</Label>
+                      <p className="text-xs text-muted-foreground">{t('company.only_partner')}</p>
                       <Input id="nc-ruc-op-comercial" placeholder="1790000000001" value={newCompany.ruc_operadora_comercial} onChange={(e) => setNewCompany({ ...newCompany, ruc_operadora_comercial: e.target.value.replace(/\D/g, '').slice(0, 13) })} maxLength={13} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="nc-ruc-op">RUC Operadora Transportista</Label>
+                      <Label htmlFor="nc-ruc-op">{t('company.ruc_operator')}</Label>
                       <Input id="nc-ruc-op" placeholder="1790000000001" value={newCompany.ruc_operadora_transportista} onChange={(e) => setNewCompany({ ...newCompany, ruc_operadora_transportista: e.target.value.replace(/\D/g, '').slice(0, 13) })} maxLength={13} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="nc-agente-ret">Agente de Retencion</Label>
-                      <Input id="nc-agente-ret" placeholder="Numero de resolucion" value={newCompany.agente_retencion} onChange={(e) => setNewCompany({ ...newCompany, agente_retencion: e.target.value })} />
+                      <Label htmlFor="nc-agente-ret">{t('company.agent_retention')}</Label>
+                      <Input id="nc-agente-ret" placeholder={t('company.resolution_number')} value={newCompany.agente_retencion} onChange={(e) => setNewCompany({ ...newCompany, agente_retencion: e.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="nc-contrib-esp">Contribuyente Especial</Label>
-                      <Input id="nc-contrib-esp" placeholder="Numero de resolucion" value={newCompany.contribuyente_especial} onChange={(e) => setNewCompany({ ...newCompany, contribuyente_especial: e.target.value })} />
+                      <Label htmlFor="nc-contrib-esp">{t('company.special_contributor')}</Label>
+                      <Input id="nc-contrib-esp" placeholder={t('company.resolution_number')} value={newCompany.contribuyente_especial} onChange={(e) => setNewCompany({ ...newCompany, contribuyente_especial: e.target.value })} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="nc-artesano">Codigo de Artesano</Label>
-                      <Input id="nc-artesano" placeholder="Codigo" value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
+                      <Label htmlFor="nc-artesano">{t('company.artisan_code')}</Label>
+                      <Input id="nc-artesano" placeholder={t('company.code')} value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="nc-nom-recibos">Nombre de Recibos</Label>
-                      <Input id="nc-nom-recibos" placeholder="Nombre que aparece en recibos" value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
+                      <Label htmlFor="nc-nom-recibos">{t('company.receipts_name')}</Label>
+                      <Input id="nc-nom-recibos" placeholder={t('company.receipts_placeholder')} value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
                     </div>
                   </div>
                 </div>
@@ -948,16 +951,16 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
             {/* Botones */}
             <div className="flex justify-end gap-2 pt-2 border-t">
               <Button variant="outline" onClick={() => setShowNewCompany(false)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleCreateCompany} disabled={creatingCompany}>
                 {creatingCompany ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creando...
+                    {t('company.creating')}
                   </>
                 ) : (
-                  'Crear Empresa'
+                  t('company.create')
                 )}
               </Button>
             </div>
@@ -993,9 +996,9 @@ function DashboardView({
       {licenseExpiring && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Licencia por expirar</AlertTitle>
+          <AlertTitle>{t('dash.license_expiring')}</AlertTitle>
           <AlertDescription>
-            Su licencia esta por expirar. Renueve para continuar emitiendo comprobantes electronicos.
+            {t('dash.license_expiring_desc')}
           </AlertDescription>
         </Alert>
       )}
@@ -1006,20 +1009,20 @@ function DashboardView({
           <Clock className="h-4 w-4" />
           <AlertTitle>
             {license.trial_days_remaining <= 0
-              ? 'Período de prueba finalizado'
+              ? t('dash.trial_ended')
               : license.trial_days_remaining <= 3
-              ? 'Período de prueba por expirar'
-              : 'Período de prueba activo'}
+              ? t('dash.trial_expiring')
+              : t('dash.trial_active')}
           </AlertTitle>
           <AlertDescription>
             {license.trial_days_remaining <= 0
-              ? 'Su período de prueba de 15 días ha finalizado. Adquiera una licencia para continuar usando ContaEC.'
+              ? t('dash.trial_ended_desc')
               : license.trial_days_remaining <= 3
-              ? `Quedan ${license.trial_days_remaining} día(s) de prueba. Adquiera una licencia para no perder acceso.`
-              : `Período de prueba: ${license.trial_days_remaining} días restantes. Adquiera una licencia para acceso completo.`}
+              ? t('dash.trial_days_left', { days: license.trial_days_remaining })
+              : t('dash.trial_remaining', { days: license.trial_days_remaining })}
             {license.trial_end_date && (
               <span className="block mt-1 text-xs">
-                Expira: {new Date(license.trial_end_date).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
+                {t('dash.expires')} {new Date(license.trial_end_date).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
             )}
           </AlertDescription>
@@ -1029,38 +1032,38 @@ function DashboardView({
       {/* Welcome */}
       <div>
         <h2 className="text-2xl font-bold">
-          Bienvenido, {user.full_name || user.email}
+          {t('dash.welcome', { name: user.full_name || user.email })}
         </h2>
         <p className="text-muted-foreground">
-          Panel de control de ContaEC - Contabilidad y Facturacion Electronica
+          {t('dash.subtitle')}
         </p>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <QuickStatCard
-          title="Empresas"
+          title={t('dash.companies')}
           value={companies.length}
           icon={<Building2 className="h-4 w-4" />}
-          description="registradas"
+          description={t('dash.registered')}
         />
         <QuickStatCard
-          title="Comprobantes"
+          title={t('dash.vouchers')}
           value={invoiceStats?.total ?? 0}
           icon={<Receipt className="h-4 w-4" />}
-          description="emitidos"
+          description={t('dash.issued')}
         />
         <QuickStatCard
-          title="Aprobados SRI"
+          title={t('dash.approved_sri')}
           value={invoiceStats?.autorizado ?? 0}
           icon={<CheckCircle2 className="h-4 w-4" />}
-          description="este mes"
+          description={t('dash.this_month')}
         />
         <QuickStatCard
-          title="Rechazados"
+          title={t('dash.rejected')}
           value={invoiceStats?.rechazado ?? 0}
           icon={<XCircle className="h-4 w-4" />}
-          description="este mes"
+          description={t('dash.this_month')}
           variant="warning"
         />
       </div>
@@ -1072,7 +1075,7 @@ function DashboardView({
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
-              Estado de Licencia
+              {t('dash.license_status')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1082,16 +1085,16 @@ function DashboardView({
                 {license.trial_active ? (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Estado</span>
-                      <Badge variant="default" className="bg-amber-500">En Prueba</Badge>
+                      <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+                      <Badge variant="default" className="bg-amber-500">{t('dash.in_trial')}</Badge>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Días Restantes</span>
-                      <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} días</span>
+                      <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
+                      <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} {t('license.days')}</span>
                     </div>
                     <Separator />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Fin del Trial</span>
+                      <span className="text-sm text-muted-foreground">{t('dash.trial_end')}</span>
                       <span className="text-sm font-medium">
                         {license.trial_end_date
                           ? new Date(license.trial_end_date).toLocaleDateString('es-EC')
@@ -1102,27 +1105,27 @@ function DashboardView({
                 ) : license.license_active ? (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Estado</span>
-                      <Badge variant="default" className="bg-emerald-500">Activa</Badge>
+                      <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+                      <Badge variant="default" className="bg-emerald-500">{t('dash.active')}</Badge>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Tipo</span>
+                      <span className="text-sm text-muted-foreground">{t('common.type')}</span>
                       <Badge variant="secondary" className="capitalize">
                         {license.license_type || 'N/A'}
                       </Badge>
                     </div>
                     <Separator />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Días Restantes</span>
+                      <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
                       <span className={`text-sm font-bold ${
                         (license.license_days_remaining ?? 0) <= 30 ? 'text-amber-500' : 'text-emerald-600'
                       }`}>
-                        {license.license_days_remaining ?? 'N/A'} días
+                        {license.license_days_remaining ?? 'N/A'} {t('license.days')}
                       </span>
                     </div>
                     <Separator />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Vence</span>
+                      <span className="text-sm text-muted-foreground">{t('dash.expires_on')}</span>
                       <span className="text-sm font-medium">
                         {license.license_end_date
                           ? new Date(license.license_end_date).toLocaleDateString('es-EC')
@@ -1133,12 +1136,12 @@ function DashboardView({
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Estado</span>
-                      <Badge variant="destructive">Inactiva</Badge>
+                      <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+                      <Badge variant="destructive">{t('dash.inactive')}</Badge>
                     </div>
                     {license.license_expired && (
                       <p className="text-xs text-destructive">
-                        Su licencia ha expirado. Adquiera un plan para continuar.
+                        {t('dash.license_expired_note')}
                       </p>
                     )}
                   </>
@@ -1148,7 +1151,7 @@ function DashboardView({
               <div className="text-center py-4">
                 <AlertTriangle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  No se pudo cargar la informacion de licencia
+                  {t('dash.load_license_error')}
                 </p>
               </div>
             )}
@@ -1160,16 +1163,16 @@ function DashboardView({
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
-              Catalogos SRI
+              {t('dash.sri_catalogs')}
             </CardTitle>
             <CardDescription>
-              Tasas de IVA y tipos de documento vigentes
+              {t('dash.sri_catalogs_desc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
-                <h4 className="text-sm font-medium mb-2">Tasas de IVA</h4>
+                <h4 className="text-sm font-medium mb-2">{t('dash.iva_rates')}</h4>
                 {ivaRates.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
                     {ivaRates.slice(0, 6).map((rate) => (
@@ -1186,13 +1189,13 @@ function DashboardView({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    No se pudieron cargar las tasas de IVA
+                    {t('dash.no_iva_error')}
                   </p>
                 )}
               </div>
               <Separator />
               <div>
-                <h4 className="text-sm font-medium mb-2">Tipos de Documento</h4>
+                <h4 className="text-sm font-medium mb-2">{t('dash.doc_types')}</h4>
                 {documentTypes.length > 0 ? (
                   <div className="space-y-1">
                     {documentTypes.slice(0, 5).map((dt) => (
@@ -1209,7 +1212,7 @@ function DashboardView({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    No se pudieron cargar los tipos de documento
+                    {t('dash.no_docs_error')}
                   </p>
                 )}
               </div>
@@ -1223,7 +1226,7 @@ function DashboardView({
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Building2 className="h-4 w-4 text-primary" />
-            Empresas Registradas
+            {t('dash.companies_registered')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1245,7 +1248,7 @@ function DashboardView({
                       variant={company.is_active ? 'default' : 'secondary'}
                       className={company.is_active ? 'bg-primary' : ''}
                     >
-                      {company.is_active ? 'Activa' : 'Inactiva'}
+                      {company.is_active ? t('companies.active') : t('companies.inactive')}
                     </Badge>
                   </div>
                   {company.nombre_comercial && (
@@ -1260,7 +1263,7 @@ function DashboardView({
             <div className="text-center py-8">
               <Building2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">
-                No hay empresas registradas. Agregue una para comenzar.
+                {t('dash.no_companies')}
               </p>
             </div>
           )}
@@ -1346,7 +1349,7 @@ function CompaniesView({
       setEditingCompany(null);
       onCompaniesChanged();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al guardar cambios');
+      toast.error(err instanceof Error ? err.message : t('companies.save_error'));
     } finally {
       setOperating(false);
     }
@@ -1360,7 +1363,7 @@ function CompaniesView({
       setDeletingCompanyId(null);
       onCompaniesChanged();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al eliminar empresa');
+      toast.error(err instanceof Error ? err.message : t('companies.delete_error'));
     } finally {
       setOperating(false);
     }
@@ -1370,14 +1373,14 @@ function CompaniesView({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Empresas</h2>
+          <h2 className="text-2xl font-bold">{t('companies.title')}</h2>
           <p className="text-muted-foreground">
-            Gestione las empresas registradas en el sistema
+            {t('companies.subtitle')}
           </p>
         </div>
         <Button onClick={onNewCompany}>
           <Plus className="mr-2 h-4 w-4" />
-          Nueva Empresa
+          {t('companies.new')}
         </Button>
       </div>
 
@@ -1389,10 +1392,10 @@ function CompaniesView({
                 <TableHeader>
                   <TableRow>
                     <TableHead>RUC</TableHead>
-                    <TableHead>Razon Social</TableHead>
-                    <TableHead>Nombre Comercial</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
+                    <TableHead>{t('companies.name')}</TableHead>
+                    <TableHead>{t('companies.commercial_name')}</TableHead>
+                    <TableHead>{t('companies.state')}</TableHead>
+                    <TableHead className="text-right">{t('companies.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1408,7 +1411,7 @@ function CompaniesView({
                           variant={company.is_active ? 'default' : 'secondary'}
                           className={company.is_active ? 'bg-primary' : ''}
                         >
-                          {company.is_active ? 'Activa' : 'Inactiva'}
+                          {company.is_active ? t('companies.active') : t('companies.inactive')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -1442,13 +1445,13 @@ function CompaniesView({
         <Card>
           <CardContent className="py-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="text-lg font-medium">Sin empresas</h3>
+            <h3 className="text-lg font-medium">{t('companies.no_companies')}</h3>
             <p className="text-muted-foreground text-sm mt-1">
-              Registre una empresa para comenzar a emitir comprobantes
+              {t('companies.no_companies_desc')}
             </p>
             <Button className="mt-4" onClick={onNewCompany}>
               <Plus className="mr-2 h-4 w-4" />
-              Registrar Empresa
+              {t('companies.register')}
             </Button>
           </CardContent>
         </Card>
@@ -1458,9 +1461,9 @@ function CompaniesView({
       <Dialog open={!!editingCompany} onOpenChange={(open) => { if (!open) setEditingCompany(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Empresa</DialogTitle>
+            <DialogTitle>{t('companies.edit_title')}</DialogTitle>
             <DialogDescription>
-              Modifique los datos de la empresa
+              {t('companies.edit_desc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1475,7 +1478,7 @@ function CompaniesView({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-cod-est">Cod. Establecimiento</Label>
+                <Label htmlFor="edit-cod-est">{t('companies.code_est')}</Label>
                 <Input
                   id="edit-cod-est"
                   value={editForm.cod_establecimiento}
@@ -1485,7 +1488,7 @@ function CompaniesView({
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-razon">Razon Social</Label>
+              <Label htmlFor="edit-razon">{t('companies.name')}</Label>
               <Input
                 id="edit-razon"
                 value={editForm.razon_social}
@@ -1493,7 +1496,7 @@ function CompaniesView({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-nombre">Nombre Comercial</Label>
+              <Label htmlFor="edit-nombre">{t('companies.commercial_name')}</Label>
               <Input
                 id="edit-nombre"
                 value={editForm.nombre_comercial}
@@ -1501,7 +1504,7 @@ function CompaniesView({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-dir">Direccion Matriz</Label>
+              <Label htmlFor="edit-dir">{t('companies.address')}</Label>
               <Input
                 id="edit-dir"
                 value={editForm.dir_matriz}
@@ -1510,7 +1513,7 @@ function CompaniesView({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-cod-pemi">Cod. Punto Emision</Label>
+                <Label htmlFor="edit-cod-pemi">{t('companies.code_emission')}</Label>
                 <Input
                   id="edit-cod-pemi"
                   value={editForm.cod_punto_emision}
@@ -1521,16 +1524,16 @@ function CompaniesView({
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditingCompany(null)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleEditSave} disabled={operating}>
                 {operating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Guardando...
+                    {t('common.saving')}
                   </>
                 ) : (
-                  'Guardar Cambios'
+                  t('companies.save_changes')
                 )}
               </Button>
             </div>
@@ -1542,23 +1545,23 @@ function CompaniesView({
       <Dialog open={!!deletingCompanyId} onOpenChange={(open) => { if (!open) setDeletingCompanyId(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Eliminar Empresa</DialogTitle>
+            <DialogTitle>{t('companies.delete_title')}</DialogTitle>
             <DialogDescription>
-              Esta seguro de que desea eliminar esta empresa? Esta accion no se puede deshacer.
+              {t('companies.delete_confirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setDeletingCompanyId(null)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button variant="destructive" onClick={handleDeleteConfirm} disabled={operating}>
               {operating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Eliminando...
+                  {t('common.deleting')}
                 </>
               ) : (
-                'Eliminar'
+                t('common.delete')
               )}
             </Button>
           </div>
@@ -1580,33 +1583,33 @@ function SRIView({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Catalogos SRI</h2>
+        <h2 className="text-2xl font-bold">{t('sri.title')}</h2>
         <p className="text-muted-foreground">
-          Catalogos del Servicio de Rentas Internas del Ecuador
+          {t('sri.subtitle')}
         </p>
       </div>
 
       <Tabs defaultValue="iva" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="iva">Tasas IVA</TabsTrigger>
-          <TabsTrigger value="docs">Tipos de Documento</TabsTrigger>
-          <TabsTrigger value="ident">Tipos de Identificacion</TabsTrigger>
+          <TabsTrigger value="iva">{t('sri.iva_tab')}</TabsTrigger>
+          <TabsTrigger value="docs">{t('sri.docs_tab')}</TabsTrigger>
+          <TabsTrigger value="ident">{t('sri.ident_tab')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="iva">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Tasas de IVA</CardTitle>
-              <CardDescription>Impuesto al Valor Agregado vigente en Ecuador</CardDescription>
+              <CardTitle className="text-base">{t('sri.iva_title')}</CardTitle>
+              <CardDescription>{t('sri.iva_desc')}</CardDescription>
             </CardHeader>
             <CardContent>
               {ivaRates.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Codigo</TableHead>
-                      <TableHead>Descripcion</TableHead>
-                      <TableHead className="text-right">Porcentaje</TableHead>
+                      <TableHead>{t('sri.code')}</TableHead>
+                      <TableHead>{t('sri.description')}</TableHead>
+                      <TableHead className="text-right">{t('sri.percentage')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1621,7 +1624,7 @@ function SRIView({
                 </Table>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  No se pudieron cargar las tasas de IVA. Verifique la conexion con el servidor.
+                  {t('sri.no_iva_error')}
                 </p>
               )}
             </CardContent>
@@ -1631,16 +1634,16 @@ function SRIView({
         <TabsContent value="docs">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Tipos de Documento Electronico</CardTitle>
-              <CardDescription>Comprobantes electronicos reconocidos por el SRI</CardDescription>
+              <CardTitle className="text-base">{t('sri.docs_title')}</CardTitle>
+              <CardDescription>{t('sri.docs_desc')}</CardDescription>
             </CardHeader>
             <CardContent>
               {documentTypes.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Codigo</TableHead>
-                      <TableHead>Descripcion</TableHead>
+                      <TableHead>{t('sri.code')}</TableHead>
+                      <TableHead>{t('sri.description')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1654,7 +1657,7 @@ function SRIView({
                 </Table>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  No se pudieron cargar los tipos de documento.
+                  {t('sri.no_docs_error')}
                 </p>
               )}
             </CardContent>
@@ -1664,30 +1667,30 @@ function SRIView({
         <TabsContent value="ident">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Tipos de Identificacion</CardTitle>
-              <CardDescription>Tipos de identificacion para contribuyentes</CardDescription>
+              <CardTitle className="text-base">{t('sri.ident_title')}</CardTitle>
+              <CardDescription>{t('sri.ident_desc')}</CardDescription>
             </CardHeader>
             <CardContent>
               {identTypes.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Codigo</TableHead>
-                      <TableHead>Descripcion</TableHead>
+                      <TableHead>{t('sri.code')}</TableHead>
+                      <TableHead>{t('sri.description')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {identTypes.map((it) => (
                       <TableRow key={it.codigo}>
                         <TableCell className="font-mono text-xs">{it.codigo}</TableCell>
-                        <TableCell>{it.descripcion}</TableCell>
+                        <TableCell>{it.descripcion || it.nombre || '—'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  No se pudieron cargar los tipos de identificacion.
+                  {t('sri.no_ident_error')}
                 </p>
               )}
             </CardContent>
@@ -1738,7 +1741,7 @@ function LicenseView({
       if (tiersResult.status === 'fulfilled' && tiersResult.value) {
         setLicenseTiers(tiersResult.value);
       }
-    }).catch(() => toast.error('Error al cargar planes')).finally(() => {
+    }).catch(() => toast.error(t('license.load_error'))).finally(() => {
       setLoadingOptions(false);
       setLoadingTiers(false);
     });
@@ -1751,9 +1754,14 @@ function LicenseView({
   const effectiveExpired = !effectiveActive && (license?.license_expired ?? false);
   const _effectiveDaysRemaining = license?.days_remaining ?? license?.trial_days_remaining ?? null;
 
+  // Un usuario en período de prueba aún NO tiene un plan pagado: todos los planes
+  // deben poder seleccionarse. Solo se marca "Plan Actual" si hay una licencia
+  // real activa (no trial) del mismo tipo.
+  const isCurrentPlan = (type: string) => !license?.is_trial && license?.license_type === type;
+
   // Handler para WhatsApp
   const handleWhatsAppClick = (planType: string, price: number, months: number) => {
-    const periodText = months === 1 ? '1 mes' : months === 3 ? '3 meses' : months === 6 ? '6 meses' : '12 meses';
+    const periodText = `${months} ${months === 1 ? t('license.month') : t('license.months')}`;
     const msg = `Hola, quiero adquirir/renovar mi licencia de ContaEC:\n\n• Plan: ${periodText}\n• Precio: $${price.toFixed(2)} USD\n• Mi correo: ${user.email}\n\nEspero información para el pago. Gracias.`;
     window.open(`https://wa.me/593960068866?text=${encodeURIComponent(msg)}`, '_blank');
   };
@@ -1761,18 +1769,18 @@ function LicenseView({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Licencia</h2>
+        <h2 className="text-2xl font-bold">{t('license.title')}</h2>
         <p className="text-muted-foreground">
-          Informacion de su licencia ContaEC y planes disponibles
+          {t('license.subtitle')}
         </p>
       </div>
 
       {licenseExpiring && license && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Licencia por expirar</AlertTitle>
+          <AlertTitle>{t('license.expiring_title')}</AlertTitle>
           <AlertDescription>
-            Su licencia esta proxima a expirar. Contacte a T&amp;M Technology Ec para renovar.
+            {t('license.expiring_desc')}
           </AlertDescription>
         </Alert>
       )}
@@ -1786,38 +1794,37 @@ function LicenseView({
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-500" />
-                  Periodo de Prueba Activo
+                  {t('license.trial_active_title')}
                 </CardTitle>
-                <CardDescription>Su plan actual es de prueba por 15 días</CardDescription>
+                <CardDescription>{t('license.trial_active_desc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Estado</span>
-                    <Badge variant="default" className="bg-amber-500">Activo</Badge>
+                    <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+                    <Badge variant="default" className="bg-amber-500">{t('license.active')}</Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Dias restantes</span>
-                    <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} días</span>
+                    <span className="text-sm text-muted-foreground">{t('license.days_left')}</span>
+                    <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} {t('license.days')}</span>
                   </div>
                   {license.trial_start_date && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Inicio</span>
+                      <span className="text-sm text-muted-foreground">{t('license.start')}</span>
                       <span className="text-sm">{new Date(license.trial_start_date).toLocaleDateString('es-EC')}</span>
                     </div>
                   )}
                   {license.trial_end_date && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Fin</span>
+                      <span className="text-sm text-muted-foreground">{t('license.end')}</span>
                       <span className="text-sm font-medium">{new Date(license.trial_end_date).toLocaleDateString('es-EC')}</span>
                     </div>
                   )}
                 </div>
                 <Alert variant="default">
-                  <AlertTitle className="text-sm">Aproveche su prueba</AlertTitle>
+                  <AlertTitle className="text-sm">{t('license.trial_hint_title')}</AlertTitle>
                   <AlertDescription className="text-xs">
-                    Durante el período de prueba tiene acceso completo a todas las funcionalidades.
-                    Adquiera un plan para continuar sin interrupciones.
+                    {t('license.trial_hint_desc')}
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -1830,29 +1837,29 @@ function LicenseView({
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  Licencia Activa - {license.license_type === 'monthly' ? 'Mensual' : license.license_type === 'quarterly' ? 'Trimestral' : license.license_type === 'semiannual' ? 'Semestral' : 'Anual'}
+                  {t('license.license_active_title', { plan: t(license.license_type === 'monthly' ? 'license.plan_monthly' : license.license_type === 'quarterly' ? 'license.plan_quarterly' : license.license_type === 'semiannual' ? 'license.plan_semiannual' : 'license.plan_annual') })}
                 </CardTitle>
-                <CardDescription>Plan {license.license_type === 'monthly' ? 'mensual' : license.license_type === 'quarterly' ? 'trimestral' : license.license_type === 'semiannual' ? 'semestral' : 'anual'} vigente</CardDescription>
+                <CardDescription>{t('license.license_active_desc', { plan: t(license.license_type === 'monthly' ? 'license.plan_monthly_lc' : license.license_type === 'quarterly' ? 'license.plan_quarterly_lc' : license.license_type === 'semiannual' ? 'license.plan_semiannual_lc' : 'license.plan_annual_lc') })}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Estado</span>
-                    <Badge variant="default" className="bg-emerald-500">Activa</Badge>
+                    <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+                    <Badge variant="default" className="bg-emerald-500">{t('license.active')}</Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Dias restantes</span>
-                    <span className="text-sm font-bold text-emerald-600">{license.license_days_remaining ?? 'N/A'} días</span>
+                    <span className="text-sm text-muted-foreground">{t('license.days_left')}</span>
+                    <span className="text-sm font-bold text-emerald-600">{license.license_days_remaining ?? 'N/A'} {t('license.days')}</span>
                   </div>
                   {license.license_start_date && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Inicio</span>
+                      <span className="text-sm text-muted-foreground">{t('license.start')}</span>
                       <span className="text-sm">{new Date(license.license_start_date).toLocaleDateString('es-EC')}</span>
                     </div>
                   )}
                   {license.license_end_date && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Vence</span>
+                      <span className="text-sm text-muted-foreground">{t('license.end')}</span>
                       <span className="text-sm font-medium">{new Date(license.license_end_date).toLocaleDateString('es-EC')}</span>
                     </div>
                   )}
@@ -1867,18 +1874,18 @@ function LicenseView({
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <XCircle className="h-4 w-4 text-destructive" />
-                  {license?.is_trial ? 'Período de Prueba Expirado' : 'Licencia Expirada'}
+                  {license?.is_trial ? t('license.trial_expired_title') : t('license.expired_title')}
                 </CardTitle>
-                <CardDescription>Necesita adquirir o renovar un plan para continuar</CardDescription>
+                <CardDescription>{t('license.expired_desc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
                   {license?.is_trial
-                    ? `Su período de prueba de 15 días finalizó el ${license.trial_end_date ? new Date(license.trial_end_date).toLocaleDateString('es-EC') : ''}.`
-                    : `Su licencia venció el ${license.license_end_date ? new Date(license.license_end_date).toLocaleDateString('es-EC') : ''}.`
+                    ? t('license.trial_ended_on', { date: license.trial_end_date ? new Date(license.trial_end_date).toLocaleDateString('es-EC') : '' })
+                    : t('license.license_ended_on', { date: license.license_end_date ? new Date(license.license_end_date).toLocaleDateString('es-EC') : '' })
                   }
                 </p>
-                <p className="text-sm mt-2">Seleccione un plan a continuación para continuar usando ContaEC.</p>
+                <p className="text-sm mt-2">{t('license.pick_plan')}</p>
               </CardContent>
             </Card>
           )}
@@ -1890,10 +1897,10 @@ function LicenseView({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-primary" />
-            Planes y Precios
+            {t('license.plans_title')}
           </CardTitle>
           <CardDescription>
-            Compare los planes disponibles y seleccione el que mejor se adapte a sus necesidades
+            {t('license.plans_desc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1903,40 +1910,51 @@ function LicenseView({
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : licenseOptions ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {licenseOptions.options.map((option) => (
-                <Card key={option.type} className={`hover:border-primary transition-colors ${
-                  license?.license_type === option.type ? 'border-primary ring-2 ring-primary/20' : ''
-                }`}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">{option.label}</CardTitle>
-                    <CardDescription>{option.months} {option.months === 1 ? 'mes' : 'meses'}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="text-center">
-                      <span className="text-3xl font-bold">${option.price.toFixed(2)}</span>
-                      <p className="text-xs text-muted-foreground">
-                        ${(option.price / option.months).toFixed(2)}/mes
-                      </p>
-                    </div>
-                    {license?.license_type === option.type && (
-                      <Badge className="w-full justify-center">Plan Actual</Badge>
-                    )}
-                    <Button
-                      className="w-full"
-                      variant={license?.license_type === option.type ? 'outline' : 'default'}
-                      onClick={() => handleWhatsAppClick(option.type, option.price, option.months)}
-                      disabled={license?.license_type === option.type}
-                    >
-                      {license?.license_type === option.type ? 'Ya tienes este plan' : 'Adquirir Plan'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <>
+              {license?.is_trial && isTrialActive && (
+                <Alert variant="default" className="bg-amber-50 border-amber-200 dark:bg-amber-950/30">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-sm">{t('license.trial_can_purchase')}</AlertTitle>
+                </Alert>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {licenseOptions.options.map((option) => {
+                const currentPlan = isCurrentPlan(option.type);
+                return (
+                  <Card key={option.type} className={`hover:border-primary transition-colors ${
+                    currentPlan ? 'border-primary ring-2 ring-primary/20' : ''
+                  }`}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg">{t(`license.plan_${option.type}`)}</CardTitle>
+                      <CardDescription>{option.months} {option.months === 1 ? t('license.month') : t('license.months')}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-center">
+                        <span className="text-3xl font-bold">${option.price.toFixed(2)}</span>
+                        <p className="text-xs text-muted-foreground">
+                          ${(option.price / option.months).toFixed(2)}/{t('license.per_month')}
+                        </p>
+                      </div>
+                      {currentPlan && (
+                        <Badge className="w-full justify-center">{t('license.current_plan')}</Badge>
+                      )}
+                      <Button
+                        className="w-full"
+                        variant={currentPlan ? 'outline' : 'default'}
+                        onClick={() => handleWhatsAppClick(option.type, option.price, option.months)}
+                        disabled={currentPlan}
+                      >
+                        {currentPlan ? t('license.already_have') : t('license.buy_plan')}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No se pudieron cargar las opciones de licencia.
+              {t('license.no_options_error')}
             </p>
           )}
 
@@ -1944,7 +1962,7 @@ function LicenseView({
 
           {/* Tabla comparativa detallada */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Tabla Comparativa de Planes</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('license.compare_table')}</h3>
             {loadingTiers ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1954,160 +1972,160 @@ function LicenseView({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[200px]">Característica</TableHead>
-                      <TableHead className="text-center">Mensual</TableHead>
-                      <TableHead className="text-center">Trimestral</TableHead>
-                      <TableHead className="text-center">Semestral</TableHead>
-                      <TableHead className="text-center">Anual</TableHead>
+                      <TableHead className="w-[200px]">{t('license.feature')}</TableHead>
+                      <TableHead className="text-center">{t('license.monthly')}</TableHead>
+                      <TableHead className="text-center">{t('license.quarterly')}</TableHead>
+                      <TableHead className="text-center">{t('license.semiannual')}</TableHead>
+                      <TableHead className="text-center">{t('license.annual')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {/* Precios */}
                     <TableRow className="bg-primary/5">
-                      <TableCell className="font-semibold">Precio</TableCell>
+                      <TableCell className="font-semibold">{t('license.price')}</TableCell>
                       <TableCell className="text-center font-bold">${licenseTiers.tiers.monthly?.price}</TableCell>
                       <TableCell className="text-center font-bold">${licenseTiers.tiers.quarterly?.price}</TableCell>
                       <TableCell className="text-center font-bold">${licenseTiers.tiers.semiannual?.price}</TableCell>
                       <TableCell className="text-center font-bold">${licenseTiers.tiers.annual?.price}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-medium">Duración</TableCell>
-                      <TableCell className="text-center">{licenseTiers.tiers.monthly?.months} mes</TableCell>
-                      <TableCell className="text-center">{licenseTiers.tiers.quarterly?.months} meses</TableCell>
-                      <TableCell className="text-center">{licenseTiers.tiers.semiannual?.months} meses</TableCell>
-                      <TableCell className="text-center">{licenseTiers.tiers.annual?.months} meses</TableCell>
+                      <TableCell className="font-medium">{t('license.duration')}</TableCell>
+                      <TableCell className="text-center">{licenseTiers.tiers.monthly?.months} {t('license.month')}</TableCell>
+                      <TableCell className="text-center">{licenseTiers.tiers.quarterly?.months} {t('license.months')}</TableCell>
+                      <TableCell className="text-center">{licenseTiers.tiers.semiannual?.months} {t('license.months')}</TableCell>
+                      <TableCell className="text-center">{licenseTiers.tiers.annual?.months} {t('license.months')}</TableCell>
                     </TableRow>
                     {/* Límites */}
                     <TableRow className="bg-muted/30">
-                      <TableCell className="font-semibold">Límites</TableCell>
+                      <TableCell className="font-semibold">{t('license.limits')}</TableCell>
                       <TableCell colSpan={4}></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Empresas máx.</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.max_companies')}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.monthly?.max_companies}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.quarterly?.max_companies}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.semiannual?.max_companies}</TableCell>
-                      <TableCell className="text-center">Ilimitado</TableCell>
+                      <TableCell className="text-center">{t('license.unlimited')}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Usuarios/empresa</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.users_per_company')}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.monthly?.max_users_per_company}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.quarterly?.max_users_per_company}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.semiannual?.max_users_per_company}</TableCell>
-                      <TableCell className="text-center">Ilimitado</TableCell>
+                      <TableCell className="text-center">{t('license.unlimited')}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Comprobantes/mes</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.vouchers_per_month')}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.monthly?.max_comprobantes_month}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.quarterly?.max_comprobantes_month}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.semiannual?.max_comprobantes_month}</TableCell>
-                      <TableCell className="text-center">Ilimitado</TableCell>
+                      <TableCell className="text-center">{t('license.unlimited')}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Empleados</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.employees')}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.monthly?.max_employees}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.quarterly?.max_employees}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.semiannual?.max_employees}</TableCell>
-                      <TableCell className="text-center">Ilimitado</TableCell>
+                      <TableCell className="text-center">{t('license.unlimited')}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Productos</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.products')}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.monthly?.max_products}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.quarterly?.max_products}</TableCell>
                       <TableCell className="text-center">{licenseTiers.tiers.semiannual?.max_products}</TableCell>
-                      <TableCell className="text-center">Ilimitado</TableCell>
+                      <TableCell className="text-center">{t('license.unlimited')}</TableCell>
                     </TableRow>
                     {/* Funcionalidades */}
                     <TableRow className="bg-muted/30">
-                      <TableCell className="font-semibold">Funcionalidades</TableCell>
+                      <TableCell className="font-semibold">{t('license.features')}</TableCell>
                       <TableCell colSpan={4}></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Facturación Electrónica</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.electronic_invoicing')}</TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Contabilidad Básica</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.basic_accounting')}</TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Inventario</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.inventory')}</TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Proformas</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.proformas')}</TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Punto de Venta (POS)</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.pos')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Nómina (RRHH)</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.payroll')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Multi-Almacén</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.multi_warehouse')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Presupuestos</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.budgets')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">CRM</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.crm')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Proyectos</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.projects')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">ML / IA</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.ml_ai')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Integración Bancaria</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.banking_integration')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                       <TableCell className="text-center"><CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" /></TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-muted-foreground">Soporte Prioritario</TableCell>
+                      <TableCell className="text-muted-foreground">{t('license.priority_support')}</TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
                       <TableCell className="text-center"><XCircle className="h-4 w-4 mx-auto text-muted-foreground" /></TableCell>
@@ -2118,7 +2136,7 @@ function LicenseView({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No se pudo cargar la tabla comparativa.
+                {t('license.no_table_error')}
               </p>
             )}
           </div>
@@ -2126,10 +2144,10 @@ function LicenseView({
           {/* CTA final */}
           <div className="bg-muted/50 rounded-lg p-4 text-center">
             <p className="text-sm text-muted-foreground mb-2">
-              ¿Necesita ayuda para seleccionar un plan?
+              {t('license.help')}
             </p>
             <Button variant="outline" onClick={() => handleWhatsAppClick('consulta', 0, 0)}>
-              Contactar por WhatsApp
+              {t('license.whatsapp')}
             </Button>
           </div>
         </CardContent>
@@ -2140,9 +2158,9 @@ function LicenseView({
           <Card>
             <CardContent className="py-12 text-center">
               <AlertTriangle className="h-12 w-12 mx-auto text-amber-500 mb-3" />
-              <h3 className="text-lg font-medium">Sin licencia activa</h3>
+              <h3 className="text-lg font-medium">{t('license.no_license_title')}</h3>
               <p className="text-muted-foreground text-sm mt-1">
-                No se encontro informacion de licencia. Seleccione un plan a continuacion.
+                {t('license.no_license_desc')}
               </p>
             </CardContent>
           </Card>
@@ -2156,9 +2174,9 @@ function _InvoicesView({ invoiceStats }: { invoiceStats: InvoiceStatsType | null
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Comprobantes Electronicos</h2>
+        <h2 className="text-2xl font-bold">{t('invoices.section_title')}</h2>
         <p className="text-muted-foreground">
-          Resumen de comprobantes emitidos
+          {t('invoices.section_subtitle')}
         </p>
       </div>
 
@@ -2168,35 +2186,35 @@ function _InvoicesView({ invoiceStats }: { invoiceStats: InvoiceStatsType | null
             <CardContent className="p-4 text-center">
               <Receipt className="h-6 w-6 mx-auto text-primary mb-2" />
               <div className="text-2xl font-bold">{invoiceStats.total}</div>
-              <p className="text-xs text-muted-foreground">Total Emitidos</p>
+              <p className="text-xs text-muted-foreground">{t('invoices.total_issued')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <Clock className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
               <div className="text-2xl font-bold">{invoiceStats.borrador}</div>
-              <p className="text-xs text-muted-foreground">Borradores</p>
+              <p className="text-xs text-muted-foreground">{t('invoices.drafts')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <FileText className="h-6 w-6 mx-auto text-primary mb-2" />
               <div className="text-2xl font-bold">{invoiceStats.enviado}</div>
-              <p className="text-xs text-muted-foreground">Enviados al SRI</p>
+              <p className="text-xs text-muted-foreground">{t('invoices.sent_sri')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <CheckCircle2 className="h-6 w-6 mx-auto text-green-600 mb-2" />
               <div className="text-2xl font-bold">{invoiceStats.autorizado}</div>
-              <p className="text-xs text-muted-foreground">Aprobados</p>
+              <p className="text-xs text-muted-foreground">{t('invoices.approved')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <XCircle className="h-6 w-6 mx-auto text-destructive mb-2" />
               <div className="text-2xl font-bold">{invoiceStats.rechazado}</div>
-              <p className="text-xs text-muted-foreground">Rechazados</p>
+              <p className="text-xs text-muted-foreground">{t('invoices.rejected')}</p>
             </CardContent>
           </Card>
           <Card>
@@ -2205,7 +2223,7 @@ function _InvoicesView({ invoiceStats }: { invoiceStats: InvoiceStatsType | null
               <div className="text-2xl font-bold">
                 ${invoiceStats.total_amount.toLocaleString('es-EC', { minimumFractionDigits: 2 })}
               </div>
-              <p className="text-xs text-muted-foreground">Monto Total</p>
+              <p className="text-xs text-muted-foreground">{t('invoices.total_amount')}</p>
             </CardContent>
           </Card>
         </div>
@@ -2213,9 +2231,9 @@ function _InvoicesView({ invoiceStats }: { invoiceStats: InvoiceStatsType | null
         <Card>
           <CardContent className="py-12 text-center">
             <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="text-lg font-medium">Sin datos de comprobantes</h3>
+            <h3 className="text-lg font-medium">{t('invoices.no_data_title')}</h3>
             <p className="text-muted-foreground text-sm mt-1">
-              No se pudieron cargar las estadisticas de comprobantes.
+              {t('invoices.no_data_desc')}
             </p>
           </CardContent>
         </Card>
@@ -2369,7 +2387,7 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
       if (allRejected) {
         clearTokens();
         onLogout();
-        toast.error('Sesion expirada. Por favor inicie sesion nuevamente.');
+        toast.error(t('common.session_expired'));
         return;
       }
 

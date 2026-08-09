@@ -17,6 +17,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { login, register, type User } from '@/lib/api';
+import { t } from '@/lib/i18n';
 
 interface ContaECLoginProps {
   onAuthSuccess: (user: User) => void;
@@ -48,7 +49,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
       const { user } = await login(loginEmail, loginPassword);
       onAuthSuccess(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesion');
+      setError(err instanceof Error ? err.message : t('login.login_error'));
     } finally {
       setLoading(false);
     }
@@ -68,7 +69,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
       });
       onAuthSuccess(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrarse');
+      setError(err instanceof Error ? err.message : t('login.register_error'));
     } finally {
       setLoading(false);
     }
@@ -94,7 +95,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
               ContaEC
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Contabilidad y Facturacion Electronica Ecuador
+              {t('login.tagline')}
             </p>
           </div>
 
@@ -109,23 +110,23 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                 }}
               >
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="login">Iniciar Sesion</TabsTrigger>
-                  <TabsTrigger value="register">Registrarse</TabsTrigger>
+                  <TabsTrigger value="login">{t('login.tab_login')}</TabsTrigger>
+                  <TabsTrigger value="register">{t('login.tab_register')}</TabsTrigger>
                 </TabsList>
 
                 {/* Login Tab */}
                 <TabsContent value="login" className="mt-4">
-                  <CardTitle className="text-xl">Bienvenido de vuelta</CardTitle>
+                  <CardTitle className="text-xl">{t('login.welcome_back')}</CardTitle>
                   <CardDescription>
-                    Ingrese sus credenciales para acceder al sistema
+                    {t('login.credentials_desc')}
                   </CardDescription>
                 </TabsContent>
 
                 {/* Register Tab */}
                 <TabsContent value="register" className="mt-4">
-                  <CardTitle className="text-xl">Crear cuenta</CardTitle>
+                  <CardTitle className="text-xl">{t('login.create_account')}</CardTitle>
                   <CardDescription>
-                    Registrese para comenzar a facturar electronicamente
+                    {t('login.register_desc')}
                   </CardDescription>
                 </TabsContent>
               </Tabs>
@@ -143,7 +144,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
               {activeTab === 'login' && (
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Correo electronico</Label>
+                    <Label htmlFor="login-email">{t('login.email_label')}</Label>
                     <Input
                       id="login-email"
                       type="email"
@@ -156,12 +157,12 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password">Contrasena</Label>
+                    <Label htmlFor="login-password">{t('login.password_label')}</Label>
                     <div className="relative">
                       <Input
                         id="login-password"
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Ingrese su contrasena"
+                        placeholder={t('login.password_placeholder')}
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         required
@@ -189,10 +190,10 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Iniciando sesion...
+                        {t('login.signing_in')}
                       </>
                     ) : (
-                      'Iniciar Sesion'
+                      t('login.sign_in')
                     )}
                   </Button>
                 </form>
@@ -202,7 +203,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
               {activeTab === 'register' && (
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reg-name">Nombre completo</Label>
+                    <Label htmlFor="reg-name">{t('login.full_name')}</Label>
                     <Input
                       id="reg-name"
                       type="text"
@@ -214,7 +215,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reg-email">Correo electronico</Label>
+                    <Label htmlFor="reg-email">{t('login.email_label')}</Label>
                     <Input
                       id="reg-email"
                       type="email"
@@ -227,12 +228,12 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reg-password">Contrasena</Label>
+                    <Label htmlFor="reg-password">{t('login.password_label')}</Label>
                     <div className="relative">
                       <Input
                         id="reg-password"
                         type={showRegPassword ? 'text' : 'password'}
-                        placeholder="Minimo 8 caracteres"
+                        placeholder={t('login.min_chars')}
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
                         required
@@ -259,11 +260,11 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-confirm-password">Confirmar Contrasena</Label>
+                    <Label htmlFor="reg-confirm-password">{t('login.confirm_password')}</Label>
                     <Input
                       id="reg-confirm-password"
                       type="password"
-                      placeholder="Repita su contrasena"
+                      placeholder={t('login.repeat_password')}
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
                       required
@@ -277,10 +278,10 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Registrando...
+                        {t('login.creating')}
                       </>
                     ) : (
-                      'Crear Cuenta'
+                      t('login.create')
                     )}
                   </Button>
                 </form>
@@ -295,7 +296,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                 <Shield className="h-4 w-4 text-primary" />
               </div>
               <span className="text-xs text-muted-foreground">
-                Cumplimiento SRI
+                {t('login.sri_compliance')}
               </span>
             </div>
             <div className="flex flex-col items-center gap-1.5">
@@ -303,7 +304,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                 <FileText className="h-4 w-4 text-primary" />
               </div>
               <span className="text-xs text-muted-foreground">
-                Facturacion Electronica
+                {t('login.electronic_invoicing')}
               </span>
             </div>
             <div className="flex flex-col items-center gap-1.5">
@@ -317,7 +318,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                 />
               </div>
               <span className="text-xs text-muted-foreground">
-                Contabilidad
+                {t('login.accounting')}
               </span>
             </div>
           </div>
@@ -327,7 +328,7 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
       {/* Sticky Footer */}
       <footer className="border-t bg-card py-4 px-4 text-center">
         <p className="text-xs text-muted-foreground">
-          Desarrollado por <span className="font-semibold text-foreground">T&amp;M Technology Ec</span>
+          {t('login.developed_by')} <span className="font-semibold text-foreground">T&amp;M Technology Ec</span>
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           info@tymtechnology.shop &nbsp;|&nbsp; 0960068866

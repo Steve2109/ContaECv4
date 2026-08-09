@@ -549,14 +549,14 @@ export function ContaECAdmin({ onBack }: ContaECAdminProps) {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Server className="h-4 w-4 text-primary" />
-                  Aplicacion
+                  Aplicación
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {health ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Version</span>
+                      <span className="text-sm text-muted-foreground">Versión</span>
                       <Badge variant="outline" className="font-mono">{(health.application as Record<string, string>)?.version ?? 'N/A'}</Badge>
                     </div>
                     <div className="flex items-center justify-between">

@@ -137,8 +137,20 @@ def _calcular_totales(detalles: list) -> dict:
     detalle_resultados = []
     
     for det in detalles:
+        # Calcular el descuento efectivo según su tipo:
+        # - 'porcentaje': % del total de la línea (cantidad * precio_unitario)
+        # - 'dolares': monto fijo
+        if getattr(det, "descuento_tipo", None) == "porcentaje" and getattr(det, "descuento_valor", None):
+            descuento_monto = (
+                det.cantidad * det.precio_unitario * det.descuento_valor / Decimal("100")
+            ).quantize(Decimal("0.01"))
+        elif getattr(det, "descuento_tipo", None) == "dolares" and getattr(det, "descuento_valor", None):
+            descuento_monto = Decimal(det.descuento_valor).quantize(Decimal("0.01"))
+        else:
+            descuento_monto = det.descuento or Decimal("0")
+
         # Calcular precio total sin impuestos
-        precio_total = det.cantidad * det.precio_unitario - det.descuento
+        precio_total = det.cantidad * det.precio_unitario - descuento_monto
         precio_total = precio_total.quantize(Decimal("0.01"))
         
         # Calcular IVA
@@ -153,7 +165,7 @@ def _calcular_totales(detalles: list) -> dict:
         subtotal_sin_impuestos += precio_total
         total_iva += iva_valor
         total_ice += ice_valor
-        total_descuento += det.descuento
+        total_descuento += descuento_monto
         
         # Agrupar por porcentaje de IVA
         porc = det.iva_porcentaje
@@ -185,6 +197,7 @@ def _calcular_totales(detalles: list) -> dict:
             "precio_total_sin_impuestos": precio_total,
             "iva_valor": iva_valor,
             "ice_valor": ice_valor,
+            "descuento": descuento_monto,
         })
     
     total_con_impuestos = (subtotal_sin_impuestos + total_iva + total_ice).quantize(Decimal("0.01"))
@@ -366,7 +379,7 @@ async def create_comprobante(
             cantidad=det_data.cantidad,
             unidad_medida=det_data.unidad_medida,
             precio_unitario=det_data.precio_unitario,
-            descuento=det_data.descuento,
+            descuento=det_result["descuento"],
             precio_total_sin_impuestos=det_result["precio_total_sin_impuestos"],
             iva_codigo=det_data.iva_codigo,
             iva_porcentaje=det_data.iva_porcentaje,
@@ -396,6 +409,17 @@ async def create_comprobante(
         f"Comprobante creado: tipo={data.tipo_comprobante}, "
         f"secuencial={secuencial}, empresa={company.ruc}"
     )
+
+    # Recargar con los detalles cargados explícitamente (evita lazy-load en async:
+    # MissingGreenlet: greenlet_spawn has not been called)
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Comprobante)
+        .options(selectinload(Comprobante.detalles))
+        .where(Comprobante.id == comprobante.id)
+    )
+    comprobante = result.scalars().first()
     
     return ComprobanteResponse.model_validate(comprobante)
 
@@ -514,8 +538,11 @@ async def get_comprobante(
     Verifica que el comprobante pertenezca a una empresa del usuario.
     """
     comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Comprobante).where(
+        select(Comprobante)
+        .options(selectinload(Comprobante.detalles))
+        .where(
             Comprobante.id == comprobante_id,
             Comprobante.is_active == True,
         )
@@ -637,12 +664,14 @@ async def firmar_comprobante(
             {
                 "forma_pago": comprobante.forma_pago,
                 "total": comprobante.total_con_impuestos,
+                "plazo": 0,
+                "unidad_tiempo": "DIAS",
             }
         ],
         "info_adicional": json.loads(comprobante.info_adicional) if comprobante.info_adicional else None,
     }
     
-    # Agregar totales de impuestos agrupados para el XML
+    # Agregar totales de impuestos agrupados para el XML (incluye tarifa, según formato SRI)
     totales_impuestos = []
     # IVA
     if comprobante.subtotal_iva_0 > 0:
@@ -650,6 +679,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "0",
             "base_imponible": comprobante.subtotal_iva_0,
+            "tarifa": Decimal("0"),
             "valor": Decimal("0"),
         })
     if comprobante.subtotal_iva_5 > 0:
@@ -657,6 +687,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "5",
             "base_imponible": comprobante.subtotal_iva_5,
+            "tarifa": Decimal("5"),
             "valor": (comprobante.subtotal_iva_5 * Decimal("0.05")).quantize(Decimal("0.01")),
         })
     if comprobante.subtotal_iva_8 > 0:
@@ -664,6 +695,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "8",
             "base_imponible": comprobante.subtotal_iva_8,
+            "tarifa": Decimal("8"),
             "valor": (comprobante.subtotal_iva_8 * Decimal("0.08")).quantize(Decimal("0.01")),
         })
     if comprobante.subtotal_iva_12 > 0:
@@ -671,6 +703,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "2",
             "base_imponible": comprobante.subtotal_iva_12,
+            "tarifa": Decimal("12"),
             "valor": (comprobante.subtotal_iva_12 * Decimal("0.12")).quantize(Decimal("0.01")),
         })
     if comprobante.subtotal_iva_13 > 0:
@@ -678,6 +711,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "10",
             "base_imponible": comprobante.subtotal_iva_13,
+            "tarifa": Decimal("13"),
             "valor": (comprobante.subtotal_iva_13 * Decimal("0.13")).quantize(Decimal("0.01")),
         })
     if comprobante.subtotal_iva_14 > 0:
@@ -685,6 +719,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "3",
             "base_imponible": comprobante.subtotal_iva_14,
+            "tarifa": Decimal("14"),
             "valor": (comprobante.subtotal_iva_14 * Decimal("0.14")).quantize(Decimal("0.01")),
         })
     if comprobante.subtotal_iva_15 > 0:
@@ -692,6 +727,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "4",
             "base_imponible": comprobante.subtotal_iva_15,
+            "tarifa": Decimal("15"),
             "valor": (comprobante.subtotal_iva_15 * Decimal("0.15")).quantize(Decimal("0.01")),
         })
     if comprobante.subtotal_no_objeto_iva > 0:
@@ -699,6 +735,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "6",
             "base_imponible": comprobante.subtotal_no_objeto_iva,
+            "tarifa": Decimal("0"),
             "valor": Decimal("0"),
         })
     if comprobante.subtotal_exento_iva > 0:
@@ -706,6 +743,7 @@ async def firmar_comprobante(
             "codigo": "2",
             "codigo_porcentaje": "7",
             "base_imponible": comprobante.subtotal_exento_iva,
+            "tarifa": Decimal("0"),
             "valor": Decimal("0"),
         })
     
@@ -1934,8 +1972,11 @@ async def corregir_comprobante(
     """
     comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
     # Obtener comprobante
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Comprobante).where(
+        select(Comprobante)
+        .options(selectinload(Comprobante.detalles))
+        .where(
             Comprobante.id == comprobante_id,
             Comprobante.is_active == True,
         )
@@ -2016,7 +2057,7 @@ async def corregir_comprobante(
                 cantidad=det_data.cantidad,
                 unidad_medida=det_data.unidad_medida,
                 precio_unitario=det_data.precio_unitario,
-                descuento=det_data.descuento,
+                descuento=det_result["descuento"],
                 precio_total_sin_impuestos=det_result["precio_total_sin_impuestos"],
                 iva_codigo=det_data.iva_codigo,
                 iva_porcentaje=det_data.iva_porcentaje,
