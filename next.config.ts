@@ -5,6 +5,10 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Fija la raíz de trazado al directorio del proyecto (no al padre) para que
+  // el servidor standalone se genere en `.next/standalone/server.js` y no
+  // anidado en una subcarpeta (evita "MODULE_NOT_FOUND" al hacer `npm run start`).
+  outputFileTracingRoot: process.cwd(),
   typescript: {
     ignoreBuildErrors: false,
   },

@@ -10,6 +10,9 @@ export default getRequestConfig(async ({ requestLocale }) => {
   }
 
   return {
+    // next-intl 3.22+ expects the resolved locale to be returned explicitly
+    locale,
+
     // Loads the `messages/[locale].json` file
     messages: (await import(`../../messages/${locale}.json`)).default,
 

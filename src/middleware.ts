@@ -36,8 +36,12 @@ export default createMiddleware({
 export const config = {
   // Match all internationalized paths
   matcher: [
-    // Match all paths except api, _next/static, _next/image, favicon.ico, sitemap.xml, robots.txt
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+    // Match all paths EXCEPT:
+    // - api, _next/static, _next/image
+    // - archivos estaticos (favicon.ico, sitemap.xml, robots.txt, manifest.webmanifest)
+    // - cualquier archivo con extension (logo.svg, imagenes, uploads/...)
+    //   (sin esto, next-intl intercepta los estaticos y devuelve 404)
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest.webmanifest|.*\\..*$).*)',
     // Match root path for locale detection
     '/'
   ]

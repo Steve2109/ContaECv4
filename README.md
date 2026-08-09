@@ -173,31 +173,17 @@ sudo locale-gen es_EC.UTF-8
 locale -a | grep es_EC
 # 6. Verificar el locale disponible
 locale -a | grep UTF-8
-# 7. Configurar permanentemente en /etc/environment
-sudo nano /etc/environment
-# 8. Agregar estas líneas (en el editor nano)
-LANG=es_EC.UTF-8
-LC_ALL=es_EC.UTF-8
-LANGUAGE=es_EC.UTF-8
-# 9. Aplicar (opcional, para el shell actual)
-source /etc/environment
-# 10. Persistir permanentemente en /etc/environment (alternativa sin nano)
-echo 'LANG=es_EC.UTF-8' > /etc/environment
-echo 'LC_ALL=es_EC.UTF-8' >> /etc/environment
-echo 'LANGUAGE=es_EC.UTF-8' >> /etc/environment
-# 11. Exportar para el shell actual
-export LANGUAGE=es_EC.UTF-8
-export LANG=es_EC.UTF-8
-export LC_ALL=es_EC.UTF-8
-# 12. Opcional: agregar también a /etc/profile para persistencia en todas las sesiones
-echo 'export LANG=es_EC.UTF-8' >> /etc/profile
-echo 'export LC_ALL=es_EC.UTF-8' >> /etc/profile
-echo 'export LANGUAGE=es_EC.UTF-8' >> /etc/profile
-# 13. Reinicia el shell o ejecuta:
+# 7. Configurar permanentemente
+sudo sed -i 's/^# *es_EC.UTF-8 UTF-8/es_EC.UTF-8 UTF-8/' /etc/locale.gen
+sudo locale-gen
+# 8. Validación de la configuración
+nl /etc/default/locale
+locale -a | grep es_EC
+# 9. Reinicia el shell o ejecuta:
 bash
-# 14. Luego verifica:
+# 10. Luego verifica:
 locale
-# 15. Verifica que ya no aparezca el error
+# 11. Verifica que ya no aparezca el error
 perl -v
 ```
 
