@@ -58,3 +58,4 @@ server.log
 CLAUDE.md
 
 handoff.md
+backend/.env.production
