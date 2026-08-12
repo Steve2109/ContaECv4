@@ -161,30 +161,58 @@ sudo ss -tlnp | grep 5432
 pg_isready -h localhost -p 5432
 
 ### Locale del sistema (o configuración de locales)
-# 1. Instalar el paquete locales
-sudo apt-get install locales
-# 2. Generar el locale es_EC.UTF-8
-sudo locale-gen es_EC.UTF-8
-# 3. Reconfigurar locales
-sudo dpkg-reconfigure locales
-# 4. Selecciona es_EC.UTF-8 como default
-sudo locale-gen es_EC.UTF-8
-# 5. Verificar que se instaló
-locale -a | grep es_EC
-# 6. Verificar el locale disponible
-locale -a | grep UTF-8
-# 7. Configurar permanentemente
-sudo sed -i 's/^# *es_EC.UTF-8 UTF-8/es_EC.UTF-8 UTF-8/' /etc/locale.gen
-sudo locale-gen
-# 8. Validación de la configuración
-nl /etc/default/locale
-locale -a | grep es_EC
-# 9. Reinicia el shell o ejecuta:
-bash
-# 10. Luego verifica:
-locale
-# 11. Verifica que ya no aparezca el error
-perl -v
+# # 1. Instalar el paquete locales
+# sudo apt-get install locales
+# # 2. Generar el locale es_EC.UTF-8
+# sudo locale-gen es_EC.UTF-8
+# # 3. Reconfigurar locales
+# sudo dpkg-reconfigure locales
+# # 4. Selecciona es_EC.UTF-8 como default
+# sudo locale-gen es_EC.UTF-8
+# # 5. Verificar que se instaló
+# locale -a | grep es_EC
+# # 6. Verificar el locale disponible
+# locale -a | grep UTF-8
+# # 7. Configurar permanentemente
+# sudo sed -i 's/^# *es_EC.UTF-8 UTF-8/es_EC.UTF-8 UTF-8/' /etc/locale.gen
+# sudo locale-gen
+# # 8. Validación de la configuración
+# nl /etc/default/locale
+# locale -a | grep es_EC
+# # 9. Reinicia el shell o ejecuta:
+# bash
+# # 10. Luego verifica:
+# locale
+# # 11. Verifica que ya no aparezca el error
+# perl -v
+
+---
+
+# 1. Verificar locales existentes
+locale -a | grep -iE 'es_EC|C\.utf'
+# 2. Configurar español de Ecuador inicialmente
+update-locale LANG=es_EC.UTF-8
+# 3. Verificar la configuración actual
+cat /etc/default/locale
+# 4. Revisar si en_US.UTF-8 estaba habilitada
+grep -nE '^[# ]*en_US\.UTF-8' /etc/locale.gen
+# 5. Habilitar en_US.UTF-8
+sed -i 's/^# *en_US\.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+# 6. Evitar duplicar la entrada
+grep -qxF 'en_US.UTF-8 UTF-8' /etc/locale.gen || \
+  echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen
+# 7. Generar las locales
+locale-gen
+# 8. Establecer en_US.UTF-8 como locale predeterminada
+update-locale LANG=en_US.UTF-8
+# 9. Verificar la configuración persistente
+cat /etc/default/locale
+# 10. Probar temporalmente es_EC.UTF-8
+LANG=es_EC.UTF-8
+# 11. Confirmar todas las locales instaladas
+locale -a
+# 12. Confirmar que Perl ya no muestra advertencias
+perl -we 'use locale; print "Locale correcta\n"'
 ```
 
 ### 4.3 Configuración de la Base de Datos
@@ -201,7 +229,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 EOF
 ```
 
-**Configuración de PostgreSQL** (`/etc/postgresql/17/main/postgresql.conf`):
+**Configuración de PostgreSQL** (`nano -l /etc/postgresql/17/main/postgresql.conf`):
 
 ```ini
 # Memoria (ajustar según RAM disponible, 6GB libres → asignar ~2GB)
@@ -234,9 +262,9 @@ lc_numeric = 'es_EC.UTF-8'
 lc_time = 'es_EC.UTF-8'
 ```
 
-**Configuración de acceso** (`/etc/postgresql/17/main/pg_hba.conf`):
+**Configuración de acceso** (`nano -l /etc/postgresql/17/main/pg_hba.conf`):
 
-```
+```sh
 # Añadir línea para el usuario de la app (colocar antes de las configuraciones del sistema)
 local   contaec_db      contaec_user                            md5
 host    contaec_db      contaec_user    127.0.0.1/32            md5
@@ -314,7 +342,7 @@ chmod 777 /opt/contaec/backend/backups /opt/contaec/backend/uploads /opt/contaec
 
 # Configurar el archivo .env
 cp /opt/contaec/.env.example /opt/contaec/backend/.env
-nano /opt/contaec/backend/.env
+nano -l /opt/contaec/backend/.env
 
 # Crear servicio systemd para el backend
 cat > /etc/systemd/system/contaec-backend.service << 'EOF'
@@ -402,76 +430,13 @@ curl http://localhost:3000
 
 ### 4.8 Configuración del Archivo .env
 
-Crear el archivo `/opt/contaec/backend/.env` con el siguiente contenido:
-
-```bash
-# ============================================
-# ContaEC - Variables de Entorno de Producción
-# ============================================
-
-# --- Aplicación ---
-APP_NAME=ContaEC
-APP_VERSION=1.0.0
-APP_ENV=production
-DEBUG=false
-
-# SECURITY: Generar claves únicas y seguras con:
-# SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(64))")
-SECRET_KEY=<GENERAR_CON_PYTHON>
-ENCRYPTION_KEY=<GENERAR_CON_PYTHON>
-JWT_SECRET_KEY=<GENERAR_CON_PYTHON>
-
-# --- Base de Datos (PostgreSQL) ---
-DATABASE_URL=postgresql+asyncpg://contaec_user:<TU_PASSWORD>@localhost:5432/contaec_db
-POSTGRES_USER=contaec_user
-POSTGRES_PASSWORD=<TU_PASSWORD_POSTGRES>
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=contaec_db
-
-# --- Autenticación JWT ---
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# --- Credenciales Admin ---
-ADMIN_EMAIL=steve.mejia@tymtechnology.shop
-ADMIN_PASSWORD=<GENERAR_CONTRASENA_SEGURA>
-
+```sh
 # --- Servicios Web del SRI ---
 # (Las URLs ya están configuradas por defecto en config.py)
 # SRI_WS_RECEPCION_PRUEBAS=https://celcer.sri.gob.ec/comprobantes-electronicos-ws/RecepcionComprobantesOffline?wsdl
 # SRI_WS_AUTORIZACION_PRUEBAS=https://celcer.sri.gob.ec/comprobantes-electronicos-ws/AutorizacionComprobantesOffline?wsdl
 # SRI_WS_RECEPCION_PRODUCCION=https://cel.sri.gob.ec/comprobantes-electronicos-ws/RecepcionComprobantesOffline?wsdl
 # SRI_WS_AUTORIZACION_PRODUCCION=https://cel.sri.gob.ec/comprobantes-electronicos-ws/AutorizacionComprobantesOffline?wsdl
-
-# --- Respaldos ---
-BACKUP_DIR=./backups
-BACKUP_ENCRYPTION_KEY=<GENERAR_CON_PYTHON>
-
-# --- ClamAV (Antivirus) ---
-CLAMAV_ENABLED=true
-CLAMAV_SOCKET=/var/run/clamav/clamd.ctl
-CLAMAV_HOST=127.0.0.1
-CLAMAV_PORT=3310
-
-# --- VirusTotal ---
-VIRUSTOTAL_ENABLED=false
-VIRUSTOTAL_API_KEY=<TU_API_KEY_VIRUSTOTAL>
-
-# --- CORS ---
-CORS_ORIGINS=https://conta.tymtechnology.shop,http://10.0.1.20
-
-# --- Rate Limiting ---
-RATE_LIMIT_PER_MINUTE=60
-
-# --- Servidor ---
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=8000
-
-# --- Almacenamiento Volátil ---
-TEMP_DIR=./temp
-UPLOAD_DIR=./uploads
 ```
 
 ```bash
