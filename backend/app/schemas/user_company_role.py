@@ -2,6 +2,7 @@
 ContaEC - Esquemas de Roles de Usuario por Empresa
 Pydantic schemas para asignación, actualización y consulta de roles
 """
+from uuid import UUID
 import json
 from datetime import datetime
 
@@ -89,9 +90,9 @@ class UserRoleUpdate(BaseModel):
 
 class UserRoleResponse(BaseModel):
     """Esquema de respuesta con datos del rol de usuario en una empresa"""
-    id: str = Field(..., description="ID único de la asignación de rol")
-    user_id: str = Field(..., description="ID del usuario")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único de la asignación de rol")
+    user_id: UUID = Field(..., description="ID del usuario")
+    company_id: UUID = Field(..., description="ID de la empresa")
     role: str = Field(..., description="Rol del usuario en la empresa")
     permissions: dict[str, bool] | None = Field(
         None,
@@ -153,9 +154,9 @@ class PermissionCheck(BaseModel):
 
 class UserRoleWithCompanyResponse(BaseModel):
     """Esquema de respuesta que incluye información de la empresa junto con el rol"""
-    id: str = Field(..., description="ID único de la asignación de rol")
-    user_id: str = Field(..., description="ID del usuario")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único de la asignación de rol")
+    user_id: UUID = Field(..., description="ID del usuario")
+    company_id: UUID = Field(..., description="ID de la empresa")
     company_name: str | None = Field(None, description="Razón social de la empresa")
     company_ruc: str | None = Field(None, description="RUC de la empresa")
     role: str = Field(..., description="Rol del usuario en la empresa")

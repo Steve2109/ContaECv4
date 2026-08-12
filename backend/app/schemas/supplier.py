@@ -3,6 +3,7 @@ ContaEC - Esquemas Pydantic de Proveedor
 Schemas para creación, actualización y respuesta de proveedores
 con tipos de identificación según catálogos del SRI (Tabla 7)
 """
+from uuid import UUID
 import re
 from datetime import datetime
 from decimal import Decimal
@@ -243,8 +244,8 @@ class SupplierUpdate(BaseModel):
 
 class SupplierResponse(BaseModel):
     """Esquema de respuesta para un proveedor"""
-    id: str = Field(..., description="ID único del proveedor")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del proveedor")
+    company_id: UUID = Field(..., description="ID de la empresa")
     tipo_identificacion: str = Field(..., description="Tipo de identificación SRI")
     identificacion: str = Field(..., description="Número de identificación")
     razon_social: str = Field(..., description="Razón social o nombre completo")

@@ -7,10 +7,10 @@ Estados del comprobante:
 - Internos: borrador, firmado, enviado
 - SRI: autorizado, rechazado, devuelto, caducado, anulado, contingencia
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -181,8 +181,8 @@ class ComprobanteDetalleCreate(BaseModel):
 
 class ComprobanteDetalleResponse(BaseModel):
     """Esquema de respuesta para una línea de detalle del comprobante"""
-    id: str = Field(..., description="ID único del detalle")
-    product_id: str | None = Field(None, description="ID del producto")
+    id: UUID = Field(..., description="ID único del detalle")
+    product_id: UUID | None = Field(None, description="ID del producto")
     codigo_principal: str = Field(..., description="Código principal")
     codigo_auxiliar: str | None = Field(None, description="Código auxiliar")
     descripcion: str = Field(..., description="Descripción del bien/servicio")
@@ -304,9 +304,9 @@ class ComprobanteCreate(BaseModel):
 
 class ComprobanteResponse(BaseModel):
     """Esquema de respuesta para un comprobante electrónico completo"""
-    id: str = Field(..., description="ID único del comprobante")
-    company_id: str = Field(..., description="ID de la empresa emisora")
-    client_id: str | None = Field(None, description="ID del cliente")
+    id: UUID = Field(..., description="ID único del comprobante")
+    company_id: UUID = Field(..., description="ID de la empresa emisora")
+    client_id: UUID | None = Field(None, description="ID del cliente")
     tipo_comprobante: str = Field(..., description="Código de tipo de comprobante")
     secuencial: str = Field(..., description="Número secuencial (9 dígitos)")
     clave_acceso: str | None = Field(None, description="Clave de acceso SRI (49 dígitos)")
@@ -347,7 +347,7 @@ class ComprobanteResponse(BaseModel):
 
 class ComprobanteListResponse(BaseModel):
     """Esquema ligero para listar comprobantes"""
-    id: str = Field(..., description="ID único del comprobante")
+    id: UUID = Field(..., description="ID único del comprobante")
     tipo_comprobante: str = Field(..., description="Código de tipo de comprobante")
     secuencial: str = Field(..., description="Número secuencial")
     clave_acceso: str | None = Field(None, description="Clave de acceso SRI")

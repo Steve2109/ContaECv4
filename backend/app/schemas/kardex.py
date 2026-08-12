@@ -3,6 +3,7 @@ ContaEC - Esquemas Pydantic de Kardex (Movimientos de Inventario)
 Schemas para creación, ajuste, respuesta y listado de movimientos de kardex
 con cálculo automático de saldos
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -121,10 +122,10 @@ class KardexAjuste(BaseModel):
 
 class KardexResponse(BaseModel):
     """Esquema de respuesta para un movimiento de kardex"""
-    id: str = Field(..., description="ID único del movimiento")
-    company_id: str = Field(..., description="ID de la empresa")
-    product_id: str = Field(..., description="ID del producto")
-    warehouse_id: str | None = Field(None, description="ID del almacén asociado")
+    id: UUID = Field(..., description="ID único del movimiento")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    product_id: UUID = Field(..., description="ID del producto")
+    warehouse_id: UUID | None = Field(None, description="ID del almacén asociado")
     tipo_movimiento: str = Field(..., description="Tipo de movimiento")
     cantidad: Decimal = Field(..., description="Cantidad del movimiento")
     costo_unitario: Decimal = Field(..., description="Costo unitario")
@@ -132,11 +133,11 @@ class KardexResponse(BaseModel):
     saldo_cantidad: Decimal = Field(..., description="Saldo de cantidad acumulado")
     saldo_valor: Decimal = Field(..., description="Saldo de valor acumulado")
     referencia_tipo: str | None = Field(None, description="Tipo de referencia")
-    referencia_id: str | None = Field(None, description="ID de referencia")
+    referencia_id: UUID | None = Field(None, description="ID de referencia")
     referencia_secuencial: str | None = Field(None, description="Secuencial de referencia")
     detalle: str | None = Field(None, description="Detalle del movimiento")
     fecha_movimiento: datetime = Field(..., description="Fecha del movimiento")
-    user_id: str = Field(..., description="ID del usuario")
+    user_id: UUID = Field(..., description="ID del usuario")
     is_active: bool = Field(..., description="Indica si está activo")
     created_at: datetime = Field(..., description="Fecha de creación")
     updated_at: datetime = Field(..., description="Fecha de actualización")
@@ -146,7 +147,7 @@ class KardexResponse(BaseModel):
 
 class KardexSaldoResponse(BaseModel):
     """Esquema de respuesta para el saldo actual de un producto"""
-    product_id: str = Field(..., description="ID del producto")
+    product_id: UUID = Field(..., description="ID del producto")
     saldo_cantidad: Decimal = Field(default=Decimal("0"), description="Cantidad actual en stock")
     saldo_valor: Decimal = Field(default=Decimal("0"), description="Valor actual en stock")
     costo_promedio: Decimal = Field(default=Decimal("0"), description="Costo promedio ponderado")

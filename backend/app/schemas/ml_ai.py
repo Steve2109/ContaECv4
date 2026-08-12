@@ -2,6 +2,7 @@
 ContaEC - Schemas de Machine Learning / IA
 Schemas para predicciones, fraude, chatbot, recomendaciones, categorización
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -32,9 +33,9 @@ class PrediccionUpdate(BaseModel):
 
 
 class PrediccionResponse(BaseModel):
-    id: str
-    company_id: str
-    user_id: str
+    id: UUID
+    company_id: UUID
+    user_id: UUID
     tipo: str
     estado: str
     periodo_desde: datetime
@@ -80,9 +81,9 @@ class AlertaFraudeUpdate(BaseModel):
 
 
 class AlertaFraudeResponse(BaseModel):
-    id: str
-    company_id: str
-    comprobante_id: str | None
+    id: UUID
+    company_id: UUID
+    comprobante_id: UUID | None
     tipo_deteccion: str
     severidad: str
     estado: str
@@ -91,7 +92,7 @@ class AlertaFraudeResponse(BaseModel):
     evidencia: str | None
     resolucion_nota: str | None
     resolucion_fecha: datetime | None
-    resuelto_por: str | None
+    resuelto_por: UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -108,9 +109,9 @@ class ChatbotSesionCreate(BaseModel):
 
 
 class ChatbotSesionResponse(BaseModel):
-    id: str
-    company_id: str
-    user_id: str
+    id: UUID
+    company_id: UUID
+    user_id: UUID
     estado: str
     titulo: str | None
     contexto: str | None
@@ -126,8 +127,8 @@ class ChatbotMensajeCreate(BaseModel):
 
 
 class ChatbotMensajeResponse(BaseModel):
-    id: str
-    sesion_id: str
+    id: UUID
+    sesion_id: UUID
     rol: str
     contenido: str
     intencion_detectada: str | None
@@ -172,9 +173,9 @@ class RecomendacionUpdate(BaseModel):
 
 
 class RecomendacionResponse(BaseModel):
-    id: str
-    company_id: str
-    user_id: str
+    id: UUID
+    company_id: UUID
+    user_id: UUID
     tipo: str
     estado: str
     titulo: str
@@ -183,7 +184,7 @@ class RecomendacionResponse(BaseModel):
     impacto_estimado: str | None
     confianza: Decimal | None
     fecha_aplicacion: datetime | None
-    aplicada_por: str | None
+    aplicada_por: UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -216,8 +217,8 @@ class CategoriaReglaUpdate(BaseModel):
 
 
 class CategoriaReglaResponse(BaseModel):
-    id: str
-    company_id: str
+    id: UUID
+    company_id: UUID
     categoria: str
     subcategoria: str | None
     palabras_clave: str

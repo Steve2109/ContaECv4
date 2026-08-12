@@ -4,6 +4,7 @@ CRUD de empresas, establecimientos, auto-completado RUC desde SRI
 """
 import logging
 import os
+import re
 import uuid
 from uuid import UUID
 from pathlib import Path
@@ -33,6 +34,94 @@ router = APIRouter(prefix="/companies", tags=["Empresas"])
 
 # _ensure_consumidor_final movido a app.core.utils para evitar duplicación
 from app.core.utils import ensure_consumidor_final
+
+
+# ==========================================
+# Validación de firma electrónica
+# ==========================================
+
+def _validate_signature_password(firma_path: str, password: str) -> None:
+    """
+    Valida que la contraseña ingresada corresponda al archivo .p12/.pfx de la firma.
+
+    Reutiliza la misma lógica de validación PKCS#12 del comprobador de firmas
+    (app/api/v1/endpoints/uploads.py: validate_digital_signature) para garantizar
+    que la contraseña es la correcta antes de guardar la empresa.
+
+    Raises:
+        HTTPException 400: si la firma no existe, la contraseña es incorrecta,
+        el archivo no es un PKCS#12 válido o el certificado está expirado.
+    """
+    # Seguridad: solo se aceptan rutas dentro del directorio de uploads/companies
+    # con nombre generado por el servidor (uuid4 hex + .p12/.pfx). Evita path
+    # traversal y lecturas arbitrarias de archivos del servidor.
+    if not re.match(r"^/uploads/companies/[A-Za-z0-9_]+\.(p12|pfx)$", firma_path):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La ruta de la firma electrónica es inválida. Vuelva a subir el archivo.",
+        )
+
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
+    upload_dir = base_dir / "uploads" / "companies"
+    abs_path = (upload_dir / Path(firma_path).name).resolve()
+
+    # Verificación extra de contención (defensa en profundidad)
+    if not abs_path.is_relative_to(upload_dir.resolve()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La ruta de la firma electrónica es inválida. Vuelva a subir el archivo.",
+        )
+
+    if not abs_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo de firma electrónica no fue encontrado en el servidor. Vuelva a subirlo.",
+        )
+
+    content = abs_path.read_bytes()
+
+    try:
+        from cryptography.hazmat.primitives.serialization import pkcs12
+
+        private_key, certificate, _ = pkcs12.load_key_and_certificates(
+            content, password.encode()
+        )
+
+        if not certificate:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se encontró certificado en el archivo PKCS#12.",
+            )
+
+        # Rechazar certificados expirados (misma validación que el comprobador
+        # de firmas /v1/uploads/validate-signature usado por el frontend)
+        now = datetime.now(timezone.utc)
+        not_after = certificate.not_valid_after_utc
+        if not_after.tzinfo is None:
+            not_after = not_after.replace(tzinfo=timezone.utc)
+        if not_after < now:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La firma electrónica ha EXPIRADO. Renueve su firma e intente nuevamente.",
+            )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        if "password" in str(e).lower() or "mac" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña no corresponde a la firma electrónica. Verifíquela e intente nuevamente.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Archivo de firma electrónica inválido: {str(e)}",
+        )
+    except Exception as e:
+        logger.error(f"Error validando firma electrónica al crear empresa: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se pudo validar la firma electrónica: {str(e)}",
+        )
 
 
 @router.post("", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
@@ -76,6 +165,12 @@ async def create_company(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ya tiene una empresa registrada con este RUC."
         )
+
+    # Validar que la contraseña corresponde a la firma electrónica (.p12/.pfx)
+    _validate_signature_password(
+        company_data.firma_electronica_path,
+        company_data.firma_electronica_password,
+    )
 
     company = Company(
         user_id=current_user.id,

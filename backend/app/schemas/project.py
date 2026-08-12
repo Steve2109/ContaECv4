@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Proyectos y Servicios
 Schemas para proyectos, tareas, recursos, timesheets y costos
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -141,15 +142,15 @@ class ProyectoUpdate(BaseModel):
 
 class ProyectoTareaResponse(BaseModel):
     """Esquema de respuesta para tarea de proyecto"""
-    id: str = Field(..., description="ID único de la tarea")
-    proyecto_id: str = Field(..., description="ID del proyecto")
+    id: UUID = Field(..., description="ID único de la tarea")
+    proyecto_id: UUID = Field(..., description="ID del proyecto")
     titulo: str = Field(..., description="Título de la tarea")
     descripcion: str | None = Field(None, description="Descripción de la tarea")
     estado: str = Field(..., description="Estado de la tarea")
     prioridad: str = Field(..., description="Prioridad de la tarea")
     fase: str | None = Field(None, description="Fase del proyecto")
     asignado_a: str | None = Field(None, description="Persona asignada")
-    employee_id: str | None = Field(None, description="ID del empleado asignado")
+    employee_id: UUID | None = Field(None, description="ID del empleado asignado")
     fecha_inicio: datetime | None = Field(None, description="Fecha de inicio")
     fecha_fin_estimada: datetime | None = Field(None, description="Fecha de fin estimada")
     fecha_fin_real: datetime | None = Field(None, description="Fecha de fin real")
@@ -166,12 +167,12 @@ class ProyectoTareaResponse(BaseModel):
 
 class ProyectoRecursoResponse(BaseModel):
     """Esquema de respuesta para recurso de proyecto"""
-    id: str = Field(..., description="ID único del recurso")
-    proyecto_id: str = Field(..., description="ID del proyecto")
+    id: UUID = Field(..., description="ID único del recurso")
+    proyecto_id: UUID = Field(..., description="ID del proyecto")
     tipo_recurso: str = Field(..., description="Tipo de recurso")
     nombre: str = Field(..., description="Nombre del recurso")
     descripcion: str | None = Field(None, description="Descripción del recurso")
-    employee_id: str | None = Field(None, description="ID del empleado (si es humano)")
+    employee_id: UUID | None = Field(None, description="ID del empleado (si es humano)")
     costo_unitario: Decimal = Field(..., description="Costo unitario del recurso")
     cantidad: Decimal = Field(..., description="Cantidad del recurso")
     costo_total: Decimal = Field(..., description="Costo total del recurso")
@@ -186,11 +187,11 @@ class ProyectoRecursoResponse(BaseModel):
 
 class ProyectoTimesheetResponse(BaseModel):
     """Esquema de respuesta para timesheet de proyecto"""
-    id: str = Field(..., description="ID único del timesheet")
-    company_id: str = Field(..., description="ID de la empresa")
-    proyecto_id: str = Field(..., description="ID del proyecto")
-    tarea_id: str | None = Field(None, description="ID de la tarea asociada")
-    employee_id: str | None = Field(None, description="ID del empleado")
+    id: UUID = Field(..., description="ID único del timesheet")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    proyecto_id: UUID = Field(..., description="ID del proyecto")
+    tarea_id: UUID | None = Field(None, description="ID de la tarea asociada")
+    employee_id: UUID | None = Field(None, description="ID del empleado")
     empleado_nombre: str = Field(..., description="Nombre del empleado")
     fecha: datetime = Field(..., description="Fecha del trabajo")
     horas: Decimal = Field(..., description="Horas trabajadas")
@@ -206,15 +207,15 @@ class ProyectoTimesheetResponse(BaseModel):
 
 class ProyectoCostoResponse(BaseModel):
     """Esquema de respuesta para costo de proyecto"""
-    id: str = Field(..., description="ID único del costo")
-    proyecto_id: str = Field(..., description="ID del proyecto")
+    id: UUID = Field(..., description="ID único del costo")
+    proyecto_id: UUID = Field(..., description="ID del proyecto")
     concepto: str = Field(..., description="Concepto del costo")
     descripcion: str | None = Field(None, description="Descripción del costo")
     monto: Decimal = Field(..., description="Monto del costo")
     fecha: datetime = Field(..., description="Fecha del costo")
     categoria: str | None = Field(None, description="Categoría del costo")
     es_facturable: bool = Field(..., description="Si el costo es facturable")
-    comprobante_id: str | None = Field(None, description="ID del comprobante vinculado")
+    comprobante_id: UUID | None = Field(None, description="ID del comprobante vinculado")
     created_at: datetime = Field(..., description="Fecha de creación")
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
@@ -222,13 +223,13 @@ class ProyectoCostoResponse(BaseModel):
 
 class ProyectoResponse(BaseModel):
     """Esquema de respuesta para proyecto"""
-    id: str = Field(..., description="ID único del proyecto")
-    company_id: str = Field(..., description="ID de la empresa")
-    user_id: str = Field(..., description="ID del usuario creador")
+    id: UUID = Field(..., description="ID único del proyecto")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    user_id: UUID = Field(..., description="ID del usuario creador")
     codigo: str = Field(..., description="Código del proyecto")
     nombre: str = Field(..., description="Nombre del proyecto")
     descripcion: str | None = Field(None, description="Descripción")
-    cliente_id: str | None = Field(None, description="ID del cliente")
+    cliente_id: UUID | None = Field(None, description="ID del cliente")
     cliente_nombre: str | None = Field(None, description="Nombre del cliente")
     estado: str = Field(..., description="Estado del proyecto")
     fecha_inicio: datetime | None = Field(None, description="Fecha de inicio")

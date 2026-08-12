@@ -15,6 +15,8 @@ import {
   AlertCircle,
   Shield,
   FileText,
+  Check,
+  X,
 } from 'lucide-react';
 import { login, register, type User } from '@/lib/api';
 import { t } from '@/lib/i18n';
@@ -40,6 +42,17 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
 
+  // Password strength requirements (normativa de contraseña segura)
+  const passwordRequirements = [
+    { key: 'min', label: t('login.password_req_min'), ok: regPassword.length >= 8 },
+    { key: 'upper', label: t('login.password_req_upper'), ok: /[A-Z]/.test(regPassword) },
+    { key: 'lower', label: t('login.password_req_lower'), ok: /[a-z]/.test(regPassword) },
+    { key: 'number', label: t('login.password_req_number'), ok: /\d/.test(regPassword) },
+    { key: 'symbol', label: t('login.password_req_symbol'), ok: /[^A-Za-z0-9\s]/.test(regPassword) },
+  ];
+  const passwordValid = passwordRequirements.every((r) => r.ok);
+  const passwordsMatch = regConfirmPassword === '' || regPassword === regConfirmPassword;
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -58,6 +71,17 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Validar normativa de contraseña antes de enviar
+    if (!passwordValid) {
+      setError(t('login.password_requirements'));
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setError(t('login.passwords_dont_match'));
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -271,7 +295,28 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                       minLength={8}
                       autoComplete="new-password"
                       disabled={loading}
+                      className={regConfirmPassword && !passwordsMatch ? 'border-destructive' : ''}
                     />
+                    {regConfirmPassword && !passwordsMatch && (
+                      <p className="text-xs text-destructive">{t('login.passwords_dont_match')}</p>
+                    )}
+                  </div>
+
+                  {/* Checklist de requisitos de contraseña */}
+                  <div className="rounded-md border bg-muted/40 p-3 space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">{t('login.password_requirements_title')}</p>
+                    {passwordRequirements.map((req) => (
+                      <div key={req.key} className="flex items-center gap-2 text-xs">
+                        {req.ok ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        )}
+                        <span className={req.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}>
+                          {req.label}
+                        </span>
+                      </div>
+                    ))}
                   </div>
 
                   <Button type="submit" className="w-full" disabled={loading}>

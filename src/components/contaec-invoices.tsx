@@ -69,6 +69,7 @@ import {
   Zap,
   Download,
   ArrowRightLeft,
+  History,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -78,6 +79,7 @@ import {
   firmarComprobante,
   enviarComprobanteSRI,
   consultarComprobanteSRI,
+  recuperarComprobanteSRI,
   getComprobanteXML,
   deleteComprobante,
   getComprobanteStats,
@@ -578,7 +580,7 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
         }),
         getComprobanteStats(companyId),
       ]);
-      setComprobantes(comps);
+      setComprobantes(Array.isArray(comps) ? comps : []);
       setStats(st);
     } catch {
       toast.error('Error al cargar comprobantes');
@@ -607,6 +609,17 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
           await consultarComprobanteSRI(id);
           toast.success('Consulta al SRI realizada');
           break;
+        case 'recuperar': {
+          const result = await recuperarComprobanteSRI(id);
+          if (result.estado === 'AUTORIZADO') {
+            toast.success('Comprobante recuperado y autorizado por el SRI');
+          } else if (result.estado === 'RECHAZADO') {
+            toast.error(`Comprobante rechazado: ${result.sri_mensaje || 'Verifique los datos'}`);
+          } else {
+            toast.info(result.sri_mensaje || result.message);
+          }
+          break;
+        }
         case 'procesar': {
           toast.info('Procesando comprobante... Esto puede tardar unos segundos.');
           const result = await procesarComprobante(id);
@@ -903,6 +916,20 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-7 w-7 text-sky-600"
+                                onClick={() => handleAction('recuperar', comp.id)}
+                                disabled={!!actionLoading}
+                                title="Recuperar del SRI (máx. 72h desde la emisión)"
+                              >
+                                {actionLoading === comp.id + 'recuperar' ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <History className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-7 w-7 text-amber-500"
                                 onClick={() => handleAction('enviar', comp.id)}
                                 disabled={!!actionLoading}
@@ -931,20 +958,36 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
                             </>
                           )}
                           {comp.estado.toUpperCase() === 'ENVIADO' && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-amber-500"
-                              onClick={() => handleAction('consultar', comp.id)}
-                              disabled={!!actionLoading}
-                              title="Consultar SRI"
-                            >
-                              {actionLoading === comp.id + 'consultar' ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-sky-600"
+                                onClick={() => handleAction('recuperar', comp.id)}
+                                disabled={!!actionLoading}
+                                title="Recuperar del SRI (máx. 72h desde la emisión)"
+                              >
+                                {actionLoading === comp.id + 'recuperar' ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <History className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-amber-500"
+                                onClick={() => handleAction('consultar', comp.id)}
+                                disabled={!!actionLoading}
+                                title="Consultar SRI"
+                              >
+                                {actionLoading === comp.id + 'consultar' ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            </>
                           )}
                           {comp.estado.toUpperCase() === 'AUTORIZADO' && (
                             <>
@@ -1340,8 +1383,9 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
           getClients(companyId),
           getProducts(companyId),
         ]);
-        setClients(cls);
-        setProducts(prods);
+        // Guard defensivo: evitar que respuestas no-array rompan el render
+        setClients(Array.isArray(cls) ? cls : []);
+        setProducts(Array.isArray(prods) ? prods : []);
       } catch {
         toast.error('Error al cargar datos');
       }
@@ -2466,7 +2510,8 @@ function ProductosTab({ companyId }: { companyId: string }) {
     setLoading(true);
     try {
       const data = await getProducts(companyId);
-      setProducts(data);
+      // Guard defensivo: si la API devuelve algo que no es un array, no romper el render
+      setProducts(Array.isArray(data) ? data : []);
     } catch {
       toast.error('Error al cargar productos');
     } finally {
@@ -2933,7 +2978,8 @@ function ClientesTab({ companyId }: { companyId: string }) {
     setLoading(true);
     try {
       const data = await getClients(companyId);
-      setClients(data);
+      // Guard defensivo: si la API devuelve algo que no es un array, no romper el render
+      setClients(Array.isArray(data) ? data : []);
     } catch {
       toast.error('Error al cargar clientes');
     } finally {
@@ -3761,8 +3807,9 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
           getClients(companyId),
           getProducts(companyId),
         ]);
-        setClients(cls);
-        setProducts(prods);
+        // Guard defensivo: evitar que respuestas no-array rompan el render
+        setClients(Array.isArray(cls) ? cls : []);
+        setProducts(Array.isArray(prods) ? prods : []);
       } catch {
         toast.error('Error al cargar datos');
       }

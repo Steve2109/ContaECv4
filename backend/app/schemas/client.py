@@ -3,6 +3,7 @@ ContaEC - Esquemas Pydantic de Cliente
 Schemas para creación, actualización y respuesta de clientes
 con tipos de identificación según catálogos del SRI (Tabla 7)
 """
+from uuid import UUID
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -139,8 +140,8 @@ class ClientUpdate(BaseModel):
 
 class ClientResponse(BaseModel):
     """Esquema de respuesta para un cliente"""
-    id: str = Field(..., description="ID único del cliente")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del cliente")
+    company_id: UUID = Field(..., description="ID de la empresa")
     tipo_identificacion: str = Field(..., description="Tipo de identificación SRI")
     identificacion: str = Field(..., description="Número de identificación")
     razon_social: str = Field(..., description="Razón social o nombre completo")

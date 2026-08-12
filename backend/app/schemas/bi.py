@@ -2,6 +2,7 @@
 ContaEC - Schemas de Business Intelligence (BI)
 Modelos de respuesta para dashboards de KPIs, métricas y alertas
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -168,13 +169,13 @@ class CuadroMandoResponse(BaseModel):
 
 class FactVentaRow(BaseModel):
     """Fila de la tabla de hechos de ventas para Power BI"""
-    comprobante_id: str
+    comprobante_id: UUID
     tipo_comprobante: str
     secuencial: str
     fecha_emision: str
     estado: str
-    cliente_id: str | None = None
-    product_id: str | None = None
+    cliente_id: UUID | None = None
+    product_id: UUID | None = None
     cantidad: Decimal | None = None
     precio_unitario: Decimal | None = None
     subtotal_sin_impuestos: Decimal
@@ -187,7 +188,7 @@ class FactVentaRow(BaseModel):
 
 class DimProducto(BaseModel):
     """Dimensión de producto para Power BI"""
-    product_id: str
+    product_id: UUID
     codigo_principal: str
     codigo_auxiliar: str | None = None
     descripcion: str
@@ -202,7 +203,7 @@ class DimProducto(BaseModel):
 
 class DimCliente(BaseModel):
     """Dimensión de cliente para Power BI"""
-    client_id: str
+    client_id: UUID
     tipo_identificacion: str
     identificacion: str
     razon_social: str
@@ -230,7 +231,7 @@ class DimTiempo(BaseModel):
 
 class FactInventarioRow(BaseModel):
     """Fila de la tabla de hechos de inventario para Power BI"""
-    product_id: str
+    product_id: UUID
     codigo_principal: str
     descripcion: str
     stock: Decimal

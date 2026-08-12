@@ -2,6 +2,7 @@
 ContaEC - Schemas de Proforma
 Pydantic models for request/response validation
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
@@ -40,8 +41,8 @@ class ProformaDetalleCreate(BaseModel):
 
 class ProformaDetalleResponse(BaseModel):
     """Schema de respuesta para un detalle de proforma"""
-    id: str
-    product_id: str | None = None
+    id: UUID
+    product_id: UUID | None = None
     codigo_principal: str
     codigo_auxiliar: str | None = None
     descripcion: str
@@ -87,9 +88,9 @@ class ProformaUpdate(BaseModel):
 
 class ProformaResponse(BaseModel):
     """Schema de respuesta completa de una proforma"""
-    id: str
-    company_id: str
-    client_id: str | None = None
+    id: UUID
+    company_id: UUID
+    client_id: UUID | None = None
     secuencial: str
     fecha_emision: datetime
     fecha_validez: datetime | None = None
@@ -116,7 +117,7 @@ class ProformaResponse(BaseModel):
     total_con_impuestos: Decimal
     forma_pago: str | None = None
     observaciones: str | None = None
-    comprobante_convertido_id: str | None = None
+    comprobante_convertido_id: UUID | None = None
     detalles: list[ProformaDetalleResponse] = []
     created_at: datetime
     updated_at: datetime
@@ -126,14 +127,14 @@ class ProformaResponse(BaseModel):
 
 class ProformaListResponse(BaseModel):
     """Schema de respuesta resumida para listado de proformas"""
-    id: str
+    id: UUID
     secuencial: str
     fecha_emision: datetime
     fecha_validez: datetime | None = None
     estado: str
     cliente_razon_social: str
     total_con_impuestos: Decimal
-    comprobante_convertido_id: str | None = None
+    comprobante_convertido_id: UUID | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)

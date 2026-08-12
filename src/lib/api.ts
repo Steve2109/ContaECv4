@@ -1057,6 +1057,20 @@ async function consultarComprobanteSRI(id: string): Promise<unknown> {
   return apiPost(`/v1/comprobantes/${id}/consultar`);
 }
 
+// Recuperar un comprobante enviado al SRI (válido dentro de 72h desde su emisión)
+async function recuperarComprobanteSRI(id: string): Promise<{
+  message: string;
+  comprobante_id: string;
+  estado: string;
+  secuencial: string;
+  clave_acceso: string | null;
+  sri_mensaje: string | null;
+  numero_autorizacion: string | null;
+  fecha_autorizacion: string | null;
+}> {
+  return apiPost(`/v1/comprobantes/${id}/recuperar`);
+}
+
 async function getComprobanteXML(id: string): Promise<{ comprobante_id: string; tipo_comprobante: string; secuencial: string; clave_acceso: string | null; estado: string; xml_content: string | null; is_signed: boolean; message?: string }> {
   return apiGet(`/v1/comprobantes/${id}/xml`);
 }
@@ -4779,6 +4793,7 @@ export {
   firmarComprobante,
   enviarComprobanteSRI,
   consultarComprobanteSRI,
+  recuperarComprobanteSRI,
   getComprobanteXML,
   deleteComprobante,
   getComprobanteStats,

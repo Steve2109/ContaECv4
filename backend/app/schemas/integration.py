@@ -2,6 +2,7 @@
 ContaEC - Schemas de Integraciones
 Schemas para integracion bancaria y conectores e-commerce
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -43,8 +44,8 @@ class CuentaBancariaUpdate(BaseModel):
 
 
 class CuentaBancariaResponse(BaseModel):
-    id: str
-    company_id: str
+    id: UUID
+    company_id: UUID
     nombre_banco: str
     codigo_banco: str | None
     tipo_cuenta: str
@@ -84,9 +85,9 @@ class ExtractoBancarioCreate(BaseModel):
 
 
 class ExtractoBancarioResponse(BaseModel):
-    id: str
-    company_id: str
-    cuenta_bancaria_id: str
+    id: UUID
+    company_id: UUID
+    cuenta_bancaria_id: UUID
     fecha_desde: datetime
     fecha_hasta: datetime
     saldo_inicial: Decimal
@@ -134,10 +135,10 @@ class MovimientoBancarioUpdate(BaseModel):
 
 
 class MovimientoBancarioResponse(BaseModel):
-    id: str
-    company_id: str
-    cuenta_bancaria_id: str
-    extracto_id: str
+    id: UUID
+    company_id: UUID
+    cuenta_bancaria_id: UUID
+    extracto_id: UUID
     fecha: datetime
     tipo: str
     monto: Decimal
@@ -148,7 +149,7 @@ class MovimientoBancarioResponse(BaseModel):
     documento: str | None
     conciliacion_estado: str
     conciliacion_fecha: datetime | None
-    comprobante_id: str | None
+    comprobante_id: UUID | None
     conciliacion_nota: str | None
     categoria: str | None
     created_at: datetime
@@ -199,9 +200,9 @@ class EcommerceConnectorUpdate(BaseModel):
 
 
 class EcommerceConnectorResponse(BaseModel):
-    id: str
-    company_id: str
-    user_id: str
+    id: UUID
+    company_id: UUID
+    user_id: UUID
     nombre: str
     plataforma: str
     url_tienda: str
@@ -244,9 +245,9 @@ class EcommerceSyncLogCreate(BaseModel):
 
 
 class EcommerceSyncLogResponse(BaseModel):
-    id: str
-    company_id: str
-    connector_id: str
+    id: UUID
+    company_id: UUID
+    connector_id: UUID
     tipo_sync: str
     estado: str
     fecha_inicio: datetime
@@ -257,7 +258,7 @@ class EcommerceSyncLogResponse(BaseModel):
     registros_errores: int
     detalle_errores: str | None
     resultado_resumen: str | None
-    creado_por: str | None
+    creado_por: UUID | None
     created_at: datetime
     # Joined
     connector_nombre: str | None = None

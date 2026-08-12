@@ -4,6 +4,8 @@ Plan de Cuentas, Asientos Contables, Cuentas por Cobrar, Pagos, Períodos Fiscal
 """
 from __future__ import annotations
 
+from uuid import UUID
+
 from datetime import datetime
 from decimal import Decimal
 
@@ -50,14 +52,14 @@ class CuentaContableUpdate(BaseModel):
 
 class CuentaContableResponse(BaseModel):
     """Schema de respuesta de cuenta contable"""
-    id: str
-    company_id: str
+    id: UUID
+    company_id: UUID
     codigo: str
     nombre: str
     tipo: str
     naturaleza: str
     nivel: int
-    cuenta_padre_id: str | None = None
+    cuenta_padre_id: UUID | None = None
     es_cuenta_movimiento: bool
     es_imputable: bool
     saldo_inicial: Decimal
@@ -67,7 +69,7 @@ class CuentaContableResponse(BaseModel):
     descripcion: str | None = None
     etiqueta: str | None = None
     notas: str | None = None
-    cuenta_contrapartida_id: str | None = None
+    cuenta_contrapartida_id: UUID | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -94,14 +96,14 @@ class AsientoDetalleCreate(BaseModel):
 
 class AsientoDetalleResponse(BaseModel):
     """Schema de respuesta de detalle de asiento"""
-    id: str
-    asiento_id: str
-    cuenta_contable_id: str
+    id: UUID
+    asiento_id: UUID
+    cuenta_contable_id: UUID
     debito: Decimal
     credito: Decimal
     descripcion: str | None = None
     referencia_tipo: str | None = None
-    referencia_id: str | None = None
+    referencia_id: UUID | None = None
     created_at: datetime
     # Cuenta contable info
     cuenta_codigo: str | None = None
@@ -132,10 +134,10 @@ class AsientoContableUpdate(BaseModel):
 
 class AsientoContableResponse(BaseModel):
     """Schema de respuesta de asiento contable"""
-    id: str
-    company_id: str
-    user_id: str
-    periodo_fiscal_id: str | None = None
+    id: UUID
+    company_id: UUID
+    user_id: UUID
+    periodo_fiscal_id: UUID | None = None
     numero: str
     fecha: datetime
     tipo: str
@@ -144,7 +146,7 @@ class AsientoContableResponse(BaseModel):
     total_creditos: Decimal
     concepto: str
     referencia_tipo: str | None = None
-    referencia_id: str | None = None
+    referencia_id: UUID | None = None
     referencia_secuencial: str | None = None
     observaciones: str | None = None
     is_active: bool
@@ -184,10 +186,10 @@ class CuentaPorCobrarUpdate(BaseModel):
 
 class CuentaPorCobrarResponse(BaseModel):
     """Schema de respuesta de cuenta por cobrar"""
-    id: str
-    company_id: str
-    client_id: str | None = None
-    comprobante_id: str | None = None
+    id: UUID
+    company_id: UUID
+    client_id: UUID | None = None
+    comprobante_id: UUID | None = None
     numero_factura: str | None = None
     fecha_emision: datetime
     fecha_vencimiento: datetime | None = None
@@ -237,23 +239,23 @@ class PagoUpdate(BaseModel):
 
 class PagoResponse(BaseModel):
     """Schema de respuesta de pago"""
-    id: str
-    company_id: str
-    user_id: str
+    id: UUID
+    company_id: UUID
+    user_id: UUID
     tipo: str
     numero: str
     fecha: datetime
     monto: Decimal
     forma_pago: str
     referencia: str | None = None
-    cuenta_bancaria_id: str | None = None
-    cuenta_por_cobrar_id: str | None = None
-    cuenta_por_pagar_id: str | None = None
+    cuenta_bancaria_id: UUID | None = None
+    cuenta_por_cobrar_id: UUID | None = None
+    cuenta_por_pagar_id: UUID | None = None
     tercero_nombre: str | None = None
     tercero_identificacion: str | None = None
     estado: str
     observaciones: str | None = None
-    asiento_id: str | None = None
+    asiento_id: UUID | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -284,8 +286,8 @@ class PeriodoFiscalUpdate(BaseModel):
 
 class PeriodoFiscalResponse(BaseModel):
     """Schema de respuesta de período fiscal"""
-    id: str
-    company_id: str
+    id: UUID
+    company_id: UUID
     nombre: str
     anio: int
     mes: int | None = None
@@ -294,7 +296,7 @@ class PeriodoFiscalResponse(BaseModel):
     fecha_fin: datetime
     estado: str
     fecha_cierre: datetime | None = None
-    cerrado_por: str | None = None
+    cerrado_por: UUID | None = None
     total_debitos: Decimal
     total_creditos: Decimal
     total_asientos: int

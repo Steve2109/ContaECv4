@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Nómina (Rol de Pago)
 Schemas para generación, aprobación, pago y respuesta de roles de pago
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -90,9 +91,9 @@ class DecimoCuartoRequest(BaseModel):
 
 class RolPagoDetalleResponse(BaseModel):
     """Esquema de respuesta para un detalle del rol de pago"""
-    id: str = Field(..., description="ID único del detalle")
-    rol_pago_id: str = Field(..., description="ID del rol de pago")
-    employee_id: str = Field(..., description="ID del empleado")
+    id: UUID = Field(..., description="ID único del detalle")
+    rol_pago_id: UUID = Field(..., description="ID del rol de pago")
+    employee_id: UUID = Field(..., description="ID del empleado")
 
     # Ingresos
     sueldo_base: Decimal = Field(..., description="Sueldo base")
@@ -141,9 +142,9 @@ class RolPagoDetalleResponse(BaseModel):
 
 class RolPagoResponse(BaseModel):
     """Esquema de respuesta para un rol de pago (cabecera)"""
-    id: str = Field(..., description="ID único del rol")
-    company_id: str = Field(..., description="ID de la empresa")
-    user_id: str = Field(..., description="ID del usuario creador")
+    id: UUID = Field(..., description="ID único del rol")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    user_id: UUID = Field(..., description="ID del usuario creador")
     periodo_mes: int = Field(..., description="Mes del período")
     periodo_anio: int = Field(..., description="Año del período")
     fecha_pago: datetime | None = Field(None, description="Fecha de pago")

@@ -21,6 +21,7 @@ from uuid import uuid4
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
 from app.core.security import get_password_hash
@@ -33,13 +34,78 @@ from app.models.comprobante import Comprobante, ComprobanteEstado
 from app.schemas.company import CompanyCreate
 from app.schemas.employee import EmployeeCreate
 from app.schemas.product import ProductCreate
-from app.schemas.comprobante import ComprobanteCreate, ComprobanteDetalle
+from app.schemas.comprobante import ComprobanteCreate, ComprobanteDetalleCreate
+
+
+# ==========================================
+# Firma electrónica de prueba (.p12)
+# ==========================================
+
+TEST_SIGNATURE_PASSWORD = "Test1234!"
+TEST_SIGNATURE_REL_PATH = "/uploads/companies/_test_firma.p12"
+
+
+def _generate_test_p12() -> Path:
+    """Genera un archivo .p12 de prueba para CompanyCreate (que ahora exige firma)."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    from cryptography.x509.oid import NameOID
+
+    backend_dir = Path(__file__).parent
+    upload_dir = backend_dir / "uploads" / "companies"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    p12_path = upload_dir / "_test_firma.p12"
+
+    if p12_path.exists():
+        return p12_path
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    now = datetime.now(timezone.utc)
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COMMON_NAME, u"ContaEC Test"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"ContaEC Test S.A."),
+    ])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=365))
+        .sign(key, hashes.SHA256())
+    )
+    p12_data = pkcs12.serialize_key_and_certificates(
+        b"ContaEC Test",
+        key,
+        cert,
+        None,
+        serialization.BestAvailableEncryption(TEST_SIGNATURE_PASSWORD.encode()),
+    )
+    p12_path.write_bytes(p12_data)
+    return p12_path
+
+
+def _remove_test_p12():
+    """Elimina el .p12 de prueba generado."""
+    p12_path = Path(__file__).parent / "uploads" / "companies" / "_test_firma.p12"
+    if p12_path.exists():
+        p12_path.unlink()
 
 
 # Configuración de base de datos de prueba
-DATABASE_URL = "sqlite+aiosqlite:////:memory:"  # Usa SQLite en memoria para pruebas rápidas
+# Usa SQLite en memoria con StaticPool para que todas las conexiones
+# compartan la misma base de datos en memoria (patrón estándar de SQLAlchemy).
+DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    poolclass=StaticPool,
+    connect_args={"check_same_thread": False},
+)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -116,11 +182,16 @@ async def test_trial_limits():
         # Intentar crear segunda empresa (debe fallar)
         from app.api.v1.endpoints.companies import create_company
 
+        # CompanyCreate ahora exige firma electrónica y contraseña
+        _generate_test_p12()
+
         company1 = CompanyCreate(
             ruc="1234567890001",
             razon_social="Empresa 1 S.A.",
             nombre_comercial="Empresa 1",
             dir_matriz="Calle Principal",
+            firma_electronica_path=TEST_SIGNATURE_REL_PATH,
+            firma_electronica_password=TEST_SIGNATURE_PASSWORD,
         )
 
         company2 = CompanyCreate(
@@ -128,6 +199,8 @@ async def test_trial_limits():
             razon_social="Empresa 2 S.A.",
             nombre_comercial="Empresa 2",
             dir_matriz="Calle Secundaria",
+            firma_electronica_path=TEST_SIGNATURE_REL_PATH,
+            firma_electronica_password=TEST_SIGNATURE_PASSWORD,
         )
 
         # Crear primera empresa (debe funcionar)
@@ -445,6 +518,9 @@ async def run_all_tests():
     print("PRUEBAS DE INTEGRACIÓN - MÓDULO DE LICENCIAS")
     print("=" * 60)
 
+    # Limpiar firma de prueba anterior si existe
+    _remove_test_p12()
+
     await setup_db()
 
     tests = [
@@ -494,4 +570,6 @@ async def run_all_tests():
 
 if __name__ == "__main__":
     success = asyncio.run(run_all_tests())
+    # Limpieza final de la firma de prueba
+    _remove_test_p12()
     sys.exit(0 if success else 1)

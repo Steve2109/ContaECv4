@@ -3,6 +3,7 @@ ContaEC - Esquemas Pydantic de RRHH (Fase 5)
 Schemas para cargas familiares, evaluaciones de desempeño,
 asistencia, liquidaciones laborales, utilidades e impuesto a la renta
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -55,8 +56,8 @@ class CargaFamiliarUpdate(BaseModel):
 
 class CargaFamiliarResponse(BaseModel):
     """Esquema de respuesta para carga familiar"""
-    id: str = Field(..., description="ID único")
-    employee_id: str = Field(..., description="ID del empleado")
+    id: UUID = Field(..., description="ID único")
+    employee_id: UUID = Field(..., description="ID del empleado")
     nombres: str = Field(..., description="Nombres")
     apellidos: str = Field(..., description="Apellidos")
     parentesco: str = Field(..., description="Parentesco")
@@ -123,9 +124,9 @@ class EvaluacionDesempenoUpdate(BaseModel):
 
 class EvaluacionDesempenoResponse(BaseModel):
     """Esquema de respuesta para evaluación de desempeño"""
-    id: str = Field(..., description="ID único")
-    employee_id: str = Field(..., description="ID del empleado")
-    evaluador_id: str | None = Field(None, description="ID del evaluador")
+    id: UUID = Field(..., description="ID único")
+    employee_id: UUID = Field(..., description="ID del empleado")
+    evaluador_id: UUID | None = Field(None, description="ID del evaluador")
     periodo: str = Field(..., description="Período")
     puntaje: int = Field(..., description="Puntaje (0-100)")
     objetivos: str | None = Field(None, description="Objetivos")
@@ -182,8 +183,8 @@ class AsistenciaUpdate(BaseModel):
 
 class AsistenciaResponse(BaseModel):
     """Esquema de respuesta para asistencia"""
-    id: str = Field(..., description="ID único")
-    employee_id: str = Field(..., description="ID del empleado")
+    id: UUID = Field(..., description="ID único")
+    employee_id: UUID = Field(..., description="ID del empleado")
     fecha: datetime = Field(..., description="Fecha")
     hora_entrada: datetime | None = Field(None, description="Hora de entrada")
     hora_salida: datetime | None = Field(None, description="Hora de salida")
@@ -253,9 +254,9 @@ class LiquidacionLaboralUpdate(BaseModel):
 
 class LiquidacionLaboralResponse(BaseModel):
     """Esquema de respuesta para liquidación laboral"""
-    id: str = Field(..., description="ID único")
-    employee_id: str = Field(..., description="ID del empleado")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único")
+    employee_id: UUID = Field(..., description="ID del empleado")
+    company_id: UUID = Field(..., description="ID de la empresa")
     tipo: str = Field(..., description="Tipo de liquidación")
     fecha_inicio: datetime = Field(..., description="Fecha inicio relación laboral")
     fecha_fin: datetime = Field(..., description="Fecha fin relación laboral")
@@ -276,7 +277,7 @@ class LiquidacionLaboralResponse(BaseModel):
     total_liquidacion: Decimal = Field(..., description="Total liquidación neta")
     estado: str = Field(..., description="Estado")
     observaciones: str | None = Field(None, description="Observaciones")
-    aprobado_por: str | None = Field(None, description="ID del aprobador")
+    aprobado_por: UUID | None = Field(None, description="ID del aprobador")
     fecha_aprobacion: datetime | None = Field(None, description="Fecha de aprobación")
     is_active: bool = Field(..., description="Activo en el sistema")
     created_at: datetime = Field(..., description="Fecha de creación")
@@ -305,8 +306,8 @@ class UtilidadesParticipacionCreate(BaseModel):
 
 class UtilidadesParticipacionResponse(BaseModel):
     """Esquema de respuesta para participación de utilidades"""
-    id: str = Field(..., description="ID único")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único")
+    company_id: UUID = Field(..., description="ID de la empresa")
     anio: int = Field(..., description="Año fiscal")
     total_utilidades: Decimal = Field(..., description="Total utilidades")
     porcentaje_trabajadores: Decimal = Field(..., description="Porcentaje para trabajadores")
@@ -321,9 +322,9 @@ class UtilidadesParticipacionResponse(BaseModel):
 
 class UtilidadesDetalleResponse(BaseModel):
     """Esquema de respuesta para detalle de utilidades por empleado"""
-    id: str = Field(..., description="ID único")
-    utilidad_id: str = Field(..., description="ID de la participación de utilidades")
-    employee_id: str = Field(..., description="ID del empleado")
+    id: UUID = Field(..., description="ID único")
+    utilidad_id: UUID = Field(..., description="ID de la participación de utilidades")
+    employee_id: UUID = Field(..., description="ID del empleado")
     dias_trabajados: int = Field(..., description="Días trabajados en el año")
     sueldo_acumulado: Decimal = Field(..., description="Sueldo acumulado en el año")
     porcentaje_participacion: Decimal = Field(..., description="Porcentaje de participación")

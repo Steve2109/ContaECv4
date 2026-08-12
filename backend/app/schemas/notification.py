@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Notificaciones del Sistema
 Schemas para creación, actualización y respuesta de notificaciones generales
 """
+from uuid import UUID
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -87,9 +88,9 @@ class NotificationUpdate(BaseModel):
 
 class NotificationResponse(BaseModel):
     """Esquema de respuesta para una notificación"""
-    id: str = Field(..., description="ID único de la notificación")
-    company_id: str | None = Field(None, description="ID de la empresa (null = global)")
-    user_id: str | None = Field(None, description="ID del usuario destinatario (null = todos)")
+    id: UUID = Field(..., description="ID único de la notificación")
+    company_id: UUID | None = Field(None, description="ID de la empresa (null = global)")
+    user_id: UUID | None = Field(None, description="ID del usuario destinatario (null = todos)")
     type: str = Field(..., description="Tipo de notificación")
     category: str = Field(..., description="Categoría de la notificación")
     title: str = Field(..., description="Título de la notificación")

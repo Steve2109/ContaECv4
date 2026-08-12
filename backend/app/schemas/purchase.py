@@ -3,6 +3,7 @@ ContaEC - Esquemas Pydantic de Compras
 Schemas para órdenes de compra, recepciones de mercadería,
 cuentas por pagar y retenciones de compra
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -66,9 +67,9 @@ class OrdenCompraDetalleCreate(BaseModel):
 
 class OrdenCompraDetalleResponse(BaseModel):
     """Esquema de respuesta para una línea de detalle de orden de compra"""
-    id: str = Field(..., description="ID único del detalle")
-    orden_compra_id: str = Field(..., description="ID de la orden de compra")
-    product_id: str | None = Field(None, description="ID del producto")
+    id: UUID = Field(..., description="ID único del detalle")
+    orden_compra_id: UUID = Field(..., description="ID de la orden de compra")
+    product_id: UUID | None = Field(None, description="ID del producto")
     codigo_principal: str = Field(..., description="Código principal")
     descripcion: str = Field(..., description="Descripción")
     cantidad: Decimal = Field(..., description="Cantidad solicitada")
@@ -132,10 +133,10 @@ class OrdenCompraUpdate(BaseModel):
 
 class OrdenCompraResponse(BaseModel):
     """Esquema de respuesta para una orden de compra"""
-    id: str = Field(..., description="ID único de la orden de compra")
-    company_id: str = Field(..., description="ID de la empresa")
-    supplier_id: str = Field(..., description="ID del proveedor")
-    user_id: str = Field(..., description="ID del usuario creador")
+    id: UUID = Field(..., description="ID único de la orden de compra")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    supplier_id: UUID = Field(..., description="ID del proveedor")
+    user_id: UUID = Field(..., description="ID del usuario creador")
     numero: str = Field(..., description="Número de orden de compra")
     fecha_emision: datetime = Field(..., description="Fecha de emisión")
     fecha_entrega_estimada: datetime | None = Field(None, description="Fecha estimada de entrega")
@@ -197,10 +198,10 @@ class RecepcionMercaderiaDetalleCreate(BaseModel):
 
 class RecepcionMercaderiaDetalleResponse(BaseModel):
     """Esquema de respuesta para una línea de detalle de recepción"""
-    id: str = Field(..., description="ID único del detalle")
-    recepcion_id: str = Field(..., description="ID de la recepción")
-    product_id: str | None = Field(None, description="ID del producto")
-    orden_compra_detalle_id: str | None = Field(None, description="ID del detalle de OC")
+    id: UUID = Field(..., description="ID único del detalle")
+    recepcion_id: UUID = Field(..., description="ID de la recepción")
+    product_id: UUID | None = Field(None, description="ID del producto")
+    orden_compra_detalle_id: UUID | None = Field(None, description="ID del detalle de OC")
     codigo_principal: str = Field(..., description="Código principal")
     descripcion: str = Field(..., description="Descripción")
     cantidad_recibida: Decimal = Field(..., description="Cantidad recibida")
@@ -257,11 +258,11 @@ class RecepcionMercaderiaUpdate(BaseModel):
 
 class RecepcionMercaderiaResponse(BaseModel):
     """Esquema de respuesta para una recepción de mercadería"""
-    id: str = Field(..., description="ID único de la recepción")
-    company_id: str = Field(..., description="ID de la empresa")
-    orden_compra_id: str | None = Field(None, description="ID de la orden de compra")
-    supplier_id: str = Field(..., description="ID del proveedor")
-    user_id: str = Field(..., description="ID del usuario")
+    id: UUID = Field(..., description="ID único de la recepción")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    orden_compra_id: UUID | None = Field(None, description="ID de la orden de compra")
+    supplier_id: UUID = Field(..., description="ID del proveedor")
+    user_id: UUID = Field(..., description="ID del usuario")
     numero: str = Field(..., description="Número de recepción")
     fecha_recepcion: datetime = Field(..., description="Fecha de recepción")
     estado: str = Field(..., description="Estado")
@@ -349,12 +350,12 @@ class CuentaPorPagarUpdate(BaseModel):
 
 class CuentaPorPagarResponse(BaseModel):
     """Esquema de respuesta para una cuenta por pagar"""
-    id: str = Field(..., description="ID único de la cuenta por pagar")
-    company_id: str = Field(..., description="ID de la empresa")
-    supplier_id: str = Field(..., description="ID del proveedor")
-    user_id: str = Field(..., description="ID del usuario")
-    comprobante_id: str | None = Field(None, description="ID del comprobante")
-    orden_compra_id: str | None = Field(None, description="ID de la orden de compra")
+    id: UUID = Field(..., description="ID único de la cuenta por pagar")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    supplier_id: UUID = Field(..., description="ID del proveedor")
+    user_id: UUID = Field(..., description="ID del usuario")
+    comprobante_id: UUID | None = Field(None, description="ID del comprobante")
+    orden_compra_id: UUID | None = Field(None, description="ID de la orden de compra")
     numero_factura: str | None = Field(None, description="Número de factura")
     fecha_emision: datetime = Field(..., description="Fecha de emisión")
     fecha_vencimiento: datetime | None = Field(None, description="Fecha de vencimiento")
@@ -503,12 +504,12 @@ class RetencionCompraUpdate(BaseModel):
 
 class RetencionCompraResponse(BaseModel):
     """Esquema de respuesta para una retención de compra"""
-    id: str = Field(..., description="ID único de la retención")
-    company_id: str = Field(..., description="ID de la empresa")
-    supplier_id: str = Field(..., description="ID del proveedor")
-    user_id: str = Field(..., description="ID del usuario")
-    comprobante_id: str | None = Field(None, description="ID del comprobante de retención")
-    cuenta_por_pagar_id: str | None = Field(None, description="ID de la cuenta por pagar")
+    id: UUID = Field(..., description="ID único de la retención")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    supplier_id: UUID = Field(..., description="ID del proveedor")
+    user_id: UUID = Field(..., description="ID del usuario")
+    comprobante_id: UUID | None = Field(None, description="ID del comprobante de retención")
+    cuenta_por_pagar_id: UUID | None = Field(None, description="ID de la cuenta por pagar")
     numero_retencion: str | None = Field(None, description="Número de retención")
     fecha_emision: datetime = Field(..., description="Fecha de emisión")
     base_imponible_iva: Decimal = Field(..., description="Base imponible IVA")

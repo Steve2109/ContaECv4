@@ -2,6 +2,7 @@
 ContaEC - Esquemas de Empresa y Establecimiento
 Pydantic schemas para creación, actualización y respuesta de empresas
 """
+from uuid import UUID
 import re
 from datetime import datetime
 
@@ -112,9 +113,16 @@ class CompanyCreate(BaseModel):
         max_length=20,
         description="Telefono de la empresa",
     )
-    # Firma electronica
-    firma_electronica_password: str | None = Field(
-        None,
+    # Firma electronica (OBLIGATORIA para crear la empresa)
+    firma_electronica_path: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Ruta del archivo de firma electronica (.p12/.pfx) subido",
+    )
+    firma_electronica_password: str = Field(
+        ...,
+        min_length=1,
         max_length=500,
         description="Contraseña de la firma electronica (.p12/.pfx)",
     )
@@ -345,8 +353,8 @@ class CompanyUpdate(BaseModel):
 
 class CompanyResponse(BaseModel):
     """Esquema de respuesta con datos de la empresa"""
-    id: str = Field(..., description="ID único de la empresa")
-    user_id: str = Field(..., description="ID del usuario propietario")
+    id: UUID = Field(..., description="ID único de la empresa")
+    user_id: UUID = Field(..., description="ID del usuario propietario")
     ruc: str = Field(..., description="RUC de la empresa")
     razon_social: str = Field(..., description="Razón social")
     nombre_comercial: str | None = Field(None, description="Nombre comercial")
@@ -434,8 +442,8 @@ class EstablishmentCreate(BaseModel):
 
 class EstablishmentResponse(BaseModel):
     """Esquema de respuesta con datos del establecimiento"""
-    id: str = Field(..., description="ID único del establecimiento")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del establecimiento")
+    company_id: UUID = Field(..., description="ID de la empresa")
     codigo: str = Field(..., description="Código del establecimiento")
     direccion: str = Field(..., description="Dirección del establecimiento")
     is_active: bool = Field(..., description="Estado activo")

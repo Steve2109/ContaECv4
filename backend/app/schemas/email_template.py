@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Plantilla de Correo Electrónico
 Schemas para creación, actualización, respuesta y envío de plantillas
 """
+from uuid import UUID
 import re
 from datetime import datetime
 
@@ -108,8 +109,8 @@ class EmailTemplateUpdate(BaseModel):
 
 class EmailTemplateResponse(BaseModel):
     """Esquema de respuesta para una plantilla de correo"""
-    id: str = Field(..., description="ID único de la plantilla")
-    user_id: str = Field(..., description="ID del usuario propietario")
+    id: UUID = Field(..., description="ID único de la plantilla")
+    user_id: UUID = Field(..., description="ID del usuario propietario")
     nombre: str = Field(..., description="Nombre de la plantilla")
     tipo: str = Field(..., description="Tipo de plantilla")
     asunto: str = Field(..., description="Asunto del correo")

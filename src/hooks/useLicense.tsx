@@ -168,8 +168,10 @@ export function useLicense(): UseLicenseReturn {
       return true;
     }
 
-    // Durante el período de prueba hay acceso completo a todas las funcionalidades
-    if (license?.is_trial) return true;
+    // Durante el período de prueba ACTIVO hay acceso completo a todas las funcionalidades.
+    // Se usa trial_active (basado en fechas), no is_trial (flag permanente): cuando la
+    // prueba expira, el acceso premium se restringe automáticamente según el plan.
+    if (license?.trial_active) return true;
 
     // Verificar según el tipo de licencia
     const tier = license?.license_type;
@@ -191,7 +193,7 @@ export function useLicense(): UseLicenseReturn {
 
     // Plan Mensual - solo básicos
     return false;
-  }, [license?.license_type, license?.is_trial]);
+  }, [license?.license_type, license?.trial_active]);
 
   const isAtLimit = useCallback((_limitType: string, _companyId?: string): boolean => {
     // Para trial, usar límites del plan mensual como referencia

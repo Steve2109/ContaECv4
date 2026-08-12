@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Empleado
 Schemas para creación, actualización, cese y respuesta de empleados
 """
+from uuid import UUID
 import re
 from datetime import datetime
 from decimal import Decimal
@@ -266,9 +267,9 @@ class EmployeeCese(BaseModel):
 
 class EmployeeResponse(BaseModel):
     """Esquema de respuesta para un empleado"""
-    id: str = Field(..., description="ID único del empleado")
-    company_id: str = Field(..., description="ID de la empresa")
-    user_id: str = Field(..., description="ID del usuario que creó el registro")
+    id: UUID = Field(..., description="ID único del empleado")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    user_id: UUID = Field(..., description="ID del usuario que creó el registro")
     # Personal
     cedula: str = Field(..., description="Número de cédula")
     apellidos: str = Field(..., description="Apellidos")

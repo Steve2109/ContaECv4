@@ -2,11 +2,39 @@
 ContaEC - Esquemas de autenticación
 Pydantic schemas para login, registro, tokens y actualización de usuario
 """
-import re
 from uuid import UUID
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+# ==========================================
+# Validación de contraseña segura
+# ==========================================
+
+def validate_strong_password(value: str) -> str:
+    """
+    Valida que la contraseña cumpla con la normativa de seguridad.
+
+    Requisitos:
+    - Mínimo 8 caracteres
+    - Al menos una letra mayúscula
+    - Al menos una letra minúscula
+    - Al menos un número
+    - Al menos un símbolo especial
+    """
+    if len(value) < 8:
+        raise ValueError("La contraseña debe tener al menos 8 caracteres")
+    if not re.search(r"[A-Z]", value):
+        raise ValueError("La contraseña debe contener al menos una letra mayúscula")
+    if not re.search(r"[a-z]", value):
+        raise ValueError("La contraseña debe contener al menos una letra minúscula")
+    if not re.search(r"\d", value):
+        raise ValueError("La contraseña debe contener al menos un número")
+    if not re.search(r"[^A-Za-z0-9\s]", value):
+        raise ValueError("La contraseña debe contener al menos un símbolo especial (ej: @, #, $, %)")
+    return value
 
 
 # ==========================================
@@ -69,15 +97,7 @@ class UserRegister(BaseModel):
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         """Valida que la contraseña cumpla con los requisitos de seguridad"""
-        if len(v) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra mayúscula")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra minúscula")
-        if not re.search(r"\d", v):
-            raise ValueError("La contraseña debe contener al menos un número")
-        return v
+        return validate_strong_password(v)
 
     @field_validator("confirm_password")
     @classmethod
@@ -235,15 +255,7 @@ class PasswordChange(BaseModel):
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         """Valida que la nueva contraseña cumpla con los requisitos de seguridad"""
-        if len(v) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra mayúscula")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra minúscula")
-        if not re.search(r"\d", v):
-            raise ValueError("La contraseña debe contener al menos un número")
-        return v
+        return validate_strong_password(v)
 
     @field_validator("confirm_new_password")
     @classmethod

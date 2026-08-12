@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Punto de Venta (POS)
 Schemas para sesiones de caja, tickets, detalles y arqueos
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -52,11 +53,11 @@ class POSCashSessionClose(BaseModel):
 
 class POSCashSessionResponse(BaseModel):
     """Esquema de respuesta para una sesión de caja"""
-    id: str = Field(..., description="ID único de la sesión")
-    company_id: str = Field(..., description="ID de la empresa")
-    warehouse_id: str | None = Field(None, description="ID del almacén")
+    id: UUID = Field(..., description="ID único de la sesión")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    warehouse_id: UUID | None = Field(None, description="ID del almacén")
     numero_caja: str = Field(..., description="Número de caja")
-    user_id: str = Field(..., description="ID del cajero")
+    user_id: UUID = Field(..., description="ID del cajero")
     estado: str = Field(..., description="Estado: abierta, cerrada")
     fecha_apertura: datetime = Field(..., description="Fecha de apertura")
     fecha_cierre: datetime | None = Field(None, description="Fecha de cierre")
@@ -81,7 +82,7 @@ class POSCashSessionResponse(BaseModel):
 
 class POSCashSessionResumen(BaseModel):
     """Esquema de resumen de sesión de caja para arqueo"""
-    id: str = Field(..., description="ID único de la sesión")
+    id: UUID = Field(..., description="ID único de la sesión")
     numero_caja: str = Field(..., description="Número de caja")
     estado: str = Field(..., description="Estado de la sesión")
     fecha_apertura: datetime = Field(..., description="Fecha de apertura")
@@ -160,9 +161,9 @@ class POSTicketDetalleCreate(BaseModel):
 
 class POSTicketDetalleResponse(BaseModel):
     """Esquema de respuesta para una línea de detalle de ticket"""
-    id: str = Field(..., description="ID único del detalle")
-    ticket_id: str = Field(..., description="ID del ticket")
-    product_id: str | None = Field(None, description="ID del producto")
+    id: UUID = Field(..., description="ID único del detalle")
+    ticket_id: UUID = Field(..., description="ID del ticket")
+    product_id: UUID | None = Field(None, description="ID del producto")
     codigo_principal: str = Field(..., description="Código principal")
     descripcion: str = Field(..., description="Descripción")
     cantidad: Decimal = Field(..., description="Cantidad")
@@ -260,10 +261,10 @@ class POSTicketCreate(BaseModel):
 
 class POSTicketResponse(BaseModel):
     """Esquema de respuesta para un ticket POS"""
-    id: str = Field(..., description="ID único del ticket")
-    company_id: str = Field(..., description="ID de la empresa")
-    cash_session_id: str = Field(..., description="ID de la sesión de caja")
-    comprobante_id: str | None = Field(None, description="ID del comprobante electrónico")
+    id: UUID = Field(..., description="ID único del ticket")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    cash_session_id: UUID = Field(..., description="ID de la sesión de caja")
+    comprobante_id: UUID | None = Field(None, description="ID del comprobante electrónico")
     numero_ticket: str = Field(..., description="Número de ticket")
     estado: str = Field(..., description="Estado: pendiente, pagado, anulado, devuelto")
     tipo_venta: str = Field(..., description="Tipo de venta")
@@ -283,7 +284,7 @@ class POSTicketResponse(BaseModel):
     numero_tarjeta: str | None = Field(None, description="Últimos 4 dígitos tarjeta")
     referencia_pago: str | None = Field(None, description="Referencia de pago")
     observaciones: str | None = Field(None, description="Observaciones")
-    user_id: str = Field(..., description="ID del cajero")
+    user_id: UUID = Field(..., description="ID del cajero")
     detalles: list[POSTicketDetalleResponse] = Field(
         default_factory=list,
         description="Líneas de detalle",
@@ -344,9 +345,9 @@ class POSArqueoCreate(BaseModel):
 
 class POSArqueoResponse(BaseModel):
     """Esquema de respuesta para un arqueo de caja"""
-    id: str = Field(..., description="ID único del arqueo")
-    cash_session_id: str = Field(..., description="ID de la sesión de caja")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del arqueo")
+    cash_session_id: UUID = Field(..., description="ID de la sesión de caja")
+    company_id: UUID = Field(..., description="ID de la empresa")
     tipo: str = Field(..., description="Tipo de arqueo: parcial, final")
     billetes: str | None = Field(None, description="JSON conteo de billetes")
     monedas: str | None = Field(None, description="JSON conteo de monedas")
@@ -356,7 +357,7 @@ class POSArqueoResponse(BaseModel):
     total_efectivo_calculado: Decimal = Field(..., description="Total efectivo calculado")
     diferencia: Decimal = Field(..., description="Diferencia (sobrante+/faltante-)")
     observaciones: str | None = Field(None, description="Observaciones")
-    user_id: str = Field(..., description="ID del usuario")
+    user_id: UUID = Field(..., description="ID del usuario")
     created_at: datetime = Field(..., description="Fecha de creación")
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
@@ -383,7 +384,7 @@ class POSArqueoCerrarRequest(BaseModel):
 
 class POSArqueoCerrarResponse(BaseModel):
     """Esquema de respuesta tras cerrar un arqueo"""
-    id: str = Field(..., description="ID único del arqueo")
+    id: UUID = Field(..., description="ID único del arqueo")
     tipo: str = Field(..., description="Tipo de arqueo")
     total_efectivo_sistema: Decimal = Field(..., description="Efectivo esperado por el sistema")
     total_efectivo_real: Decimal = Field(..., description="Efectivo real contado")
@@ -401,7 +402,7 @@ class POSArqueoCerrarResponse(BaseModel):
 
 class POSArqueoResumenItem(BaseModel):
     """Esquema de un item en el resumen de arqueos"""
-    id: str = Field(..., description="ID del arqueo")
+    id: UUID = Field(..., description="ID del arqueo")
     numero_caja: str = Field(..., description="Número de caja")
     tipo: str = Field(..., description="Tipo: parcial, final")
     fecha_apertura: datetime = Field(..., description="Fecha apertura sesión")
@@ -428,7 +429,7 @@ class POSArqueoResumenResponse(BaseModel):
 
 class POSArqueoReporteResponse(BaseModel):
     """Esquema de respuesta para reporte de arqueo"""
-    id: str = Field(..., description="ID del arqueo")
+    id: UUID = Field(..., description="ID del arqueo")
     tipo: str = Field(..., description="Tipo de arqueo")
     numero_caja: str = Field(..., description="Número de caja")
     fecha_apertura: datetime = Field(..., description="Fecha apertura")
@@ -458,7 +459,7 @@ class POSArqueoReporteResponse(BaseModel):
 
 class POSProductSearchResponse(BaseModel):
     """Esquema de respuesta para búsqueda de producto por código de barras"""
-    id: str = Field(..., description="ID del producto")
+    id: UUID = Field(..., description="ID del producto")
     codigo_principal: str = Field(..., description="Código principal")
     codigo_barras: str | None = Field(None, description="Código de barras")
     descripcion: str = Field(..., description="Descripción del producto")

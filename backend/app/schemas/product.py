@@ -3,6 +3,7 @@ ContaEC - Esquemas Pydantic de Producto/Servicio
 Schemas para creación, actualización y respuesta de productos
 con impuestos según catálogos del SRI (Tabla 16 IVA, Tabla 18 ICE)
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -271,8 +272,8 @@ class ProductUpdate(BaseModel):
 
 class ProductResponse(BaseModel):
     """Esquema de respuesta para un producto o servicio"""
-    id: str = Field(..., description="ID único del producto")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del producto")
+    company_id: UUID = Field(..., description="ID de la empresa")
     codigo_principal: str = Field(..., description="Código principal (SKU)")
     codigo_auxiliar: str | None = Field(None, description="Código auxiliar")
     descripcion: str = Field(..., description="Descripción")

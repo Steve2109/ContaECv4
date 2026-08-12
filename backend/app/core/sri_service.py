@@ -586,6 +586,38 @@ async def enviar_comprobante(
         raise
 
 
+async def recuperar_comprobante(
+    xml_firmado: str,
+    ambiente: str = "1",
+) -> SRIRecepcionResponse:
+    """
+    Recupera un comprobante electrónico previamente enviado al SRI.
+
+    Recuperación de comprobantes no autorizados: permite reenviar el XML
+    firmado de un comprobante que ya fue enviado pero del cual no se obtuvo
+    respuesta de autorización (por ejemplo, por fallas de conexión), siempre
+    que no hayan transcurrido más de 72 horas desde su emisión.
+
+    El servicio de Recepción del SRI expone una única operación
+    (validarComprobante), por lo que la recuperación se realiza reenviando
+    el mismo XML firmado: el SRI responde de forma idempotente (RECIBIDA si
+    el comprobante ya lo tenía registrado, o DEVUELTA con los errores de
+    validación si no fue recibido).
+
+    Args:
+        xml_firmado: Contenido XML firmado del comprobante
+        ambiente: "1" para Pruebas, "2" para Producción
+
+    Returns:
+        SRIRecepcionResponse con el resultado de la recuperación
+
+    Raises:
+        ValueError: Si los parámetros son inválidos
+        SRIServiceError: Si hay error de comunicación con el SRI
+    """
+    return await enviar_comprobante(xml_firmado, ambiente)
+
+
 async def autorizar_comprobante(
     clave_acceso: str,
     ambiente: str = "1",

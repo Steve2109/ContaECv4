@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Multi-Almacén y Logística
 Schemas para almacenes, ubicaciones, transferencias y stock
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -100,8 +101,8 @@ class WarehouseUpdate(BaseModel):
 
 class WarehouseResponse(BaseModel):
     """Esquema de respuesta para un almacén"""
-    id: str = Field(..., description="ID único del almacén")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del almacén")
+    company_id: UUID = Field(..., description="ID de la empresa")
     nombre: str = Field(..., description="Nombre del almacén")
     codigo: str = Field(..., description="Código del almacén")
     direccion: str | None = Field(None, description="Dirección")
@@ -224,9 +225,9 @@ class WarehouseLocationUpdate(BaseModel):
 
 class WarehouseLocationResponse(BaseModel):
     """Esquema de respuesta para una ubicación de almacén"""
-    id: str = Field(..., description="ID único de la ubicación")
-    warehouse_id: str = Field(..., description="ID del almacén")
-    producto_id: str | None = Field(None, description="ID del producto")
+    id: UUID = Field(..., description="ID único de la ubicación")
+    warehouse_id: UUID = Field(..., description="ID del almacén")
+    producto_id: UUID | None = Field(None, description="ID del producto")
     zona: str = Field(..., description="Zona")
     pasillo: str | None = Field(None, description="Pasillo o corredor")
     rack: str | None = Field(None, description="Rack o estante")
@@ -253,7 +254,7 @@ class WarehouseLocationStockResponse(BaseModel):
 
 class WarehouseLocationMapResponse(BaseModel):
     """Esquema de respuesta para el mapa visual de un almacén"""
-    warehouse_id: str = Field(..., description="ID del almacén")
+    warehouse_id: UUID = Field(..., description="ID del almacén")
     warehouse_nombre: str = Field(..., description="Nombre del almacén")
     zonas: dict[str, list[WarehouseLocationResponse]] = Field(
         ...,
@@ -297,14 +298,14 @@ class WarehouseTransferDetalleCreate(BaseModel):
 
 class WarehouseTransferDetalleResponse(BaseModel):
     """Esquema de respuesta para una línea de detalle de transferencia"""
-    id: str = Field(..., description="ID único del detalle")
-    transferencia_id: str = Field(..., description="ID de la transferencia")
-    product_id: str = Field(..., description="ID del producto")
+    id: UUID = Field(..., description="ID único del detalle")
+    transferencia_id: UUID = Field(..., description="ID de la transferencia")
+    product_id: UUID = Field(..., description="ID del producto")
     cantidad: Decimal = Field(..., description="Cantidad transferida")
     costo_unitario: Decimal = Field(..., description="Costo unitario")
     costo_total: Decimal = Field(..., description="Costo total")
-    ubicacion_origen_id: str | None = Field(None, description="ID ubicación origen")
-    ubicacion_destino_id: str | None = Field(None, description="ID ubicación destino")
+    ubicacion_origen_id: UUID | None = Field(None, description="ID ubicación origen")
+    ubicacion_destino_id: UUID | None = Field(None, description="ID ubicación destino")
     created_at: datetime = Field(..., description="Fecha de creación")
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
@@ -351,15 +352,15 @@ class WarehouseTransferCreate(BaseModel):
 
 class WarehouseTransferResponse(BaseModel):
     """Esquema de respuesta para una transferencia entre almacenes"""
-    id: str = Field(..., description="ID único de la transferencia")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único de la transferencia")
+    company_id: UUID = Field(..., description="ID de la empresa")
     numero: str = Field(..., description="Número de transferencia")
-    warehouse_origen_id: str = Field(..., description="ID almacén origen")
-    warehouse_destino_id: str = Field(..., description="ID almacén destino")
+    warehouse_origen_id: UUID = Field(..., description="ID almacén origen")
+    warehouse_destino_id: UUID = Field(..., description="ID almacén destino")
     estado: str = Field(..., description="Estado: pendiente, en_transito, recibida, anulada")
     motivo: str | None = Field(None, description="Motivo")
     observaciones: str | None = Field(None, description="Observaciones")
-    user_id: str = Field(..., description="ID del usuario creador")
+    user_id: UUID = Field(..., description="ID del usuario creador")
     fecha_envio: datetime | None = Field(None, description="Fecha de envío")
     fecha_recepcion: datetime | None = Field(None, description="Fecha de recepción")
     detalles: list[WarehouseTransferDetalleResponse] = Field(
@@ -378,7 +379,7 @@ class WarehouseTransferResponse(BaseModel):
 
 class WarehouseStockResponse(BaseModel):
     """Esquema de respuesta para el stock de un producto en un almacén"""
-    product_id: str = Field(..., description="ID del producto")
+    product_id: UUID = Field(..., description="ID del producto")
     producto_codigo: str = Field(..., description="Código principal del producto")
     producto_descripcion: str = Field(..., description="Descripción del producto")
     saldo_cantidad: Decimal = Field(default=Decimal("0"), description="Cantidad en stock")
@@ -394,10 +395,10 @@ class WarehouseStockResponse(BaseModel):
 
 class KardexDetalladoResponse(BaseModel):
     """Esquema de respuesta para un movimiento de kardex con información de almacén"""
-    id: str = Field(..., description="ID único del movimiento")
-    company_id: str = Field(..., description="ID de la empresa")
-    product_id: str = Field(..., description="ID del producto")
-    warehouse_id: str | None = Field(None, description="ID del almacén")
+    id: UUID = Field(..., description="ID único del movimiento")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    product_id: UUID = Field(..., description="ID del producto")
+    warehouse_id: UUID | None = Field(None, description="ID del almacén")
     warehouse_nombre: str | None = Field(None, description="Nombre del almacén")
     tipo_movimiento: str = Field(..., description="Tipo de movimiento")
     cantidad: Decimal = Field(..., description="Cantidad del movimiento")
@@ -406,11 +407,11 @@ class KardexDetalladoResponse(BaseModel):
     saldo_cantidad: Decimal = Field(..., description="Saldo de cantidad acumulado")
     saldo_valor: Decimal = Field(..., description="Saldo de valor acumulado")
     referencia_tipo: str | None = Field(None, description="Tipo de referencia")
-    referencia_id: str | None = Field(None, description="ID de referencia")
+    referencia_id: UUID | None = Field(None, description="ID de referencia")
     referencia_secuencial: str | None = Field(None, description="Secuencial de referencia")
     detalle: str | None = Field(None, description="Detalle del movimiento")
     fecha_movimiento: datetime = Field(..., description="Fecha del movimiento")
-    user_id: str = Field(..., description="ID del usuario")
+    user_id: UUID = Field(..., description="ID del usuario")
     is_active: bool = Field(..., description="¿Está activo?")
     created_at: datetime = Field(..., description="Fecha de creación")
 

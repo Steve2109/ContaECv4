@@ -105,6 +105,7 @@ import {
   getCompanies,
   createCompany,
   uploadCompanyFile,
+  validateSignature,
   updateCompany,
   deleteCompany,
   lookupRuc,
@@ -133,7 +134,9 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   const { theme, setTheme } = useTheme();
   const { license, checkLimit, showUpgradePrompt, hasFeature } = useLicense();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeNav, setActiveNav] = useState<NavItem>('dashboard');
+  // Los administradores deben aterrizar en el resumen del panel admin (no en 'dashboard',
+  // que no existe en su navegación y provocaba una ventana en blanco al iniciar sesión).
+  const [activeNav, setActiveNav] = useState<NavItem>(user.is_admin ? 'admin-overview' : 'dashboard');
   const [licenseData, setLicense] = useState<LicenseStatusType | null>(null);
   const [companies, setCompanies] = useState<CompanyType[]>([]);
   const selectedCompanyId = companies.length > 0 ? companies[0].id : undefined;
@@ -242,15 +245,42 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
         }
       }
 
-      // Upload firma electronica if selected
+      // La firma electrónica y su contraseña son OBLIGATORIAS para crear la empresa
       const firmaFile = firmaInputRef.current?.files?.[0];
-      if (firmaFile) {
-        try {
-          const firmaResult = await uploadCompanyFile('firma', firmaFile);
-          firmaPath = firmaResult.file_path;
-        } catch {
-          toast.warning(t('company.upload_signature_error'));
+      if (!firmaFile) {
+        toast.error(t('company.signature_required'));
+        setCreatingCompany(false);
+        return;
+      }
+      if (!newCompany.firma_electronica_password) {
+        toast.error(t('company.signature_pass_required'));
+        setCreatingCompany(false);
+        return;
+      }
+
+      // Validar que la contraseña corresponde a la firma electrónica (.p12)
+      try {
+        const firmaValidation = await validateSignature(firmaFile, newCompany.firma_electronica_password);
+        if (!firmaValidation.is_valid) {
+          const warning = firmaValidation.warnings?.[0];
+          toast.error(warning || t('company.signature_invalid'));
+          setCreatingCompany(false);
+          return;
         }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t('company.signature_invalid'));
+        setCreatingCompany(false);
+        return;
+      }
+
+      // Subir la firma electrónica
+      try {
+        const firmaResult = await uploadCompanyFile('firma', firmaFile);
+        firmaPath = firmaResult.file_path;
+      } catch {
+        toast.error(t('company.upload_signature_error'));
+        setCreatingCompany(false);
+        return;
       }
 
       // Build company data with file paths
@@ -338,33 +368,39 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
 
   // Filtrar items según el plan del usuario
   const currentTier = license?.license_type;
-  const filteredNavItems: { id: NavItem; label: string; icon: React.ReactNode; locked?: boolean; requiredTier?: string }[] = userNavItems.filter(item => {
-    if (!item.locked) return true;
-    if (!item.requiredTier) return true;
+  // Durante el período de prueba ACTIVO hay acceso completo a todas las funcionalidades.
+  // Se usa trial_active (basado en fechas) y no is_trial (flag permanente) para que el
+  // acceso premium se restrinja automáticamente cuando la prueba expire.
+  const isTrialActive = !!(license?.trial_active || licenseData?.trial_active);
+  const filteredNavItems: { id: NavItem; label: string; icon: React.ReactNode; locked?: boolean; requiredTier?: string }[] = userNavItems
+    .filter(item => {
+      if (!item.locked) return true;
+      if (!item.requiredTier) return true;
 
-    // Durante el período de prueba hay acceso completo a todas las funcionalidades
-    if (license?.is_trial) return true;
+      if (isTrialActive) return true;
 
-    // Plan Anual - todo disponible
-    if (currentTier === 'annual') return true;
+      // Plan Anual - todo disponible
+      if (currentTier === 'annual') return true;
 
-    // Plan Semestral - semiannual y menores
-    if (currentTier === 'semiannual') {
-      return ['semiannual', 'quarterly'].includes(item.requiredTier);
-    }
+      // Plan Semestral - semiannual y menores
+      if (currentTier === 'semiannual') {
+        return ['semiannual', 'quarterly'].includes(item.requiredTier);
+      }
 
-    // Plan Trimestral - solo quarterly
-    if (currentTier === 'quarterly') {
-      return item.requiredTier === 'quarterly';
-    }
+      // Plan Trimestral - solo quarterly
+      if (currentTier === 'quarterly') {
+        return item.requiredTier === 'quarterly';
+      }
 
-    // Plan Mensual - nada de features premium
-    if (currentTier === 'monthly') {
-      return false;
-    }
+      // Plan Mensual - nada de features premium
+      if (currentTier === 'monthly') {
+        return false;
+      }
 
-    return true;
-  });
+      return true;
+    })
+    // En prueba activa los items premium se muestran sin candado ni bloqueo
+    .map(item => (isTrialActive && item.locked ? { ...item, locked: false } : item));
 
   const adminNavItems: { id: NavItem; label: string; icon: React.ReactNode; locked?: boolean; requiredTier?: string }[] = [
     { id: 'admin-overview', label: t('admin.overview'), icon: <Activity className="h-4 w-4" /> },
@@ -877,13 +913,14 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                     <Input id="nc-logo" type="file" accept="image/*" ref={logoInputRef} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nc-firma-archivo">{t('company.signature_file')}</Label>
-                    <Input id="nc-firma-archivo" type="file" accept=".p12,.pfx" ref={firmaInputRef} />
+                    <Label htmlFor="nc-firma-archivo">{t('company.signature_file')} <span className="text-destructive">*</span></Label>
+                    <Input id="nc-firma-archivo" type="file" accept=".p12,.pfx" ref={firmaInputRef} required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nc-firma-pass">{t('company.signature_pass')}</Label>
-                  <Input id="nc-firma-pass" type="password" placeholder={t('company.signature_pass_placeholder')} value={newCompany.firma_electronica_password} onChange={(e) => setNewCompany({ ...newCompany, firma_electronica_password: e.target.value })} />
+                  <Label htmlFor="nc-firma-pass">{t('company.signature_pass')} <span className="text-destructive">*</span></Label>
+                  <Input id="nc-firma-pass" type="password" placeholder={t('company.signature_pass_placeholder')} value={newCompany.firma_electronica_password} onChange={(e) => setNewCompany({ ...newCompany, firma_electronica_password: e.target.value })} required />
+                  <p className="text-xs text-muted-foreground">{t('company.signature_required_hint')}</p>
                 </div>
               </div>
             </div>

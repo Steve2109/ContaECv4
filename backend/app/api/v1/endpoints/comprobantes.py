@@ -1092,6 +1092,183 @@ async def consultar_comprobante_sri(
     }
 
 
+@router.post("/{comprobante_id}/recuperar")
+async def recuperar_comprobante_sri(
+    comprobante_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Recuperar un comprobante enviado al SRI dentro de las 72 horas posteriores a su emisión.
+    
+    Proceso:
+    1. Obtener comprobante (debe estar en estado FIRMADO o ENVIADO)
+    2. Validar que no hayan transcurrido más de 72 horas desde fecha_emision
+    3. Reenviar el XML firmado al SRI (Recepción) - recuperación de no autorizados
+    4. Si RECIBIDA: actualizar a ENVIADO y consultar autorización automáticamente
+    5. Si DEVUELTA: actualizar a RECHAZADO con mensajes de error
+    6. Retornar estado final del comprobante
+    """
+    comprobante_id = validate_uuid(comprobante_id, "comprobante_id")
+    # Obtener comprobante
+    result = await db.execute(
+        select(Comprobante).where(
+            Comprobante.id == comprobante_id,
+            Comprobante.is_active == True,
+        )
+    )
+    comprobante = result.scalars().first()
+    
+    if not comprobante:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comprobante no encontrado.",
+        )
+    
+    # Verificar empresa del usuario
+    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    
+    # Validar estado (solo FIRMADO o ENVIADO)
+    if comprobante.estado not in (ComprobanteEstado.FIRMADO, ComprobanteEstado.ENVIADO):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La recuperación aplica solo a comprobantes en estado FIRMADO o ENVIADO. Estado actual: {comprobante.estado}",
+        )
+    
+    # Verificar que existe el XML firmado
+    if not comprobante.xml_content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El comprobante no tiene XML firmado. Fírmelo primero.",
+        )
+    
+    # Validar ventana de 72 horas desde la fecha de emisión
+    ahora = datetime.now(timezone.utc)
+    fecha_emision = comprobante.fecha_emision
+    if fecha_emision:
+        if fecha_emision.tzinfo is None:
+            fecha_emision = fecha_emision.replace(tzinfo=timezone.utc)
+        horas_transcurridas = (ahora - fecha_emision).total_seconds() / 3600
+        if horas_transcurridas > 72:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "El periodo de recuperación de 72 horas desde la emisión ha vencido. "
+                    "Este comprobante ya no puede recuperarse en el SRI."
+                ),
+            )
+    
+    # Recuperar: reenviar XML firmado al SRI (operación idempotente)
+    try:
+        from app.core.sri_service import (
+            SRIServiceError,
+            recuperar_comprobante as sri_recuperar,
+        )
+        
+        resultado = await sri_recuperar(
+            xml_firmado=comprobante.xml_content,
+            ambiente=comprobante.ambiente,
+        )
+        
+        if resultado.is_recibida:
+            # El SRI confirmó que tiene el comprobante (recuperado)
+            comprobante.estado = ComprobanteEstado.ENVIADO
+            comprobante.sri_mensaje = "Comprobante recuperado: recibido por el SRI"
+        elif resultado.is_devuelta:
+            # El SRI devolvió el comprobante (no estaba registrado o tiene errores)
+            comprobante.estado = ComprobanteEstado.RECHAZADO
+            mensajes = [m.mensaje for m in resultado.mensajes]
+            comprobante.sri_mensaje = "Comprobante devuelto por el SRI durante la recuperación"
+            comprobante.sri_mensaje_detallado = json.dumps(
+                mensajes, ensure_ascii=False
+            )
+        else:
+            comprobante.estado = ComprobanteEstado.ENVIADO
+            comprobante.sri_mensaje = f"Respuesta inesperada del SRI: {resultado.estado}"
+        
+    except SRIServiceError as e:
+        logger.error(f"Error de servicio SRI recuperando comprobante: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al comunicarse con el SRI: {str(e)}",
+        )
+    except Exception as e:
+        logger.error(f"Error recuperando comprobante en SRI: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al recuperar el comprobante del SRI: {str(e)}",
+        )
+    
+    await db.flush()
+    
+    # Si el SRI confirmó recepción, consultar autorización automáticamente
+    if resultado.is_recibida:
+        await asyncio.sleep(2)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                from app.core.sri_service import autorizar_comprobante as sri_autorizar
+                resultado_auth = await sri_autorizar(
+                    clave_acceso=comprobante.clave_acceso,
+                    ambiente=comprobante.ambiente,
+                )
+                
+                if resultado_auth.is_autorizado:
+                    comprobante.estado = ComprobanteEstado.AUTORIZADO
+                    comprobante.numero_autorizacion = resultado_auth.numero_autorizacion or comprobante.clave_acceso
+                    comprobante.fecha_autorizacion = resultado_auth.fecha_autorizacion or datetime.now(timezone.utc)
+                    comprobante.sri_mensaje = "Comprobante autorizado por el SRI"
+                    await db.flush()
+                    break
+                elif resultado_auth.is_no_autorizado:
+                    comprobante.estado = ComprobanteEstado.RECHAZADO
+                    mensajes = [m.mensaje for m in resultado_auth.mensajes]
+                    comprobante.sri_mensaje = "Comprobante no autorizado por el SRI"
+                    comprobante.sri_mensaje_detallado = json.dumps(
+                        mensajes, ensure_ascii=False
+                    )
+                    await db.flush()
+                    break
+                elif resultado_auth.is_en_proceso:
+                    if attempt < max_retries - 1:
+                        comprobante.sri_mensaje = f"Comprobante en procesamiento, reintento {attempt + 1}/{max_retries}..."
+                        await db.flush()
+                        await asyncio.sleep(3)
+                    else:
+                        comprobante.sri_mensaje = "Comprobante aún en procesamiento en el SRI."
+                        await db.flush()
+                else:
+                    comprobante.sri_mensaje = f"Respuesta inesperada del SRI: {resultado_auth.estado}"
+                    await db.flush()
+                    break
+            except SRIServiceError as e:
+                logger.error(f"Error consultando autorización (intento {attempt + 1}): {e}")
+                if attempt >= max_retries - 1:
+                    comprobante.sri_mensaje = "Comprobante recuperado, pero no se pudo consultar la autorización. Use 'Consultar SRI'."
+                    await db.flush()
+                    break
+                await asyncio.sleep(3)
+            except Exception as e:
+                logger.error(f"Error consultando autorización: {e}")
+                break
+    
+    logger.info(
+        f"Comprobante recuperado: tipo={comprobante.tipo_comprobante}, "
+        f"secuencial={comprobante.secuencial}, estado={comprobante.estado}"
+    )
+    
+    return {
+        "message": f"Recuperación completada. Estado: {comprobante.estado}",
+        "comprobante_id": str(comprobante.id),
+        "estado": comprobante.estado,
+        "secuencial": comprobante.secuencial,
+        "clave_acceso": comprobante.clave_acceso,
+        "sri_mensaje": comprobante.sri_mensaje,
+        "numero_autorizacion": comprobante.numero_autorizacion,
+        "fecha_autorizacion": comprobante.fecha_autorizacion.isoformat() if comprobante.fecha_autorizacion else None,
+    }
+
+
 @router.get("/{comprobante_id}/xml")
 async def get_comprobante_xml(
     comprobante_id: str,

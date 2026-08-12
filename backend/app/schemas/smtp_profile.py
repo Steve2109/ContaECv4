@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Perfil SMTP
 Schemas para creación, actualización, respuesta y prueba de perfiles SMTP
 """
+from uuid import UUID
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -261,8 +262,8 @@ class SMTPProfileUpdate(BaseModel):
 
 class SMTPProfileResponse(BaseModel):
     """Esquema de respuesta para un perfil SMTP"""
-    id: str = Field(..., description="ID único del perfil")
-    user_id: str = Field(..., description="ID del usuario propietario")
+    id: UUID = Field(..., description="ID único del perfil")
+    user_id: UUID = Field(..., description="ID del usuario propietario")
     nombre: str = Field(..., description="Nombre descriptivo del perfil")
     provider_type: str = Field(..., description="Tipo de proveedor SMTP")
     host: str = Field(..., description="Servidor SMTP")

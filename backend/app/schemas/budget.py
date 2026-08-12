@@ -3,6 +3,7 @@ ContaEC - Esquemas Pydantic de Presupuestos y Control Presupuestario
 Schemas para presupuestos anuales, cuentas presupuestarias,
 ejecución mensual, alertas y comparativos presupuestarios
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
@@ -49,8 +50,8 @@ class PresupuestoCuentaCreate(BaseModel):
 
 class PresupuestoEjecucionMensualResponse(BaseModel):
     """Esquema de respuesta para ejecución mensual"""
-    id: str = Field(..., description="ID único del registro")
-    presupuesto_cuenta_id: str = Field(..., description="ID de la cuenta presupuestaria")
+    id: UUID = Field(..., description="ID único del registro")
+    presupuesto_cuenta_id: UUID = Field(..., description="ID de la cuenta presupuestaria")
     mes: int = Field(..., description="Mes (1-12)")
     monto_presupuestado: Decimal = Field(..., description="Monto presupuestado para el mes")
     monto_ejecutado: Decimal = Field(..., description="Monto ejecutado en el mes")
@@ -65,9 +66,9 @@ class PresupuestoEjecucionMensualResponse(BaseModel):
 
 class PresupuestoAlertaResponse(BaseModel):
     """Esquema de respuesta para alerta presupuestaria"""
-    id: str = Field(..., description="ID único de la alerta")
-    company_id: str = Field(..., description="ID de la empresa")
-    presupuesto_cuenta_id: str = Field(..., description="ID de la cuenta presupuestaria")
+    id: UUID = Field(..., description="ID único de la alerta")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    presupuesto_cuenta_id: UUID = Field(..., description="ID de la cuenta presupuestaria")
     tipo_alerta: str = Field(..., description="Tipo de alerta")
     mensaje: str | None = Field(None, description="Mensaje descriptivo")
     monto_presupuestado: Decimal = Field(..., description="Monto presupuestado al momento de la alerta")
@@ -83,8 +84,8 @@ class PresupuestoAlertaResponse(BaseModel):
 
 class PresupuestoCuentaResponse(BaseModel):
     """Esquema de respuesta para cuenta presupuestaria"""
-    id: str = Field(..., description="ID único de la cuenta presupuestaria")
-    presupuesto_id: str = Field(..., description="ID del presupuesto anual")
+    id: UUID = Field(..., description="ID único de la cuenta presupuestaria")
+    presupuesto_id: UUID = Field(..., description="ID del presupuesto anual")
     cuenta_codigo: str = Field(..., description="Código de cuenta contable")
     cuenta_nombre: str = Field(..., description="Nombre de la cuenta")
     cuenta_tipo: str = Field(..., description="Tipo de cuenta (ingreso/egreso)")
@@ -158,9 +159,9 @@ class PresupuestoAnualUpdate(BaseModel):
 
 class PresupuestoAnualResponse(BaseModel):
     """Esquema de respuesta para un presupuesto anual"""
-    id: str = Field(..., description="ID único del presupuesto")
-    company_id: str = Field(..., description="ID de la empresa")
-    user_id: str = Field(..., description="ID del usuario creador")
+    id: UUID = Field(..., description="ID único del presupuesto")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    user_id: UUID = Field(..., description="ID del usuario creador")
     anio: int = Field(..., description="Año fiscal")
     nombre: str = Field(..., description="Nombre del presupuesto")
     descripcion: str | None = Field(None, description="Descripción")

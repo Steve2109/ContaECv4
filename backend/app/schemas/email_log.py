@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de Log de Envío de Correos
 Schemas para registro, consulta y tracking de logs de email
 """
+from uuid import UUID
 from datetime import datetime
 from typing import Optional
 
@@ -110,8 +111,8 @@ class EmailLogUpdate(BaseModel):
 
 class EmailLogResponse(BaseModel):
     """Esquema de respuesta para un log de correo"""
-    id: str = Field(..., description="ID único del log")
-    user_id: str | None = Field(None, description="ID del usuario propietario")
+    id: UUID = Field(..., description="ID único del log")
+    user_id: UUID | None = Field(None, description="ID del usuario propietario")
     tipo: str = Field(..., description="Tipo de correo")
     destinatario_principal: str = Field(..., description="Correo del destinatario")
     destinatarios_cc: str | None = Field(None, description="Destinatarios CC")
@@ -125,9 +126,9 @@ class EmailLogResponse(BaseModel):
     proximo_intento: datetime | None = Field(None, description="Próximo reintento")
     respuesta_smtp: str | None = Field(None, description="Respuesta SMTP")
     error_mensaje: str | None = Field(None, description="Mensaje de error")
-    email_template_id: str | None = Field(None, description="ID plantilla")
-    comprobante_id: str | None = Field(None, description="ID comprobante")
-    smtp_profile_id: str | None = Field(None, description="ID perfil SMTP")
+    email_template_id: UUID | None = Field(None, description="ID plantilla")
+    comprobante_id: UUID | None = Field(None, description="ID comprobante")
+    smtp_profile_id: UUID | None = Field(None, description="ID perfil SMTP")
     adjuntos: str | None = Field(None, description="Archivos adjuntos")
     fecha_envio: datetime | None = Field(None, description="Fecha de envío")
     created_at: datetime = Field(..., description="Fecha de creación")

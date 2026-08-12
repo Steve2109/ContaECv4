@@ -2,6 +2,7 @@
 ContaEC - Esquemas Pydantic de CRM (Customer Relationship Management)
 Schemas para pipelines, etapas, leads, oportunidades, actividades, segmentos y automatizaciones
 """
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -66,8 +67,8 @@ class CRMPipelineUpdate(BaseModel):
 
 class CRMPipelineStageResponse(BaseModel):
     """Esquema de respuesta para etapa de pipeline"""
-    id: str = Field(..., description="ID único de la etapa")
-    pipeline_id: str = Field(..., description="ID del pipeline")
+    id: UUID = Field(..., description="ID único de la etapa")
+    pipeline_id: UUID = Field(..., description="ID del pipeline")
     name: str = Field(..., description="Nombre de la etapa")
     order: int = Field(..., description="Posición de orden")
     probability_percentage: int = Field(..., description="Porcentaje de probabilidad")
@@ -80,8 +81,8 @@ class CRMPipelineStageResponse(BaseModel):
 
 class CRMPipelineResponse(BaseModel):
     """Esquema de respuesta para pipeline"""
-    id: str = Field(..., description="ID único del pipeline")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del pipeline")
+    company_id: UUID = Field(..., description="ID de la empresa")
     name: str = Field(..., description="Nombre del pipeline")
     description: str | None = Field(None, description="Descripción")
     is_default: bool = Field(..., description="Es pipeline por defecto")
@@ -291,16 +292,16 @@ class CRMLeadUpdate(BaseModel):
 
 class CRMLeadResponse(BaseModel):
     """Esquema de respuesta para lead"""
-    id: str = Field(..., description="ID único del lead")
-    company_id: str = Field(..., description="ID de la empresa")
-    client_id: str | None = Field(None, description="ID del cliente asociado")
+    id: UUID = Field(..., description="ID único del lead")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    client_id: UUID | None = Field(None, description="ID del cliente asociado")
     first_name: str = Field(..., description="Nombre del lead")
     last_name: str = Field(..., description="Apellido del lead")
     email: str | None = Field(None, description="Correo electrónico")
     phone: str | None = Field(None, description="Teléfono")
     source: str = Field(..., description="Fuente del lead")
     status: str = Field(..., description="Estado del lead")
-    assigned_to: str | None = Field(None, description="ID del usuario asignado")
+    assigned_to: UUID | None = Field(None, description="ID del usuario asignado")
     estimated_value: Decimal = Field(..., description="Valor estimado")
     notes: str | None = Field(None, description="Notas")
     last_contact_date: datetime | None = Field(None, description="Último contacto")
@@ -438,12 +439,12 @@ class CRMOpportunityUpdate(BaseModel):
 
 class CRMOpportunityResponse(BaseModel):
     """Esquema de respuesta para oportunidad"""
-    id: str = Field(..., description="ID único de la oportunidad")
-    company_id: str = Field(..., description="ID de la empresa")
-    lead_id: str | None = Field(None, description="ID del lead origen")
-    client_id: str | None = Field(None, description="ID del cliente asociado")
-    pipeline_id: str = Field(..., description="ID del pipeline")
-    stage_id: str = Field(..., description="ID de la etapa actual")
+    id: UUID = Field(..., description="ID único de la oportunidad")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    lead_id: UUID | None = Field(None, description="ID del lead origen")
+    client_id: UUID | None = Field(None, description="ID del cliente asociado")
+    pipeline_id: UUID = Field(..., description="ID del pipeline")
+    stage_id: UUID = Field(..., description="ID de la etapa actual")
     name: str = Field(..., description="Nombre de la oportunidad")
     description: str | None = Field(None, description="Descripción")
     estimated_amount: Decimal = Field(..., description="Monto estimado")
@@ -451,7 +452,7 @@ class CRMOpportunityResponse(BaseModel):
     expected_close_date: datetime | None = Field(None, description="Fecha esperada de cierre")
     actual_close_date: datetime | None = Field(None, description="Fecha real de cierre")
     status: str = Field(..., description="Estado")
-    assigned_to: str | None = Field(None, description="ID del usuario asignado")
+    assigned_to: UUID | None = Field(None, description="ID del usuario asignado")
     lost_reason: str | None = Field(None, description="Razón de pérdida")
     created_at: datetime = Field(..., description="Fecha de creación")
     updated_at: datetime = Field(..., description="Fecha de actualización")
@@ -570,11 +571,11 @@ class CRMActivityUpdate(BaseModel):
 
 class CRMActivityResponse(BaseModel):
     """Esquema de respuesta para actividad"""
-    id: str = Field(..., description="ID único de la actividad")
-    company_id: str = Field(..., description="ID de la empresa")
-    opportunity_id: str | None = Field(None, description="ID de la oportunidad")
-    lead_id: str | None = Field(None, description="ID del lead")
-    user_id: str = Field(..., description="ID del usuario")
+    id: UUID = Field(..., description="ID único de la actividad")
+    company_id: UUID = Field(..., description="ID de la empresa")
+    opportunity_id: UUID | None = Field(None, description="ID de la oportunidad")
+    lead_id: UUID | None = Field(None, description="ID del lead")
+    user_id: UUID = Field(..., description="ID del usuario")
     type: str = Field(..., description="Tipo de actividad")
     subject: str = Field(..., description="Asunto")
     description: str | None = Field(None, description="Descripción")
@@ -665,9 +666,9 @@ class CRMContactSegmentUpdate(BaseModel):
 
 class CRMContactSegmentMemberResponse(BaseModel):
     """Esquema de respuesta para miembro de segmento"""
-    id: str = Field(..., description="ID único del miembro")
-    segment_id: str = Field(..., description="ID del segmento")
-    client_id: str = Field(..., description="ID del cliente")
+    id: UUID = Field(..., description="ID único del miembro")
+    segment_id: UUID = Field(..., description="ID del segmento")
+    client_id: UUID = Field(..., description="ID del cliente")
     created_at: datetime = Field(..., description="Fecha de adición")
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
@@ -675,8 +676,8 @@ class CRMContactSegmentMemberResponse(BaseModel):
 
 class CRMContactSegmentResponse(BaseModel):
     """Esquema de respuesta para segmento de contactos"""
-    id: str = Field(..., description="ID único del segmento")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único del segmento")
+    company_id: UUID = Field(..., description="ID de la empresa")
     name: str = Field(..., description="Nombre del segmento")
     description: str | None = Field(None, description="Descripción")
     type: str = Field(..., description="Tipo de segmento")
@@ -767,8 +768,8 @@ class CRMAutomationUpdate(BaseModel):
 
 class CRMAutomationResponse(BaseModel):
     """Esquema de respuesta para automatización"""
-    id: str = Field(..., description="ID único de la automatización")
-    company_id: str = Field(..., description="ID de la empresa")
+    id: UUID = Field(..., description="ID único de la automatización")
+    company_id: UUID = Field(..., description="ID de la empresa")
     name: str = Field(..., description="Nombre de la automatización")
     trigger_type: str = Field(..., description="Tipo de disparador")
     trigger_conditions: str | None = Field(None, description="Condiciones JSON")
