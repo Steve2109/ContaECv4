@@ -144,7 +144,7 @@ class Settings(BaseSettings):
     # Servidor
     # ==========================================
     BACKEND_HOST: str = "0.0.0.0"
-    BACKEND_PORT: int = 8001
+    BACKEND_PORT: int = 8000
 
     # ==========================================
     # SMTP del Sistema (correos automáticos: bienvenida, notificaciones)

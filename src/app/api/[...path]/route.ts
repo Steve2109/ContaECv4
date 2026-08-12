@@ -5,7 +5,7 @@ import { ChildProcess, spawn } from 'child_process';
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 
-const BACKEND_PORT = 8001;
+const BACKEND_PORT = 8000;
 const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
 // Global reference to keep the backend alive

@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import { createInterface } from 'readline';
 import path from 'path';
 
-const PORT = 8001;
+const PORT = 8000;
 
 console.log(`[ContaEC Backend] Starting on port ${PORT}...`);
 
