@@ -401,8 +401,22 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
 
       return true;
     })
-    // En prueba activa los items premium se muestran sin candado ni bloqueo
-    .map(item => (isTrialActive && item.locked ? { ...item, locked: false } : item));
+    // Quitar el candado a los items incluidos en el plan actual (o durante la prueba activa).
+    // Así el bloqueo aplica por plan: trimestral habilita POS/Nómina, semestral agrega
+    // multi-almacén/presupuestos/CRM/etc., y anual habilita todo.
+    .map(item => {
+      if (!item.locked) return item;
+      if (isTrialActive) return { ...item, locked: false };
+      if (!item.requiredTier) return item;
+      if (currentTier === 'annual') return { ...item, locked: false };
+      if (currentTier === 'semiannual' && ['semiannual', 'quarterly'].includes(item.requiredTier)) {
+        return { ...item, locked: false };
+      }
+      if (currentTier === 'quarterly' && item.requiredTier === 'quarterly') {
+        return { ...item, locked: false };
+      }
+      return item;
+    });
 
   const adminNavItems: { id: NavItem; label: string; icon: React.ReactNode; locked?: boolean; requiredTier?: string }[] = [
     { id: 'admin-overview', label: t('admin.overview'), icon: <Activity className="h-4 w-4" /> },
