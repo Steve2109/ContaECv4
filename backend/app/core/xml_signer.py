@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.serialization.pkcs12 import (
 from cryptography.x509 import Certificate
 from lxml import etree
 from signxml import XMLSigner
-from signxml.xades import XAdESSigner, XAdESVerifier
+from signxml.xades import XAdESSigner, XAdESVerifier, XAdESSignatureConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -220,12 +220,15 @@ async def sign_xml(
             reference_uri="#comprobante",
         )
 
-        # Convertir a cadena XML con declaración
+        # Convertir a cadena XML con declaración.
+        # IMPORTANTE: NO usar pretty_print=True aqui. La firma XAdES se calcula sobre el
+        # arbol en memoria (compacto); si se agrega indentacion al serializar, los nodos
+        # de texto con espacios en blanco alteran la canonicalizacion del SignedInfo y de
+        # la referencia, y el SRI rechazaria el comprobante por firma invalida.
         signed_xml = etree.tostring(
             signed_root,
             xml_declaration=True,
             encoding="UTF-8",
-            pretty_print=True,
         ).decode("utf-8")
 
         logger.info(
@@ -298,12 +301,11 @@ def sign_xml_sync(
             reference_uri="#comprobante",
         )
 
-        # Convertir a cadena XML
+        # Convertir a cadena XML (sin pretty_print, ver nota en sign_xml)
         signed_xml = etree.tostring(
             signed_root,
             xml_declaration=True,
             encoding="UTF-8",
-            pretty_print=True,
         ).decode("utf-8")
 
         logger.info(
@@ -363,9 +365,17 @@ def verify_xml_signature(xml_content: str) -> dict:
         # Parsear XML
         root = _parse_xml(xml_content)
 
+        # Contar referencias firmadas para pasar el config correcto al verificador
+        # (el XAdES generado por sign_xml tiene 3: comprobante, SignedProperties y
+        # certificado; el default de signxml es 1 y fallaria con 'Expected to find
+        # 1 references, but found N')
+        ds_ns = "http://www.w3.org/2000/09/xmldsig#"
+        refs = root.findall(f".//{{{ds_ns}}}SignedInfo/{{{ds_ns}}}Reference")
+        expect_config = XAdESSignatureConfiguration(expect_references=len(refs))
+
         # Verificar firma con XAdESVerifier
         verifier = XAdESVerifier()
-        verify_result = verifier.verify(root)
+        verify_result = verifier.verify(root, expect_config=expect_config)
 
         # Si la verificación pasa, extraer información del certificado
         result["valid"] = True
@@ -507,12 +517,11 @@ def sign_xml_basic(
             reference_uri="#comprobante",
         )
 
-        # Convertir a cadena XML
+        # Convertir a cadena XML (sin pretty_print, ver nota en sign_xml)
         signed_xml = etree.tostring(
             signed_root,
             xml_declaration=True,
             encoding="UTF-8",
-            pretty_print=True,
         ).decode("utf-8")
 
         logger.info("XML firmado exitosamente con XMLDSig básico (fallback)")
