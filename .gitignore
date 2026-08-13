@@ -60,3 +60,4 @@ CLAUDE.md
 handoff.md
 backend/.env.production
 *.md
+backend/test_firma_electronica.py
