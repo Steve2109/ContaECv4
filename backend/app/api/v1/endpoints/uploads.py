@@ -9,7 +9,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -229,7 +229,7 @@ async def upload_file(
 @router.post("/validate-signature")
 async def validate_digital_signature(
     file: UploadFile = File(...),
-    password: str = "",
+    password: str = Form(""),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

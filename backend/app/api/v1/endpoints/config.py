@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,7 +110,7 @@ async def get_user_config(
 @router.post("/digital-signature")
 async def upload_digital_signature(
     file: UploadFile = File(...),
-    password: str = "",
+    password: str = Form(""),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

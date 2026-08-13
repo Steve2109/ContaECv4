@@ -47,11 +47,13 @@ import {
   Plus,
   Shield,
   ShieldAlert,
+  ShieldCheck,
   Sun,
   User,
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  UserX,
   Clock,
   Database,
   DollarSign,
@@ -1875,6 +1877,11 @@ function LicenseView({
                 <CardTitle className="text-base flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   {t('license.license_active_title', { plan: t(license.license_type === 'monthly' ? 'license.plan_monthly' : license.license_type === 'quarterly' ? 'license.plan_quarterly' : license.license_type === 'semiannual' ? 'license.plan_semiannual' : 'license.plan_annual') })}
+                  {license.license_type && PLAN_COLORS[license.license_type] && (
+                    <Badge className={PLAN_COLORS[license.license_type]}>
+                      {t(`license.plan_${license.license_type}`)}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <CardDescription>{t('license.license_active_desc', { plan: t(license.license_type === 'monthly' ? 'license.plan_monthly_lc' : license.license_type === 'quarterly' ? 'license.plan_quarterly_lc' : license.license_type === 'semiannual' ? 'license.plan_semiannual_lc' : 'license.plan_annual_lc') })}</CardDescription>
               </CardHeader>
@@ -1962,13 +1969,13 @@ function LicenseView({
                     currentPlan ? 'border-primary ring-2 ring-primary/20' : ''
                   }`}>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg">{t(`license.plan_${option.type}`)}</CardTitle>
-                      <CardDescription>{option.months} {option.months === 1 ? t('license.month') : t('license.months')}</CardDescription>
+                      <Badge className={`w-fit text-sm ${PLAN_COLORS[option.type] || ''}`}>{t(`license.plan_${option.type}`)}</Badge>
+                      <CardDescription className="mt-2">{option.months} {option.months === 1 ? t('license.month') : t('license.months')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="text-center">
                         <span className="text-3xl font-bold">${option.price.toFixed(2)}</span>
-                        <p className="text-xs text-muted-foreground">
+                        <p className={`text-xs ${PLAN_TEXT_COLORS[option.type] || 'text-muted-foreground'}`}>
                           ${(option.price / option.months).toFixed(2)}/{t('license.per_month')}
                         </p>
                       </div>
@@ -2010,20 +2017,20 @@ function LicenseView({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[200px]">{t('license.feature')}</TableHead>
-                      <TableHead className="text-center">{t('license.monthly')}</TableHead>
-                      <TableHead className="text-center">{t('license.quarterly')}</TableHead>
-                      <TableHead className="text-center">{t('license.semiannual')}</TableHead>
-                      <TableHead className="text-center">{t('license.annual')}</TableHead>
+                      <TableHead className="text-center"><Badge className={PLAN_COLORS.monthly}>{t('license.monthly')}</Badge></TableHead>
+                      <TableHead className="text-center"><Badge className={PLAN_COLORS.quarterly}>{t('license.quarterly')}</Badge></TableHead>
+                      <TableHead className="text-center"><Badge className={PLAN_COLORS.semiannual}>{t('license.semiannual')}</Badge></TableHead>
+                      <TableHead className="text-center"><Badge className={PLAN_COLORS.annual}>{t('license.annual')}</Badge></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {/* Precios */}
                     <TableRow className="bg-primary/5">
                       <TableCell className="font-semibold">{t('license.price')}</TableCell>
-                      <TableCell className="text-center font-bold">${licenseTiers.tiers.monthly?.price}</TableCell>
-                      <TableCell className="text-center font-bold">${licenseTiers.tiers.quarterly?.price}</TableCell>
-                      <TableCell className="text-center font-bold">${licenseTiers.tiers.semiannual?.price}</TableCell>
-                      <TableCell className="text-center font-bold">${licenseTiers.tiers.annual?.price}</TableCell>
+                      <TableCell className={`text-center font-bold ${PLAN_TEXT_COLORS.monthly}`}>${licenseTiers.tiers.monthly?.price}</TableCell>
+                      <TableCell className={`text-center font-bold ${PLAN_TEXT_COLORS.quarterly}`}>${licenseTiers.tiers.quarterly?.price}</TableCell>
+                      <TableCell className={`text-center font-bold ${PLAN_TEXT_COLORS.semiannual}`}>${licenseTiers.tiers.semiannual?.price}</TableCell>
+                      <TableCell className={`text-center font-bold ${PLAN_TEXT_COLORS.annual}`}>${licenseTiers.tiers.annual?.price}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-medium">{t('license.duration')}</TableCell>
@@ -2360,6 +2367,21 @@ function PoliciesView() {
   );
 }
 
+// ─── Colores por plan de licencia (mismos que usa el panel de administración) ───
+const PLAN_COLORS: Record<string, string> = {
+  monthly: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  quarterly: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  semiannual: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  annual: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+};
+
+const PLAN_TEXT_COLORS: Record<string, string> = {
+  monthly: 'text-blue-600 dark:text-blue-400',
+  quarterly: 'text-green-600 dark:text-green-400',
+  semiannual: 'text-purple-600 dark:text-purple-400',
+  annual: 'text-amber-600 dark:text-amber-500',
+};
+
 // ─── Admin Dashboard View (integrated into main dashboard) ────────────────
 function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void; activeAdminTab: string }) {
   const [adminStats, setAdminStats] = useState<{
@@ -2435,12 +2457,7 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
       // Load license prices from API
       if (results[4].status === 'fulfilled' && results[4].value?.prices) {
         const prices = results[4].value.prices;
-        const colorMap: Record<string, string> = {
-          monthly: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-          quarterly: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          semiannual: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-          annual: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-        };
+        const colorMap: Record<string, string> = PLAN_COLORS;
         setLicensePrices([
           { type: prices.monthly?.label || 'Mensual', key: 'monthly', price: prices.monthly?.price || 15, months: prices.monthly?.months || 1, color: colorMap.monthly },
           { type: prices.quarterly?.label || 'Trimestral', key: 'quarterly', price: prices.quarterly?.price || 40, months: prices.quarterly?.months || 3, color: colorMap.quarterly },
@@ -2544,6 +2561,10 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
       setDeleting(false);
     }
   }
+
+  const securityExpired = securityData?.expired_active_licenses ?? [];
+  const securityNoConfig = securityData?.users_without_config ?? [];
+  const totalSecurityIssues = securityExpired.length + securityNoConfig.length;
 
   if (loading && !adminStats) {
     return (
@@ -2910,63 +2931,139 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5 text-amber-500" />
-                Problemas de Seguridad
+                {totalSecurityIssues > 0 ? (
+                  <ShieldAlert className="h-5 w-5 text-destructive" />
+                ) : (
+                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                )}
+                {totalSecurityIssues > 0 ? 'Problemas de Seguridad' : 'Seguridad'}
+                {totalSecurityIssues > 0 && (
+                  <Badge variant="destructive" className="ml-auto">{totalSecurityIssues}</Badge>
+                )}
               </CardTitle>
-              <CardDescription>Usuarios con licencias expiradas pero activos, y sin configuracion</CardDescription>
+              <CardDescription>
+                {totalSecurityIssues > 0
+                  ? `${totalSecurityIssues} problema(s) detectado(s): ${securityExpired.length} licencia(s) expirada(s) activa(s) y ${securityNoConfig.length} usuario(s) sin configuracion`
+                  : 'Usuarios con licencias expiradas pero activos, y sin configuracion'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {securityData ? (
                 <div className="space-y-6">
-                  <div>
-                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-destructive" />
-                      Licencias Expiradas pero Activas ({securityData.expired_active_licenses.length})
-                    </h3>
-                    {securityData.expired_active_licenses.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow><TableHead>Usuario</TableHead><TableHead>Email</TableHead><TableHead>Expiro</TableHead><TableHead>Dias</TableHead></TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {securityData.expired_active_licenses.map((u) => (
-                            <TableRow key={u.user_id}>
-                              <TableCell className="font-medium">{u.full_name}</TableCell>
-                              <TableCell>{u.email}</TableCell>
-                              <TableCell>{u.license_end_date ? new Date(u.license_end_date).toLocaleDateString('es-EC') : 'N/A'}</TableCell>
-                              <TableCell className="text-destructive">{u.days_expired ?? 'N/A'}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No hay problemas</p>
-                    )}
-                  </div>
-                  <Separator />
-                  <div>
-                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      Usuarios sin Configuracion ({securityData.users_without_config.length})
-                    </h3>
-                    {securityData.users_without_config.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow><TableHead>Usuario</TableHead><TableHead>Email</TableHead></TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {securityData.users_without_config.map((u) => (
-                            <TableRow key={u.user_id}>
-                              <TableCell className="font-medium">{u.full_name}</TableCell>
-                              <TableCell>{u.email}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Todos los usuarios tienen configuracion</p>
-                    )}
-                  </div>
+                  {totalSecurityIssues === 0 ? (
+                    <div className="text-center py-10">
+                      <ShieldCheck className="h-14 w-14 mx-auto text-emerald-500 mb-3" />
+                      <h3 className="text-lg font-medium">Todo en orden</h3>
+                      <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
+                        No se detectaron problemas de seguridad. Todos los usuarios tienen licencia vigente y
+                        configuracion completa.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <Alert variant="destructive" className="border-destructive/40">
+                        <ShieldAlert className="h-4 w-4" />
+                        <AlertTitle className="text-sm">Se detectaron {totalSecurityIssues} problema(s)</AlertTitle>
+                        <AlertDescription className="text-xs">
+                          Resuelva los problemas de los usuarios afectados o desactivelos para evitar accesos con
+                          licencias vencidas o configuracion incompleta.
+                        </AlertDescription>
+                      </Alert>
+                      <div>
+                        <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <XCircle className="h-4 w-4 text-destructive" />
+                          Licencias Expiradas pero Activas ({securityExpired.length})
+                        </h3>
+                        {securityExpired.length > 0 ? (
+                          <div className="rounded-lg border border-destructive/30 overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Usuario</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Expiro</TableHead>
+                                  <TableHead>Dias</TableHead>
+                                  <TableHead className="text-right">Acciones</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {securityExpired.map((u) => (
+                                  <TableRow key={u.user_id}>
+                                    <TableCell className="font-medium">{u.full_name}</TableCell>
+                                    <TableCell>{u.email}</TableCell>
+                                    <TableCell>{u.license_end_date ? new Date(u.license_end_date).toLocaleDateString('es-EC') : 'N/A'}</TableCell>
+                                    <TableCell>
+                                      <Badge variant="destructive" className="text-xs">{u.days_expired ?? 'N/A'} dias</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex justify-end gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 text-xs"
+                                          onClick={() => {
+                                            setSelectedUserId(u.user_id);
+                                            setLicenseForm({ license_type: '' });
+                                            setLicenseDialogOpen(true);
+                                          }}
+                                        >
+                                          <Key className="mr-1 h-3 w-3" />
+                                          Licencia
+                                        </Button>
+                                        <Button
+                                          variant="destructive"
+                                          size="sm"
+                                          className="h-7 text-xs"
+                                          onClick={() => handleToggleUser(u.user_id, true)}
+                                        >
+                                          <UserX className="mr-1 h-3 w-3" />
+                                          Desactivar
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            No hay licencias expiradas activas
+                          </div>
+                        )}
+                      </div>
+                      <Separator />
+                      <div>
+                        <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          Usuarios sin Configuracion ({securityNoConfig.length})
+                        </h3>
+                        {securityNoConfig.length > 0 ? (
+                          <div className="rounded-lg border border-yellow-500/30 overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow><TableHead>Usuario</TableHead><TableHead>Email</TableHead></TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {securityNoConfig.map((u) => (
+                                  <TableRow key={u.user_id}>
+                                    <TableCell className="font-medium">{u.full_name}</TableCell>
+                                    <TableCell>{u.email}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            Todos los usuarios tienen configuracion
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">Cargando...</p>
