@@ -127,6 +127,35 @@ sleep 15
 ### 4.1 Preparación del Servidor
 
 ```bash
+# Actualizar y Crear Locale
+
+## 1. Verificar locales existentes
+locale -a | grep -iE 'es_EC|C\.utf'
+## 2. Configurar español de Ecuador inicialmente
+update-locale LANG=es_EC.UTF-8
+## 3. Verificar la configuración actual
+nano -l /etc/default/locale
+## 4. Vlidar y agregar la configuración actual
+LANG=es_EC.UTF-8
+LANG=en_US.UTF-8
+## 5. Revisar si en_US.UTF-8 estaba habilitada
+grep -nE '^[# ]*en_US\.UTF-8' /etc/locale.gen
+## 6. Habilitar en_US.UTF-8
+sed -i 's/^# *en_US\.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+## 7. Habilitar ingles y español
+nano -l /etc/locale.gen
+> Descomentar linea 165 y 186
+## 8. Generar las locales
+locale-gen
+## 9. Establecer en_US.UTF-8 como locale predeterminada
+update-locale LANG=es_EC.UTF-8
+## 10. Verificar la configuración persistente
+cat /etc/default/locale
+## 11. Confirmar todas las locales instaladas
+locale -a
+## 12. Confirmar que Perl ya no muestra advertencias
+perl -we 'use locale; print "Locale correcta\n"'
+
 # Actualizar el sistema
 apt update && apt upgrade -y
 # Instalar herramientas esenciales
@@ -159,7 +188,7 @@ sudo systemctl start postgresql@17-main
 sudo systemctl status postgresql@17-main
 sudo ss -tlnp | grep 5432
 pg_isready -h localhost -p 5432
-
+```
 ### Locale del sistema (o configuración de locales)
 # # 1. Instalar el paquete locales
 # sudo apt-get install locales
@@ -187,33 +216,6 @@ pg_isready -h localhost -p 5432
 # perl -v
 
 ---
-
-# 1. Verificar locales existentes
-locale -a | grep -iE 'es_EC|C\.utf'
-# 2. Configurar español de Ecuador inicialmente
-update-locale LANG=es_EC.UTF-8
-# 3. Verificar la configuración actual
-cat /etc/default/locale
-# 4. Revisar si en_US.UTF-8 estaba habilitada
-grep -nE '^[# ]*en_US\.UTF-8' /etc/locale.gen
-# 5. Habilitar en_US.UTF-8
-sed -i 's/^# *en_US\.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-# 6. Evitar duplicar la entrada
-grep -qxF 'en_US.UTF-8 UTF-8' /etc/locale.gen || \
-  echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen
-# 7. Generar las locales
-locale-gen
-# 8. Establecer en_US.UTF-8 como locale predeterminada
-update-locale LANG=en_US.UTF-8
-# 9. Verificar la configuración persistente
-cat /etc/default/locale
-# 10. Probar temporalmente es_EC.UTF-8
-LANG=es_EC.UTF-8
-# 11. Confirmar todas las locales instaladas
-locale -a
-# 12. Confirmar que Perl ya no muestra advertencias
-perl -we 'use locale; print "Locale correcta\n"'
-```
 
 ### 4.3 Configuración de la Base de Datos
 
