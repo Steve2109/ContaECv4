@@ -1,6 +1,6 @@
 {
   "name": "contaec-backend",
-  "version": "1.0.0",
+  "version": "5.0.0",
   "private": true,
   "scripts": {
     "dev": "python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
