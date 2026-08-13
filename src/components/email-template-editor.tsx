@@ -79,6 +79,7 @@ interface EmailTemplateEditorProps {
 export function EmailTemplateEditor({ companyId: _companyId }: EmailTemplateEditorProps) {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filterTipo, setFilterTipo] = useState<string>('todos');
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -98,16 +99,21 @@ export function EmailTemplateEditor({ companyId: _companyId }: EmailTemplateEdit
     loadTemplates();
   }, []);
 
-  async function loadTemplates() {
+  async function loadTemplates(tipo?: string) {
     setLoading(true);
     try {
-      const data = await getEmailTemplates();
+      const data = await getEmailTemplates(tipo && tipo !== 'todos' ? tipo : undefined);
       setTemplates(data);
     } catch {
       toast.error('Error al cargar plantillas');
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleFilterChange(value: string) {
+    setFilterTipo(value);
+    loadTemplates(value);
   }
 
   function resetForm() {
@@ -305,7 +311,7 @@ export function EmailTemplateEditor({ companyId: _companyId }: EmailTemplateEdit
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {`Click para insertar • También disponíveis: {{}}fecha_autorizacion, {{}}establecimiento, {{}}direccion, {{}}email, {{}}telefono`}
+                  {`Clic para insertar • También disponibles: {{fecha_autorizacion}}, {{establecimiento}}, {{direccion}}, {{email}}, {{telefono}}`}
                 </p>
               </div>
 
@@ -390,6 +396,24 @@ export function EmailTemplateEditor({ companyId: _companyId }: EmailTemplateEdit
           <CardDescription>
             {templates.length} plantilla(s) disponible(s)
           </CardDescription>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="filter-tipo" className="text-sm whitespace-nowrap">
+              Filtrar por tipo
+            </Label>
+            <Select value={filterTipo} onValueChange={handleFilterChange}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {TEMPLATE_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (

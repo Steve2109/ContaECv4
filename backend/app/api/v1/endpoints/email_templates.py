@@ -24,6 +24,7 @@ from app.models.user import User, UserConfig
 from app.schemas.email_template import (
     EmailSendRequest,
     EmailTemplateCreate,
+    EmailTemplateCustomPreviewRequest,
     EmailTemplatePreviewRequest,
     EmailTemplateResponse,
     EmailTemplateUpdate,
@@ -291,6 +292,18 @@ async def preview_email_template(
         preview["cuerpo_texto"] = _render_template(template.cuerpo_texto, data.sample_data)
 
     return preview
+
+
+@router.post("/preview")
+async def preview_custom_email_template(
+    data: EmailTemplateCustomPreviewRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Previsualizar HTML y asunto sin necesidad de guardar la plantilla"""
+    return {
+        "rendered_html": _render_template(data.cuerpo_html, data.sample_data),
+        "asunto": _render_template(data.asunto, data.sample_data),
+    }
 
 
 @router.post("/send")

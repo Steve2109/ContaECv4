@@ -133,6 +133,24 @@ class EmailTemplatePreviewRequest(BaseModel):
     )
 
 
+class EmailTemplateCustomPreviewRequest(BaseModel):
+    """Esquema para previsualizar HTML/asunto sin necesidad de guardar la plantilla"""
+    cuerpo_html: str = Field(
+        ...,
+        min_length=1,
+        description="Cuerpo HTML a previsualizar",
+    )
+    asunto: str = Field(
+        ...,
+        min_length=1,
+        description="Asunto a previsualizar",
+    )
+    sample_data: dict[str, str] = Field(
+        default_factory=dict,
+        description="Datos de ejemplo para reemplazar variables {{variable}}",
+    )
+
+
 class EmailSendRequest(BaseModel):
     """Esquema para enviar un correo usando una plantilla"""
     comprobante_id: str = Field(

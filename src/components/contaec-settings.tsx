@@ -88,6 +88,7 @@ import {
   type BackupInfo,
   type RestoreBackupResponse,
 } from '@/lib/api';
+import { EmailTemplateEditor } from '@/components/email-template-editor';
 
 // SMTP provider presets
 const SMTP_PRESETS: Record<string, { host: string; port: number; protocol: string; ssl: boolean }> = {
@@ -1485,6 +1486,22 @@ function SMTPTab({
               {config.has_smtp_config ? 'Configurado' : 'No configurado'}
             </Badge>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Templates Editor */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Mail className="h-4 w-4 text-primary" />
+            Plantillas de Correo
+          </CardTitle>
+          <CardDescription>
+            Cree y gestione plantillas para el envío de comprobantes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmailTemplateEditor companyId={selectedCompanyId} />
         </CardContent>
       </Card>
     </div>
