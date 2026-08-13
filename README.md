@@ -441,29 +441,29 @@ curl http://localhost:3000
 # SRI_WS_AUTORIZACION_PRODUCCION=https://cel.sri.gob.ec/comprobantes-electronicos-ws/AutorizacionComprobantesOffline?wsdl
 ```
 
-```bash
-# Ejecutar estas líneas y copiar los resultados al .env
-source /opt/contaec/.venv/bin/activate
-# SECRET_KEY
-python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(64))"
-# ENCRYPTION_KEY
-python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(64))"
-# JWT_SECRET_KEY
-python3 -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_urlsafe(64))"
-# BACKUP_ENCRYPTION_KEY (Fernet)
-python3 -c "from cryptography.fernet import Fernet; print('BACKUP_ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
-```
-
-```bash
-# Reiniciar el servicio para que cargue los nuevos valores
-sudo systemctl restart contaec-backend
-# Espera 30 segundos
-sleep 30
-# Verificar que arrancó
-sudo systemctl status contaec-backend
-# Test conexión
-curl http://localhost:8000/api/health
-```
+# ```bash
+# # Ejecutar estas líneas y copiar los resultados al .env
+# source /opt/contaec/.venv/bin/activate
+# # SECRET_KEY
+# python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(64))"
+# # ENCRYPTION_KEY
+# python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(64))"
+# # JWT_SECRET_KEY
+# python3 -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_urlsafe(64))"
+# # BACKUP_ENCRYPTION_KEY (Fernet)
+# python3 -c "from cryptography.fernet import Fernet; print('BACKUP_ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
+# ```
+# 
+# ```bash
+# # Reiniciar el servicio para que cargue los nuevos valores
+# sudo systemctl restart contaec-backend
+# # Espera 30 segundos
+# sleep 30
+# # Verificar que arrancó
+# sudo systemctl status contaec-backend
+# # Test conexión
+# curl http://localhost:8000/api/health
+# ```
 
 # ### 4.9 Configuración de Caddy (Proxy Reverso)
 # 
@@ -522,50 +522,40 @@ curl http://localhost:8000/api/health
 # Instalar ClamAV y el daemon
 apt install -y clamav clamav-daemon
 
+# Configurar clamd para socket TCP (más compatible con Python)
+nano -l /etc/clamav/clamd.conf
+# Asegurar estas líneas si no existen agregarlas al final:
+TCPSocket 3310
+TCPAddr 127.0.0.1
+# o usar socket Unix:
+# LocalSocket /var/run/clamav/clamd.ctl
+
 # Actualizar base de datos de virus
-# 1. Detener clamav-daemon
-sudo systemctl stop clamav-daemon
-# 2. Detener clamav-freshclam
-sudo systemctl stop clamav-freshclam
-# 3. Actualizar base de firmas
+# 1. Detener clamav-daemon y clamav-freshclam
+sudo systemctl stop clamav-daemon clamav-freshclam
+# 2. Actualizar base de firmas
 sudo freshclam
-# 4. Reiniciar servicios
-sudo systemctl start clamav-daemon
-sudo systemctl start clamav-freshclam
+# 3. Reiniciar servicios
+sudo systemctl start clamav-daemon clamav-freshclam
+# 4. Si esta desabilitado uno de los servicios habilitarlos
+sudo systemctl enable clamav-daemon clamav-freshclam
 # 5. Verificar estado
-sudo systemctl status clamav-daemon
-sudo systemctl status clamav-freshclam
+sudo systemctl status clamav-daemon clamav-freshclam
 
 ### Permisos de Archivos
 
 ```bash
 # Proteger el archivo .env
 chmod 600 /opt/contaec/backend/.env
-chown www-data:www-data /opt/contaec/backend/.env
-
-# Proteger directorio de backups
-chmod 700 /opt/contaec/backend/backups
-chown www-data:www-data /opt/contaec/backend/backups
-
+# Proteger directorio de backups y firmas digitales
+chmod 700 /opt/contaec/backend/backups /opt/contaec/backend/signatures
 # Proteger directorio de uploads
 chmod 755 /opt/contaec/backend/uploads
-chown www-data:www-data /opt/contaec/backend/uploads
-
-# Proteger firmas digitales
-chmod 700 /opt/contaec/backend/signatures
-chown www-data:www-data /opt/contaec/backend/signatures
-```
----
-
-# Configurar clamd para socket TCP (más compatible con Python)
-# Editar /etc/clamav/clamd.conf
-# Asegurar estas líneas:
-# TCPSocket 3310
-# TCPAddr 127.0.0.1
-# o usar socket Unix:
-# LocalSocket /var/run/clamav/clamd.ctl
+# Proteger todos los propietarios
+chown www-data:www-data /opt/contaec/backend/.env /opt/contaec/backend/backups /opt/contaec/backend/signatures /opt/contaec/backend/uploads
 ```
 
+```sh
 ### 4.11 Integración de Email Templates en Frontend
 
 El sistema incluye un editor visual de plantillas de correo en `src/components/email-template-editor.tsx`.
