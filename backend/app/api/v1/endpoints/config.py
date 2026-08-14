@@ -34,6 +34,26 @@ def _check_clamav() -> bool:
     return check_clamav_available()
 
 
+def _remove_old_files(directory: str, keep_path: str | None = None) -> None:
+    """
+    Elimina archivos huérfanos de un directorio (los que ya no están referenciados).
+
+    Args:
+        directory: Directorio a limpiar
+        keep_path: Archivo que NO se debe eliminar (el recién subido)
+    """
+    if not directory or not os.path.isdir(directory):
+        return
+    for filename in os.listdir(directory):
+        full = os.path.join(directory, filename)
+        if os.path.isfile(full) and full != keep_path:
+            try:
+                os.unlink(full)
+                logger.info(f"Archivo huérfano eliminado: {full}")
+            except OSError as e:
+                logger.warning(f"No se pudo eliminar {full}: {e}")
+
+
 def _check_virustotal() -> bool:
     """Verifica disponibilidad de VirusTotal con cache de 5 min"""
     return check_virustotal_available()
@@ -256,6 +276,9 @@ async def upload_digital_signature(
 
     await db.flush()
 
+    # Limpiar firmas anteriores (huérfanas) del usuario: solo queda el archivo nuevo
+    _remove_old_files(upload_dir, keep_path=file_path)
+
     return {
         "message": "Firma electrónica cargada exitosamente.",
         "expiry_date": expiry_date.isoformat() if expiry_date else None,
@@ -264,6 +287,57 @@ async def upload_digital_signature(
         "cert_info": cert_info,
         "warnings": warnings,
     }
+
+
+@router.delete("/digital-signature")
+async def delete_digital_signature(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Eliminar la firma electrónica del usuario (archivo .p12/.pfx y su contraseña).
+    Se eliminan todos los archivos de firma del directorio del usuario.
+    """
+    result = await db.execute(
+        select(UserConfig).where(UserConfig.user_id == current_user.id)
+    )
+    config = result.scalars().first()
+
+    if not config or not config.digital_signature_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay firma electrónica registrada.",
+        )
+
+    # Eliminar el/los archivo(s) de firma del disco
+    try:
+        stored_path = decrypt_field(config.digital_signature_path, settings.ENCRYPTION_KEY)
+    except Exception:
+        stored_path = None
+
+    upload_dir = os.path.join(settings.SIGNATURES_DIR, str(current_user.id))
+    if stored_path and os.path.isfile(stored_path):
+        try:
+            os.unlink(stored_path)
+            logger.info(f"Firma eliminada: {stored_path}")
+        except OSError as e:
+            logger.warning(f"No se pudo eliminar la firma {stored_path}: {e}")
+
+    # Eliminar cualquier otro archivo huérfano del directorio de firmas del usuario
+    _remove_old_files(upload_dir)
+    try:
+        os.rmdir(upload_dir)  # Solo elimina el directorio si quedó vacío
+    except OSError:
+        pass
+
+    config.digital_signature_path = None
+    config.digital_signature_password = None
+    config.signature_expiry_date = None
+    await db.flush()
+
+    logger.info(f"Firma electrónica de {current_user.email} eliminada")
+
+    return {"message": "Firma electrónica eliminada correctamente."}
 
 
 @router.get("/signature-status")
@@ -700,7 +774,54 @@ async def upload_company_logo(
     config.company_logo_path = file_path
     await db.flush()
 
+    # Limpiar logos anteriores (huérfanos) del usuario: solo queda el archivo nuevo
+    _remove_old_files(upload_dir, keep_path=file_path)
+
     return {"message": "Logotipo cargado exitosamente.", "logo_path": file_path}
+
+
+@router.delete("/company-logo")
+async def delete_company_logo(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Eliminar el logo de la empresa del usuario.
+    Se eliminan todos los archivos de logo del directorio del usuario.
+    """
+    result = await db.execute(
+        select(UserConfig).where(UserConfig.user_id == current_user.id)
+    )
+    config = result.scalars().first()
+
+    if not config or not config.company_logo_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay logo registrado.",
+        )
+
+    # Eliminar el archivo de logo referenciado (y cualquier huérfano del directorio)
+    stored_logo = config.company_logo_path
+    if stored_logo and os.path.isfile(stored_logo):
+        try:
+            os.unlink(stored_logo)
+            logger.info(f"Logo eliminado: {stored_logo}")
+        except OSError as e:
+            logger.warning(f"No se pudo eliminar el logo {stored_logo}: {e}")
+
+    logo_dir = os.path.join(settings.UPLOAD_DIR, str(current_user.id), "logos")
+    _remove_old_files(logo_dir)
+    try:
+        os.rmdir(logo_dir)  # Solo elimina el directorio si quedó vacío
+    except OSError:
+        pass
+
+    config.company_logo_path = None
+    await db.flush()
+
+    logger.info(f"Logo de {current_user.email} eliminado")
+
+    return {"message": "Logotipo eliminado correctamente."}
 
 
 # ==========================================

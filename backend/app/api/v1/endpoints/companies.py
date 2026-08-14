@@ -23,6 +23,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.company import Company, Establishment
 from app.models.client import Client, TipoIdentificacion
+from app.models.ruc_cache import RucCache
 from app.schemas.company import (
     CompanyCreate,
     CompanyResponse,
@@ -388,16 +389,56 @@ async def _consultar_sri_ruc(client: httpx.AsyncClient, ruc: str) -> Optional[di
     return None
 
 
+def _ruc_cache_to_dict(c: RucCache) -> dict:
+    """Convierte un registro de caché RUC en la respuesta esperada por el frontend"""
+    return {
+        "ruc": c.ruc,
+        "razon_social": c.razon_social or "",
+        "nombre_comercial": c.nombre_comercial or "",
+        "dir_matriz": c.dir_matriz or "",
+        "obligado_contabilidad": c.obligado_contabilidad or "NO",
+        "contribuyente_especial": c.contribuyente_especial or "",
+        "agente_retencion": c.agente_retencion or "",
+        "contribuyente_rimpe": c.contribuyente_rimpe or "",
+        "tipo_contribuyente": c.tipo_contribuyente or "",
+        "provincia": c.provincia or "",
+    }
+
+
+async def _save_ruc_cache(db: AsyncSession, ruc: str, data: dict) -> None:
+    """Guarda (o actualiza) una consulta RUC exitosa en el caché local"""
+    if not data.get("razon_social"):
+        return
+    result = await db.execute(select(RucCache).where(RucCache.ruc == ruc))
+    cache = result.scalars().first()
+    if not cache:
+        cache = RucCache(ruc=ruc)
+        db.add(cache)
+    cache.razon_social = data.get("razon_social", "")[:500]
+    cache.nombre_comercial = data.get("nombre_comercial", "")[:500]
+    cache.dir_matriz = data.get("dir_matriz", "") or ""
+    cache.obligado_contabilidad = data.get("obligado_contabilidad", "NO")[:10]
+    cache.contribuyente_especial = data.get("contribuyente_especial", "")[:50]
+    cache.agente_retencion = data.get("agente_retencion", "")[:10]
+    cache.contribuyente_rimpe = data.get("contribuyente_rimpe", "")[:50]
+    cache.tipo_contribuyente = data.get("tipo_contribuyente", "")[:80]
+    cache.provincia = data.get("provincia", "")[:80]
+    await db.flush()
+
+
 @router.get("/ruc/{ruc}", response_model=dict)
 async def lookup_ruc(
     ruc: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Consultar datos de una empresa por RUC desde el SRI.
-    Auto-completa los campos de la empresa basado en la información del SRI.
-    Si el SRI no responde, valida el RUC localmente (dígito verificador, tipo
-    y provincia) para que el botón siempre devuelva información útil.
+    Consultar datos de una empresa por RUC.
+    Flujo 100% gratuito:
+      1. Caché local (consultas exitosas previas) -> respuesta inmediata sin red.
+      2. SRI en línea (API clásica y API móvil, ambas gratuitas).
+      3. Validación local (dígito verificador, tipo y provincia) + mensaje.
+    Cada consulta exitosa al SRI se guarda en el caché local.
     """
     from app.core.config import get_settings
     settings = get_settings()
@@ -424,24 +465,37 @@ async def lookup_ruc(
             "message": "Datos de prueba (sandbox). Verifique con el SRI.",
         }
 
+    # 1. Caché local: si este RUC ya se consultó con éxito, responder al instante
+    cache_result = await db.execute(select(RucCache).where(RucCache.ruc == ruc))
+    cached = cache_result.scalars().first()
+    if cached and cached.razon_social:
+        return {
+            **_ruc_cache_to_dict(cached),
+            "cached": True,
+            "message": "Datos del caché local (consulta SRI previa).",
+        }
+
     # Validación local siempre disponible (dígito verificador + tipo + provincia)
     valido, tipo, provincia = _validar_ruc_local(ruc)
 
-    # Consultar al SRI (con reintentos)
+    # 2. Consultar al SRI (fuentes gratuitas, con reintentos)
     import httpx
     import asyncio
     last_error = None
     for attempt in range(2):
         try:
-            timeout = httpx.Timeout(connect=8.0, read=15.0, total=20.0)
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            # httpx >= 0.26 ya no acepta total=; usar un default global (20s)
+            async with httpx.AsyncClient(timeout=httpx.Timeout(20.0)) as client:
                 data = await _consultar_sri_ruc(client, ruc)
             if data:
+                data["tipo_contribuyente"] = tipo
+                data["provincia"] = provincia
+                # Guardar en caché para consultas futuras (gratis e inmediato)
+                await _save_ruc_cache(db, ruc, data)
                 return {
                     "ruc": ruc,
                     **data,
-                    "tipo_contribuyente": tipo,
-                    "provincia": provincia,
+                    "cached": False,
                 }
             last_error = "El servicio del SRI no respondió"
         except Exception as e:
@@ -451,7 +505,7 @@ async def lookup_ruc(
 
     logger.warning(f"No se pudo consultar RUC {ruc} en SRI: {last_error}")
 
-    # Fallback: validación local + mensaje claro para completar datos manualmente
+    # 3. Fallback: validación local + mensaje claro para completar datos manualmente
     message = (
         "RUC válido según dígito verificador. "
         if valido
@@ -466,6 +520,7 @@ async def lookup_ruc(
         "dir_matriz": "",
         "tipo_contribuyente": tipo,
         "provincia": provincia,
+        "cached": False,
         "message": message,
     }
 

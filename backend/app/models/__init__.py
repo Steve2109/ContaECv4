@@ -168,6 +168,9 @@ from app.models.user_company_role import (
     Permission,
     UserCompanyRole,
 )
+from app.models.ruc_cache import (
+    RucCache,
+)
 from app.models.notification import (
     Notification,
     NotificationCategory,
@@ -400,6 +403,8 @@ __all__ = [
     "NotificationType",
     "NotificationCategory",
     "NotificationPriority",
+    # Caché RUC (consultas SRI locales)
+    "RucCache",
     # Roles por Empresa
     "UserCompanyRole",
     "CompanyRole",

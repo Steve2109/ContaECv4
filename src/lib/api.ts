@@ -812,6 +812,14 @@ async function uploadCompanyLogo(file: File): Promise<{ message: string; logo_pa
   return response.json();
 }
 
+async function deleteDigitalSignature(): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>('/v1/config/digital-signature');
+}
+
+async function deleteCompanyLogo(): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>('/v1/config/company-logo');
+}
+
 async function validateSignature(file: File, password: string): Promise<SignatureValidation> {
   const formData = new FormData();
   formData.append('file', file);
@@ -4787,6 +4795,8 @@ export {
   setBackupKey,
   changePassword,
   uploadCompanyLogo,
+  deleteDigitalSignature,
+  deleteCompanyLogo,
   validateSignature,
   // Comprobante functions
   getComprobantes,

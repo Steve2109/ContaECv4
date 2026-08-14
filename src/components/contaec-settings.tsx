@@ -43,6 +43,7 @@ import {
   HardDrive,
   RefreshCw,
   Building2,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
@@ -76,6 +77,8 @@ import {
   updateProfile,
   changePassword,
   uploadCompanyLogo,
+  deleteCompanyLogo,
+  deleteDigitalSignature,
   validateSignature,
   getBackups,
   createBackup,
@@ -368,6 +371,8 @@ function ProfileTab({
 
   // Logo upload
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [deletingLogo, setDeletingLogo] = useState(false);
+  const [confirmLogoDelete, setConfirmLogoDelete] = useState(false);
 
   async function handleSaveProfile() {
     setSaving(true);
@@ -404,6 +409,20 @@ function ProfileTab({
       toast.error(err instanceof Error ? err.message : 'Error al subir logo');
     } finally {
       setUploadingLogo(false);
+    }
+  }
+
+  async function handleDeleteLogo() {
+    setDeletingLogo(true);
+    try {
+      await deleteCompanyLogo();
+      toast.success('Logo eliminado correctamente');
+      setConfirmLogoDelete(false);
+      onConfigUpdate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar logo');
+    } finally {
+      setDeletingLogo(false);
     }
   }
 
@@ -535,23 +554,31 @@ function ProfileTab({
                 <Upload className="h-8 w-8 text-muted-foreground" />
               )}
             </div>
-            <label htmlFor="logo-upload">
-              <Button variant="outline" size="sm" asChild disabled={uploadingLogo}>
-                <span>
-                  {uploadingLogo ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Subiendo...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Subir Logo
-                    </>
-                  )}
-                </span>
-              </Button>
-            </label>
+            <div className="flex gap-2">
+              <label htmlFor="logo-upload">
+                <Button variant="outline" size="sm" asChild disabled={uploadingLogo}>
+                  <span>
+                    {uploadingLogo ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Subiendo...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Subir Logo
+                      </>
+                    )}
+                  </span>
+                </Button>
+              </label>
+              {config.company_logo_path && (
+                <Button variant="destructive" size="sm" onClick={() => setConfirmLogoDelete(true)}>
+                  <Trash2 className="mr-1 h-3 w-3" />
+                  Eliminar Logo
+                </Button>
+              )}
+            </div>
             <input
               id="logo-upload"
               type="file"
@@ -565,6 +592,30 @@ function ProfileTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirm Delete Logo Dialog */}
+      <Dialog open={confirmLogoDelete} onOpenChange={setConfirmLogoDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Eliminar Logo
+            </DialogTitle>
+            <DialogDescription>
+              El logo se eliminará del servidor y dejará de aparecer en sus comprobantes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setConfirmLogoDelete(false)} disabled={deletingLogo}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteLogo} disabled={deletingLogo}>
+              {deletingLogo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Eliminar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -588,6 +639,8 @@ function SignatureTab({
   const [validation, setValidation] = useState<SignatureValidation | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [deletingSig, setDeletingSig] = useState(false);
+  const [confirmSigDelete, setConfirmSigDelete] = useState(false);
 
   async function handleUpload() {
     if (!sigFile || !sigPassword) return;
@@ -629,6 +682,24 @@ function SignatureTab({
       });
     } finally {
       setValidating(false);
+    }
+  }
+
+  async function handleDeleteSignature() {
+    setDeletingSig(true);
+    setMessage(null);
+    try {
+      await deleteDigitalSignature();
+      toast.success('Firma electrónica eliminada correctamente');
+      setConfirmSigDelete(false);
+      onConfigUpdate();
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Error al eliminar firma',
+      });
+    } finally {
+      setDeletingSig(false);
     }
   }
 
@@ -736,8 +807,55 @@ function SignatureTab({
               </span>
             </div>
           )}
+
+          {config.has_digital_signature && (
+            <>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Firma registrada en el servidor</span>
+                <Button variant="destructive" size="sm" onClick={() => setConfirmSigDelete(true)}>
+                  <Trash2 className="mr-1 h-3 w-3" />
+                  Eliminar Firma
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
+
+      {/* Confirm Delete Signature Dialog */}
+      <Dialog open={confirmSigDelete} onOpenChange={setConfirmSigDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Eliminar Firma Electrónica
+            </DialogTitle>
+            <DialogDescription>
+              Se eliminará el archivo .p12/.pfx del servidor y su contraseña. No podrá emitir
+              comprobantes electrónicos hasta cargar una nueva firma. Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Accion irreversible</AlertTitle>
+              <AlertDescription>
+                El archivo de firma se borrará del disco del servidor.
+              </AlertDescription>
+            </Alert>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmSigDelete(false)} disabled={deletingSig}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteSignature} disabled={deletingSig}>
+                {deletingSig ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Eliminar Permanentemente
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Expiring Soon Warning */}
       {config.signature_status === 'expiring_soon' && (
