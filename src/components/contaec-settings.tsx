@@ -1000,6 +1000,16 @@ function EnvironmentTab({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingMode, setPendingMode] = useState<'sandbox' | 'production' | null>(null);
 
+  // Mensaje de advertencia segun el estado real de la firma electronica.
+  // El backend solo bloquea produccion sin firma o con firma expirada;
+  // si la firma esta 'uploaded' (sin fecha de expiracion) el cambio si procede.
+  const signatureWarning =
+    config.signature_status === 'expired'
+      ? 'Su firma electronica esta expirada. El SRI rechazara los comprobantes emitidos en produccion hasta que renueve la firma en la pestana Firma Electronica.'
+      : config.signature_status === 'uploaded'
+        ? 'Su firma electronica no tiene informacion de expiracion registrada. Verifique que este vigente antes de operar en produccion, ya que el SRI podria rechazar los comprobantes.'
+        : 'No tiene una firma electronica registrada. Para operar en produccion, el SRI requiere una firma electronica valida. Registre su firma en la pestana Firma Electronica antes de emitir comprobantes.';
+
   async function handleSwitchMode(mode: 'sandbox' | 'production') {
     if (mode === 'production' && config.signature_status !== 'valid') {
       setPendingMode(mode);
@@ -1192,13 +1202,9 @@ function EnvironmentTab({
       {showConfirmDialog && pendingMode === 'production' && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Sin firma electronica valida</AlertTitle>
+          <AlertTitle>Verifique su firma electronica</AlertTitle>
           <AlertDescription className="space-y-2">
-            <p>
-              No tiene una firma electronica valida registrada. Para operar en produccion, el SRI
-              requiere una firma electronica valida. Los comprobantes emitidos sin firma seran
-              rechazados.
-            </p>
+            <p>{signatureWarning}</p>
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -1219,7 +1225,7 @@ function EnvironmentTab({
                 {switching ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
-                Cambiar de todos modos
+                Intentar de todos modos
               </Button>
             </div>
           </AlertDescription>
