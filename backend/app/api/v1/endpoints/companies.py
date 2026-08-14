@@ -6,9 +6,12 @@ import logging
 import os
 import re
 import uuid
+from typing import Optional
 from uuid import UUID
 from pathlib import Path
 from datetime import datetime, timezone
+
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy import select, func
@@ -266,6 +269,125 @@ async def delete_company(
     return {"message": "Empresa desactivada exitosamente."}
 
 
+PROVINCIAS_EC = {
+    "01": "Azuay", "02": "Bolívar", "03": "Cañar", "04": "Carchi", "05": "Cotopaxi",
+    "06": "Chimborazo", "07": "El Oro", "08": "Esmeraldas", "09": "Guayas", "10": "Imbabura",
+    "11": "Loja", "12": "Los Ríos", "13": "Manabí", "14": "Morona Santiago", "15": "Napo",
+    "16": "Pastaza", "17": "Pichincha", "18": "Tungurahua", "19": "Zamora Chinchipe", "20": "Galápagos",
+    "21": "Sucumbíos", "22": "Orellana", "23": "Santo Domingo de los Tsáchilas", "24": "Santa Elena",
+    "30": "Zona no delimitada",
+}
+
+
+def _validar_ruc_local(ruc: str) -> tuple[bool, str, str]:
+    """
+    Valida el dígito verificador de un RUC ecuatoriano y deriva tipo/provincia.
+    Retorna (valido, tipo_contribuyente, provincia).
+    """
+    if not (ruc.isdigit() and len(ruc) == 13):
+        return False, "Formato inválido", ""
+
+    provincia = PROVINCIAS_EC.get(ruc[:2], "")
+    tercer = int(ruc[2])
+
+    if tercer in (0, 1, 2, 3, 4, 5):
+        # Persona natural - módulo 10
+        coef = [2, 1, 2, 1, 2, 1, 2, 1, 2]
+        tipo = "Persona Natural"
+        modulo = 10
+    elif tercer == 6:
+        # Sector público - módulo 11
+        coef = [3, 2, 7, 6, 5, 4, 3, 2]
+        tipo = "Sector Público"
+        modulo = 11
+    elif tercer in (7, 8):
+        # Sociedad / persona jurídica - módulo 11
+        coef = [4, 3, 2, 7, 6, 5, 4, 3, 2]
+        tipo = "Sociedad / Persona Jurídica"
+        modulo = 11
+    elif tercer == 9:
+        # Persona natural extranjera - módulo 11
+        coef = [4, 3, 2, 7, 6, 5, 4, 3, 2]
+        tipo = "Persona Natural Extranjera"
+        modulo = 11
+    else:
+        return False, "RUC inválido", provincia
+
+    suma = 0
+    for i, c in enumerate(coef):
+        val = int(ruc[i]) * c
+        # Reducción de dígitos solo en el módulo 10 (cédula / persona natural)
+        if modulo == 10 and val >= 10:
+            val -= 9
+        suma += val
+
+    residuo = suma % modulo
+    check = modulo - residuo if residuo != 0 else 0
+    if check == 10:
+        check = 0
+
+    return check == int(ruc[9]), tipo, provincia
+
+
+async def _consultar_sri_ruc(client: httpx.AsyncClient, ruc: str) -> Optional[dict]:
+    """
+    Intenta consultar el RUC en los servicios públicos del SRI.
+    Retorna el dict parseado o None si el servicio no responde.
+    """
+    endpoints = [
+        # 1. API clásica (retirada por el SRI en 2023+, se mantiene por si vuelve)
+        (
+            "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsultaRuc/obtenerDatosRuc",
+            {"params": {"ruc": ruc}},
+        ),
+        # 2. API de la app móvil SRI (funciona con headers de app móvil)
+        (
+            f"https://srienlinea.sri.gob.ec/movil-servicios/api/v1.0/ruc/{ruc}",
+            {},
+        ),
+    ]
+
+    mobile_headers = {
+        "User-Agent": "okhttp/4.9.0",
+        "Accept": "application/json",
+        "Accept-Language": "es",
+    }
+
+    for url, extra in endpoints:
+        try:
+            headers = mobile_headers if "movil-servicios" in url else {"User-Agent": "ContaEC/4.0"}
+            response = await client.get(url, headers=headers, **extra)
+            if response.status_code != 200:
+                logger.warning(f"SRI respondió {response.status_code} para RUC {ruc} en {url.split('/')[-1]}")
+                continue
+            try:
+                data = response.json()
+            except Exception:
+                continue
+            if not isinstance(data, dict):
+                continue
+            # La API clásica usa camelCase; la móvil puede variar.
+            razon = data.get("razonSocial") or data.get("razon_social") or data.get("nombre") or ""
+            if razon:
+                return {
+                    "razon_social": razon,
+                    "nombre_comercial": data.get("nombreComercial") or data.get("nombre_comercial") or "",
+                    "dir_matriz": data.get("dirMatriz") or data.get("dir_matriz") or data.get("direccion") or "",
+                    "obligado_contabilidad": data.get("obligadoContabilidad") or data.get("obligado_contabilidad") or "NO",
+                    "contribuyente_especial": data.get("contribuyenteEspecial") or data.get("contribuyente_especial") or "",
+                    "agente_retencion": data.get("agenteRetencion") or data.get("agente_retencion") or "",
+                    "contribuyente_rimpe": data.get("contribuyenteRimpe") or data.get("contribuyente_rimpe") or "",
+                }
+        except httpx.TimeoutException:
+            logger.warning(f"SRI timeout consultando RUC {ruc}")
+        except httpx.ConnectError:
+            logger.warning(f"SRI connection error consultando RUC {ruc}")
+        except Exception as e:
+            logger.warning(f"Error consultando RUC {ruc}: {e}")
+
+    return None
+
+
 @router.get("/ruc/{ruc}", response_model=dict)
 async def lookup_ruc(
     ruc: str,
@@ -274,6 +396,8 @@ async def lookup_ruc(
     """
     Consultar datos de una empresa por RUC desde el SRI.
     Auto-completa los campos de la empresa basado en la información del SRI.
+    Si el SRI no responde, valida el RUC localmente (dígito verificador, tipo
+    y provincia) para que el botón siempre devuelva información útil.
     """
     from app.core.config import get_settings
     settings = get_settings()
@@ -300,71 +424,49 @@ async def lookup_ruc(
             "message": "Datos de prueba (sandbox). Verifique con el SRI.",
         }
 
-    try:
-        # Intentar consultar el SRI con reintentos
-        import httpx
-        last_error = None
-        for attempt in range(3):
-            try:
-                timeout = httpx.Timeout(connect=10.0, read=20.0, total=30.0)
-                async with httpx.AsyncClient(timeout=timeout) as client:
-                    response = await client.get(
-                        f"https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsultaRuc/obtenerDatosRuc",
-                        params={"ruc": ruc},
-                        headers={"User-Agent": "ContaEC/4.0"},
-                    )
-                    if response.status_code == 200:
-                        data = response.json()
-                        if data.get("razonSocial"):
-                            return {
-                                "ruc": ruc,
-                                "razon_social": data.get("razonSocial", ""),
-                                "nombre_comercial": data.get("nombreComercial", ""),
-                                "dir_matriz": data.get("dirMatriz", ""),
-                                "obligado_contabilidad": data.get("obligadoContabilidad", "NO"),
-                                "contribuyente_especial": data.get("contribuyenteEspecial", ""),
-                                "agente_retencion": data.get("agenteRetencion", ""),
-                                "contribuyente_rimpe": data.get("contribuyenteRimpe", ""),
-                            }
-                        else:
-                            logger.warning(f"SRI no encontro datos para RUC {ruc}: {data}")
-                            return {
-                                "ruc": ruc,
-                                "message": "RUC no encontrado en el SRI. Verifique el numero e intente nuevamente.",
-                                "razon_social": "",
-                                "nombre_comercial": "",
-                                "dir_matriz": "",
-                            }
-                    else:
-                        logger.warning(f"SRI respondio con status {response.status_code} para RUC {ruc}")
-                        last_error = f"El SRI respondio con status {response.status_code}"
-                        break  # Non-200 status, don't retry
-            except httpx.TimeoutException:
-                last_error = "El servicio del SRI no responde (timeout)"
-                logger.warning(f"SRI timeout en intento {attempt+1} para RUC {ruc}")
-                if attempt < 2:
-                    import asyncio
-                    await asyncio.sleep(2)
-                continue
-            except httpx.ConnectError:
-                last_error = "No se puede conectar con el servicio del SRI"
-                logger.warning(f"SRI connection error en intento {attempt+1} para RUC {ruc}")
-                if attempt < 2:
-                    import asyncio
-                    await asyncio.sleep(2)
-                continue
+    # Validación local siempre disponible (dígito verificador + tipo + provincia)
+    valido, tipo, provincia = _validar_ruc_local(ruc)
 
-        logger.warning(f"Error consultando RUC {ruc} en SRI despues de reintentos: {last_error}")
-    except Exception as e:
-        logger.warning(f"Error inesperado consultando RUC {ruc} en SRI: {e}")
+    # Consultar al SRI (con reintentos)
+    import httpx
+    import asyncio
+    last_error = None
+    for attempt in range(2):
+        try:
+            timeout = httpx.Timeout(connect=8.0, read=15.0, total=20.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                data = await _consultar_sri_ruc(client, ruc)
+            if data:
+                return {
+                    "ruc": ruc,
+                    **data,
+                    "tipo_contribuyente": tipo,
+                    "provincia": provincia,
+                }
+            last_error = "El servicio del SRI no respondió"
+        except Exception as e:
+            last_error = str(e)
+        if attempt == 0:
+            await asyncio.sleep(1)
 
-    # Fallback: retornar datos basicos
+    logger.warning(f"No se pudo consultar RUC {ruc} en SRI: {last_error}")
+
+    # Fallback: validación local + mensaje claro para completar datos manualmente
+    message = (
+        "RUC válido según dígito verificador. "
+        if valido
+        else "El RUC ingresado no pasa la validación del dígito verificador. Verifique el número. "
+    )
+    message += "El servicio en línea del SRI no está disponible en este momento. Complete los datos manualmente."
+
     return {
         "ruc": ruc,
-        "message": "El servicio del SRI no esta disponible en este momento. Complete los datos manualmente.",
         "razon_social": "",
         "nombre_comercial": "",
         "dir_matriz": "",
+        "tipo_contribuyente": tipo,
+        "provincia": provincia,
+        "message": message,
     }
 
 

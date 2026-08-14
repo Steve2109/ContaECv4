@@ -6,6 +6,7 @@ import logging
 import platform
 import os
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,12 +14,25 @@ from pydantic import BaseModel
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.ai_admin import (
+    ai_errors_count,
+    ai_global_enabled,
+    ai_self_test,
+    clear_ai_errors,
+    get_ai_errors,
+    get_user_ai_enabled,
+    set_ai_global_enabled,
+    set_user_ai_enabled,
+    z_ai_installed,
+)
 from app.core.database import get_db
+from app.core.licenses import get_plan_config, update_plan_config
 from app.core.security import get_current_user, get_current_active_admin, get_password_hash
 from app.core.config import get_settings
 from app.models.user import User, UserConfig, LicenseType
 from app.models.company import Company
 from app.models.client import Client
+from app.models.ml_ai import MLChatbotSesion, MLPrediccion
 from app.schemas.auth import UserResponse
 
 logger = logging.getLogger(__name__)
@@ -91,7 +105,21 @@ async def admin_dashboard(
             select(func.count(User.id)).where(User.license_type == lt)
         )
         license_distribution[lt.value] = count
-    
+
+    # Usuarios en período de prueba activo (trial vigente)
+    trial_users = await db.scalar(
+        select(func.count(User.id)).where(
+            and_(
+                User.is_trial == True,
+                User.trial_end_date != None,
+                User.trial_end_date >= now,
+            )
+        )
+    )
+    trial_users_total = await db.scalar(
+        select(func.count(User.id)).where(User.is_trial == True)
+    )
+
     return {
         "total_users": total_users,
         "active_users": active_users,
@@ -100,6 +128,8 @@ async def admin_dashboard(
         "total_clients": total_clients,
         "expiring_licenses": expiring_licenses,
         "expired_licenses": expired_licenses,
+        "trial_users": trial_users,
+        "trial_users_total": trial_users_total,
         "license_distribution": license_distribution,
     }
 
@@ -463,14 +493,39 @@ async def security_issues(
     )
     expired_active_users = expired_active.scalars().all()
     
-    # Usuarios sin configuración
-    users_without_config = await db.execute(
+    # Usuarios sin configuración completa:
+    # - sin fila de UserConfig (perfil/ambiente sin crear), o
+    # - sin ninguna empresa creada (cuenta a medio configurar).
+    # Se excluye al administrador del sistema para no generar ruido.
+    users_no_config_raw = await db.execute(
         select(User).where(
-            ~User.id.in_(select(UserConfig.user_id))
+            User.is_admin == False,
+            and_(
+                ~User.id.in_(select(UserConfig.user_id)),
+                ~User.id.in_(select(Company.user_id)),
+            ),
         )
     )
-    users_no_config = users_without_config.scalars().all()
-    
+    users_no_config = users_no_config_raw.scalars().all()
+
+    users_without_company = await db.execute(
+        select(User).where(
+            User.is_admin == False,
+            User.id.in_(select(UserConfig.user_id)),
+            ~User.id.in_(select(Company.user_id)),
+        )
+    )
+    users_no_company = users_without_company.scalars().all()
+
+    def _config_issue(u: User, reason: str, reason_label: str) -> dict:
+        return {
+            "user_id": str(u.id),
+            "email": u.email,
+            "full_name": u.full_name,
+            "reason": reason,
+            "reason_label": reason_label,
+        }
+
     return {
         "expired_active_licenses": [
             {
@@ -483,12 +538,12 @@ async def security_issues(
             for u in expired_active_users
         ],
         "users_without_config": [
-            {
-                "user_id": str(u.id),
-                "email": u.email,
-                "full_name": u.full_name,
-            }
+            _config_issue(u, "sin_configuracion", "Sin configuracion de usuario")
             for u in users_no_config
+        ]
+        + [
+            _config_issue(u, "sin_empresa", "Sin empresa creada")
+            for u in users_no_company
         ],
     }
 
@@ -537,3 +592,216 @@ async def update_license_prices(
         "message": f"Precios actualizados: {', '.join(updated)}",
         "prices": LICENSE_PRICES,
     }
+
+
+# ==========================================
+# Límites y features por plan (editable)
+# ==========================================
+
+LIMIT_LABELS = {
+    "max_companies": "Empresas max.",
+    "max_users_per_company": "Usuarios/empresa",
+    "max_comprobantes_month": "Comprobantes/mes",
+    "max_employees": "Empleados",
+    "max_products": "Productos",
+}
+
+
+class PlanLimitsUpdate(BaseModel):
+    max_companies: Optional[int] = None
+    max_users_per_company: Optional[int] = None
+    max_comprobantes_month: Optional[int] = None
+    max_employees: Optional[int] = None
+    max_products: Optional[int] = None
+
+
+class PlanUpdate(BaseModel):
+    limits: Optional[PlanLimitsUpdate] = None
+    features: Optional[dict[str, bool]] = None
+
+
+class LicensePlansUpdate(BaseModel):
+    monthly: Optional[PlanUpdate] = None
+    quarterly: Optional[PlanUpdate] = None
+    semiannual: Optional[PlanUpdate] = None
+    annual: Optional[PlanUpdate] = None
+
+
+@router.get("/license-plans")
+async def get_license_plans(
+    current_user: User = Depends(get_current_active_admin),
+):
+    """
+    Obtener configuración completa de planes: precios, meses, límites y features.
+    Combina los precios editables (LICENSE_PRICES) con los límites/features
+    editables (core.licenses._PLAN_CONFIG).
+    """
+    plans = get_plan_config()
+    result = {}
+    for key, cfg in plans.items():
+        price_info = LICENSE_PRICES.get(key, {})
+        result[key] = {
+            "label": cfg.get("label", key),
+            "price": price_info.get("price", 0),
+            "months": price_info.get("months", 1),
+            "limits": {k: cfg.get(k) for k in LIMIT_LABELS},
+            "features": cfg.get("features", {}),
+        }
+    return {"plans": result, "limit_labels": LIMIT_LABELS}
+
+
+@router.put("/license-plans")
+async def update_license_plans(
+    data: LicensePlansUpdate,
+    current_user: User = Depends(get_current_active_admin),
+):
+    """
+    Actualizar límites y/o features de los planes.
+    Solo se envían los campos que se quieren cambiar.
+    """
+    updated_plans = []
+    updates = {
+        "monthly": data.monthly,
+        "quarterly": data.quarterly,
+        "semiannual": data.semiannual,
+        "annual": data.annual,
+    }
+    for key, plan_update in updates.items():
+        if plan_update is None:
+            continue
+        limits = plan_update.limits.model_dump(exclude_none=True) if plan_update.limits else None
+        features = plan_update.features or None
+        if not limits and not features:
+            continue
+        update_plan_config(key, limits=limits, features=features)
+        updated_plans.append(key)
+
+    logger.info(f"Admin {current_user.email} updated license plans: {updated_plans}")
+
+    return {
+        "message": f"Planes actualizados: {', '.join(updated_plans) or 'ninguno'}",
+        "plans": get_plan_config(),
+    }
+
+
+# ==========================================
+# Panel ML/IA (configuración global y por usuario)
+# ==========================================
+
+@router.get("/ai-status")
+async def get_ai_status(
+    current_user: User = Depends(get_current_active_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Estado general del módulo ML/IA"""
+    total_users = await db.scalar(select(func.count(User.id))) or 0
+
+    return {
+        "global_enabled": ai_global_enabled(),
+        "z_ai_installed": z_ai_installed(),
+        "users_total": total_users,
+        "errors_count": ai_errors_count(),
+    }
+
+
+class AISettingsUpdate(BaseModel):
+    enabled: bool
+
+
+@router.put("/ai-settings")
+async def update_ai_settings(
+    data: AISettingsUpdate,
+    current_user: User = Depends(get_current_active_admin),
+):
+    """Activar/desactivar la capa de IA globalmente"""
+    enabled = set_ai_global_enabled(data.enabled)
+    logger.info(f"Admin {current_user.email} set AI global_enabled={enabled}")
+    return {
+        "message": f"IA {'habilitada' if enabled else 'deshabilitada'} globalmente",
+        "global_enabled": enabled,
+    }
+
+
+@router.get("/ai-users")
+async def list_ai_users(
+    current_user: User = Depends(get_current_active_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Listar usuarios con su estado de IA y uso del módulo ML/IA"""
+    result = await db.execute(
+        select(User).order_by(User.created_at.desc()).limit(200)
+    )
+    users = result.scalars().all()
+
+    items = []
+    for u in users:
+        sessions = await db.scalar(
+            select(func.count(MLChatbotSesion.id)).where(MLChatbotSesion.user_id == u.id)
+        ) or 0
+        predictions = await db.scalar(
+            select(func.count(MLPrediccion.id)).where(MLPrediccion.user_id == u.id)
+        ) or 0
+        items.append({
+            "user_id": str(u.id),
+            "email": u.email,
+            "full_name": u.full_name,
+            "is_admin": u.is_admin,
+            "ai_enabled": get_user_ai_enabled(u.id) if get_user_ai_enabled(u.id) is not None else ai_global_enabled(),
+            "ai_override": get_user_ai_enabled(u.id),
+            "chatbot_sessions": sessions,
+            "predictions": predictions,
+        })
+
+    return {"users": items}
+
+
+class AIUserUpdate(BaseModel):
+    enabled: bool
+
+
+@router.put("/ai-users/{user_id}")
+async def update_ai_user(
+    user_id: UUID,
+    data: AIUserUpdate,
+    current_user: User = Depends(get_current_active_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Activar/desactivar la capa de IA para un usuario específico"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    enabled = set_user_ai_enabled(str(user_id), data.enabled)
+    logger.info(f"Admin {current_user.email} set AI for {user.email} = {enabled}")
+    return {
+        "message": f"IA {'habilitada' if enabled else 'deshabilitada'} para {user.email}",
+        "user_id": str(user_id),
+        "ai_enabled": enabled,
+    }
+
+
+@router.get("/ai-errors")
+async def list_ai_errors(
+    current_user: User = Depends(get_current_active_admin),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """Errores recientes del módulo ML/IA"""
+    return {"errors": get_ai_errors(limit=limit)}
+
+
+@router.delete("/ai-errors")
+async def clear_ai_errors_endpoint(
+    current_user: User = Depends(get_current_active_admin),
+):
+    """Limpiar el buffer de errores del módulo ML/IA"""
+    count = clear_ai_errors()
+    return {"message": f"{count} error(es) eliminados", "cleared": count}
+
+
+@router.post("/ai/test")
+async def run_ai_self_test(
+    current_user: User = Depends(get_current_active_admin),
+):
+    """Ejecuta un autotest de la cadena de respuestas de IA"""
+    return await ai_self_test()

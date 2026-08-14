@@ -17,6 +17,7 @@ from typing import Optional
 from sqlalchemy import func, select, extract, cast, String, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.ai_admin import log_ai_error, is_ai_enabled_for_user
 from app.core.database import engine
 
 from app.models.client import Client
@@ -852,10 +853,13 @@ async def _generate_llm_response(
         except asyncio.TimeoutError:
             proc.kill()
             logger.warning("LLM chatbot timed out after 30s")
+            log_ai_error("chatbot_llm", "z-ai tardó más de 30s en responder (timeout)", company_id=company_id)
             return None
         
         if proc.returncode != 0:
-            logger.warning(f"LLM chatbot failed: {stderr.decode()[:200]}")
+            err_text = stderr.decode(errors='replace')[:300]
+            logger.warning(f"LLM chatbot failed: {err_text}")
+            log_ai_error("chatbot_llm", "z-ai falló al generar la respuesta", company_id=company_id, detail=err_text)
             return None
         
         # Read the response from the output file
@@ -885,6 +889,7 @@ async def _generate_llm_response(
             return None
         except (json.JSONDecodeError, FileNotFoundError) as e:
             logger.warning(f"Failed to parse LLM response: {e}")
+            log_ai_error("chatbot_llm", "No se pudo interpretar la respuesta de z-ai", company_id=company_id, detail=str(e))
             return None
         finally:
             # Clean up temp file
@@ -895,9 +900,11 @@ async def _generate_llm_response(
             
     except FileNotFoundError:
         logger.warning("z-ai CLI not found, falling back to rule-based chatbot")
+        log_ai_error("chatbot_llm", "CLI 'z-ai' no instalado: la capa LLM no está disponible", company_id=company_id)
         return None
     except Exception as e:
         logger.error(f"Error in LLM chatbot: {e}")
+        log_ai_error("chatbot_llm", f"Error inesperado en la capa LLM: {e}", company_id=company_id)
         return None
 
 
@@ -939,10 +946,15 @@ async def chatbot_responder(
     use_llm = intencion is None or intencion == "ayuda"
     
     if use_llm:
-        # Try LLM for unknown/complex queries
-        respuesta = await _generate_llm_response(mensaje, contexto, sesion.company_id)
+        # La capa LLM se puede desactivar globalmente o por usuario desde el
+        # panel del administrador (ML/IA). Si está desactivada, se usa solo reglas.
+        if is_ai_enabled_for_user(user_id):
+            # Try LLM for unknown/complex queries
+            respuesta = await _generate_llm_response(mensaje, contexto, sesion.company_id)
+        else:
+            respuesta = None
         if respuesta is None:
-            # LLM failed, fall back to rule-based
+            # LLM failed or disabled, fall back to rule-based
             respuesta = generar_respuesta_chatbot(intencion, entidades, contexto, mensaje)
     else:
         # Use rule-based for known intents (fast, no API cost)

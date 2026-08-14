@@ -61,38 +61,51 @@ class ClamAVScanner:
         self._cd = None
 
     def _try_connect(self) -> bool:
-        """Intenta conectar al demonio ClamAV"""
+        """Intenta conectar al demonio ClamAV.
+
+        Usa el protocolo clamd directamente (PING/PONG sobre el socket Unix o TCP)
+        para que la detección no dependa de que pyclamd esté instalado o sea
+        compatible con la versión de ClamAV del servidor.
+        """
         if self._available is not None:
             return self._available
 
+        import socket
+
+        def _ping(sock) -> bool:
+            sock.settimeout(3.0)
+            sock.sendall(b"PING\n")
+            data = sock.recv(16)
+            return data.strip() == b"PONG"
+
+        connected = False
+        # 1. Unix socket
         try:
-            import pyclamd
+            sock_path = settings.CLAMAV_SOCKET
+            if sock_path and os.path.exists(sock_path):
+                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                s.connect(sock_path)
+                if _ping(s):
+                    connected = True
+                    logger.info("ClamAV conectado vía Unix socket")
+                s.close()
+        except Exception:
+            pass
 
-            # Intentar primero vía Unix socket
+        # 2. TCP
+        if not connected:
             try:
-                self._cd = pyclamd.ClamdUnixSocket(
-                    path=settings.CLAMAV_SOCKET
+                s = socket.create_connection(
+                    (settings.CLAMAV_HOST, settings.CLAMAV_PORT), timeout=3.0
                 )
-                self._cd.ping()
-                self._available = True
-                logger.info("ClamAV conectado vía Unix socket")
-                return True
+                if _ping(s):
+                    connected = True
+                    logger.info("ClamAV conectado vía TCP")
+                s.close()
             except Exception:
                 pass
 
-            # Intentar vía TCP
-            try:
-                self._cd = pyclamd.ClamdNetworkSocket(
-                    host=settings.CLAMAV_HOST,
-                    port=settings.CLAMAV_PORT,
-                )
-                self._cd.ping()
-                self._available = True
-                logger.info("ClamAV conectado vía TCP")
-                return True
-            except Exception:
-                pass
-
+        if not connected:
             self._available = False
             logger.warning(
                 "ClamAV no disponible. Los archivos NO serán escaneados localmente. "
@@ -100,10 +113,107 @@ class ClamAVScanner:
             )
             return False
 
+        # Intentar usar pyclamd para escaneos rápidos; si no está disponible,
+        # el escaneo usará el protocolo INSTREAM directamente (más abajo).
+        self._available = True
+        try:
+            import pyclamd
+            cd = None
+            try:
+                cd = pyclamd.ClamdUnixSocket(path=settings.CLAMAV_SOCKET)
+                cd.ping()
+            except Exception:
+                cd = None
+            if cd is None:
+                try:
+                    cd = pyclamd.ClamdNetworkSocket(
+                        host=settings.CLAMAV_HOST, port=settings.CLAMAV_PORT
+                    )
+                    cd.ping()
+                except Exception:
+                    cd = None
+            self._cd = cd
         except ImportError:
-            self._available = False
-            logger.warning("pyclamd no instalado. ClamAV no disponible.")
-            return False
+            self._cd = None
+            logger.info("pyclamd no instalado: se usará el protocolo INSTREAM directo")
+
+        return True
+
+    def _scan_stream_raw(self, content: bytes) -> ScanResult:
+        """
+        Escaneo con clamd usando el comando INSTREAM por socket (sin pyclamd).
+        """
+        import socket
+
+        sock = None
+        try:
+            # Conectar (misma lógica que _try_connect)
+            sock_path = settings.CLAMAV_SOCKET
+            if sock_path and os.path.exists(sock_path):
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                sock.connect(sock_path)
+            else:
+                sock = socket.create_connection(
+                    (settings.CLAMAV_HOST, settings.CLAMAV_PORT), timeout=5.0
+                )
+            sock.settimeout(30.0)
+            sock.sendall(b"zINSTREAM\0")
+
+            chunk_size = 8192
+            for i in range(0, len(content), chunk_size):
+                chunk = content[i:i + chunk_size]
+                sock.sendall(len(chunk).to_bytes(4, "big") + chunk)
+            sock.sendall(b"\0\0\0\0")
+
+            # Leer respuesta
+            data = b""
+            while True:
+                try:
+                    part = sock.recv(4096)
+                except socket.timeout:
+                    break
+                if not part:
+                    break
+                data += part
+                if len(part) < 4096:
+                    break
+
+            respuesta = data.decode("utf-8", "replace").strip()
+            if "FOUND" in respuesta:
+                threat = respuesta.split(":")[-1].strip().replace(" FOUND", "")
+                threat = threat or "desconocido"
+                logger.warning(f"⚠️ MALWARE DETECTADO por ClamAV: {threat}")
+                return ScanResult(
+                    is_clean=False,
+                    scanner="clamav",
+                    threat=threat,
+                    details=f"Amenaza detectada: {threat}",
+                )
+            if "ERROR" in respuesta:
+                logger.warning(f"ClamAV respondió ERROR: {respuesta}")
+                return ScanResult(
+                    is_clean=True,
+                    scanner="clamav",
+                    details=f"ClamAV error: {respuesta}",
+                )
+            return ScanResult(
+                is_clean=True,
+                scanner="clamav",
+                details="Archivo limpio (clamd)",
+            )
+        except Exception as e:
+            logger.error(f"Error escaneando stream con ClamAV: {e}")
+            return ScanResult(
+                is_clean=True,
+                scanner="clamav",
+                details=f"Error en escaneo: {str(e)}",
+            )
+        finally:
+            if sock:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
 
     def _scan_file_sync(self, file_path: str) -> ScanResult:
         """Escaneo síncrono de archivo con ClamAV (para ejecutar en executor)."""
@@ -114,38 +224,51 @@ class ClamAVScanner:
                 details="ClamAV no disponible - escaneo omitido",
             )
 
-        try:
-            result = self._cd.scan_file(file_path)
+        if self._cd is not None:
+            try:
+                result = self._cd.scan_file(file_path)
 
-            if result is None:
+                if result is None:
+                    return ScanResult(
+                        is_clean=True,
+                        scanner="clamav",
+                        details="Archivo limpio",
+                    )
+
+                for filename, (status, threat_name) in result.items():
+                    if status == "FOUND":
+                        logger.warning(
+                            f"⚠️ MALWARE DETECTADO por ClamAV: {threat_name} en {filename}"
+                        )
+                        return ScanResult(
+                            is_clean=False,
+                            scanner="clamav",
+                            threat=threat_name,
+                            details=f"Amenaza detectada: {threat_name}",
+                        )
+
                 return ScanResult(
                     is_clean=True,
                     scanner="clamav",
                     details="Archivo limpio",
                 )
+            except Exception as e:
+                logger.error(f"Error escaneando con ClamAV: {e}")
+                return ScanResult(
+                    is_clean=True,  # No bloquear si falla el escáner
+                    scanner="clamav",
+                    details=f"Error en escaneo: {str(e)}",
+                )
 
-            for filename, (status, threat_name) in result.items():
-                if status == "FOUND":
-                    logger.warning(
-                        f"⚠️ MALWARE DETECTADO por ClamAV: {threat_name} en {filename}"
-                    )
-                    return ScanResult(
-                        is_clean=False,
-                        scanner="clamav",
-                        threat=threat_name,
-                        details=f"Amenaza detectada: {threat_name}",
-                    )
-
+        # Fallback: protocolo INSTREAM directo
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            return self._scan_stream_raw(content)
+        except Exception as e:
+            logger.error(f"Error leyendo archivo para ClamAV: {e}")
             return ScanResult(
                 is_clean=True,
-                scanner="clamav",
-                details="Archivo limpio",
-            )
-
-        except Exception as e:
-            logger.error(f"Error escaneando con ClamAV: {e}")
-            return ScanResult(
-                is_clean=True,  # No bloquear si falla el escáner
                 scanner="clamav",
                 details=f"Error en escaneo: {str(e)}",
             )
@@ -176,41 +299,45 @@ class ClamAVScanner:
                 details="ClamAV no disponible - escaneo omitido",
             )
 
-        try:
-            result = self._cd.scan_stream(content)
+        if self._cd is not None:
+            try:
+                result = self._cd.scan_stream(content)
 
-            if result is None:
+                if result is None:
+                    return ScanResult(
+                        is_clean=True,
+                        scanner="clamav",
+                        details="Archivo limpio",
+                    )
+
+                for stream, (status, threat_name) in result.items():
+                    if status == "FOUND":
+                        logger.warning(
+                            f"⚠️ MALWARE DETECTADO por ClamAV (stream): {threat_name}"
+                        )
+                        return ScanResult(
+                            is_clean=False,
+                            scanner="clamav",
+                            threat=threat_name,
+                            details=f"Amenaza detectada: {threat_name}",
+                        )
+
                 return ScanResult(
                     is_clean=True,
                     scanner="clamav",
                     details="Archivo limpio",
                 )
 
-            for stream, (status, threat_name) in result.items():
-                if status == "FOUND":
-                    logger.warning(
-                        f"⚠️ MALWARE DETECTADO por ClamAV (stream): {threat_name}"
-                    )
-                    return ScanResult(
-                        is_clean=False,
-                        scanner="clamav",
-                        threat=threat_name,
-                        details=f"Amenaza detectada: {threat_name}",
-                    )
+            except Exception as e:
+                logger.error(f"Error escaneando stream con ClamAV: {e}")
+                return ScanResult(
+                    is_clean=True,
+                    scanner="clamav",
+                    details=f"Error en escaneo: {str(e)}",
+                )
 
-            return ScanResult(
-                is_clean=True,
-                scanner="clamav",
-                details="Archivo limpio",
-            )
-
-        except Exception as e:
-            logger.error(f"Error escaneando stream con ClamAV: {e}")
-            return ScanResult(
-                is_clean=True,
-                scanner="clamav",
-                details=f"Error en escaneo: {str(e)}",
-            )
+        # Fallback: protocolo INSTREAM directo
+        return self._scan_stream_raw(content)
 
     async def scan_bytes(self, content: bytes) -> ScanResult:
         """
@@ -412,7 +539,7 @@ _clamav_cache_time: float = 0
 
 def check_clamav_available(force: bool = False) -> bool:
     """
-    Verifica si ClamAV esta disponible probando conexion real.
+    Verifica si ClamAV esta disponible probando conexion real (PING/PONG por socket).
     Cachea el resultado por 5 minutos.
     """
     import time
@@ -421,6 +548,11 @@ def check_clamav_available(force: bool = False) -> bool:
     now = time.time()
     if not force and _clamav_cache is not None and (now - _clamav_cache_time) < 300:
         return _clamav_cache
+
+    if not settings.CLAMAV_ENABLED:
+        _clamav_cache = False
+        _clamav_cache_time = now
+        return False
 
     scanner = ClamAVScanner()
     result = scanner._try_connect()
@@ -436,8 +568,10 @@ _vt_cache_time: float = 0
 
 def check_virustotal_available(force: bool = False) -> bool:
     """
-    Verifica si VirusTotal esta disponible probando la API key.
-    Cachea el resultado por 5 minutos.
+    Verifica si VirusTotal esta disponible.
+    La disponibilidad depende de que exista una API key configurada en el .env
+    (la activación real del escaneo la controla el switch por usuario).
+    No se hace una llamada de red para no ralentizar la carga de configuración.
     """
     import time
     global _vt_cache, _vt_cache_time
@@ -446,25 +580,7 @@ def check_virustotal_available(force: bool = False) -> bool:
     if not force and _vt_cache is not None and (now - _vt_cache_time) < 300:
         return _vt_cache
 
-    if not settings.VIRUSTOTAL_ENABLED or not settings.VIRUSTOTAL_API_KEY:
-        _vt_cache = False
-        _vt_cache_time = now
-        return False
-
-    try:
-        import vt
-        # Try a simple API call to verify the key
-        import asyncio
-        async def _test():
-            async with vt.Client(settings.VIRUSTOTAL_API_KEY) as client:
-                await client.get_object("/domains/virustotal.com")
-                return True
-        result = asyncio.get_event_loop().run_until_complete(_test())
-        _vt_cache = result
-        _vt_cache_time = now
-        return result
-    except Exception as e:
-        logger.warning(f"VirusTotal no disponible: {e}")
-        _vt_cache = False
-        _vt_cache_time = now
-        return False
+    result = bool(settings.VIRUSTOTAL_API_KEY)
+    _vt_cache = result
+    _vt_cache_time = now
+    return result

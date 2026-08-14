@@ -2,6 +2,7 @@
 ContaEC - Configuración centralizada de licencias
 Define límites y features por tipo de licencia en un solo lugar
 """
+import copy
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -125,9 +126,87 @@ TRIAL_LIMITS = {
 }
 
 
+# ==========================================
+# Configuración editable de planes (admin)
+# ==========================================
+# Copia mutable de LICENSE_TIERS que el administrador puede ajustar desde el
+# panel de administración (PUT /admin/license-plans). Se mantiene en memoria
+# como los precios (LICENSE_PRICES); los límites aplicados al usuario siempre
+# se leen desde aquí, de modo que el cambio surte efecto de inmediato.
+_PLAN_CONFIG = copy.deepcopy(LICENSE_TIERS)
+
+# Nombre legible por plan (usado por el endpoint de administración)
+PLAN_LABELS = {
+    LicenseType.MENSUAL: "Mensual",
+    LicenseType.TRIMESTRAL: "Trimestral",
+    LicenseType.SEMESTRAL: "Semestral",
+    LicenseType.ANUAL: "Anual",
+}
+
+
+def _as_enum(plan_key: str) -> LicenseType:
+    """Convierte una key de plan (str) a LicenseType"""
+    if isinstance(plan_key, LicenseType):
+        return plan_key
+    return LicenseType(plan_key)
+
+
+def get_plan_config(plan_key: Optional[str] = None) -> dict:
+    """
+    Obtener la configuración actual (límites + features) de los planes.
+
+    Args:
+        plan_key: Key del plan ('monthly', 'quarterly', 'semiannual', 'annual').
+                  Si es None, devuelve todos los planes.
+
+    Returns:
+        Configuración del/los plan(es) (copia, para no mutar el store)
+    """
+    if plan_key is None:
+        return {
+            lt.value: copy.deepcopy(_PLAN_CONFIG[lt]) | {"label": PLAN_LABELS[lt]}
+            for lt in LicenseType
+        }
+    lt = _as_enum(plan_key)
+    return copy.deepcopy(_PLAN_CONFIG[lt]) | {"label": PLAN_LABELS[lt]}
+
+
+def update_plan_config(
+    plan_key: str,
+    limits: Optional[dict] = None,
+    features: Optional[dict] = None,
+) -> dict:
+    """
+    Actualizar límites y/o features de un plan.
+
+    Args:
+        plan_key: Key del plan a actualizar
+        limits: Dict con los límites a cambiar (valores enteros >= 0)
+        features: Dict con los features a activar/desactivar (bool)
+
+    Returns:
+        Configuración actualizada del plan
+    """
+    lt = _as_enum(plan_key)
+    cfg = _PLAN_CONFIG[lt]
+
+    if limits:
+        for k, v in limits.items():
+            if k in cfg and isinstance(v, (int, float)) and not isinstance(v, bool):
+                cfg[k] = max(0, int(v))
+
+    if features:
+        for k, v in features.items():
+            if k in cfg.get("features", {}) and isinstance(v, bool):
+                cfg["features"][k] = v
+
+    return copy.deepcopy(cfg) | {"label": PLAN_LABELS[lt]}
+
+
 def get_tier_limits(license_type: Optional[LicenseType]) -> dict:
     """
     Obtener los límites y features para un tipo de licencia.
+    Lee de la configuración editable (puede ser ajustada por el admin).
 
     Args:
         license_type: Tipo de licencia (LicenseType enum)
@@ -136,8 +215,8 @@ def get_tier_limits(license_type: Optional[LicenseType]) -> dict:
         Diccionario con límites y features del tier
     """
     if license_type is None:
-        return LICENSE_TIERS[LicenseType.MENSUAL]
-    return LICENSE_TIERS.get(license_type, LICENSE_TIERS[LicenseType.MENSUAL])
+        return _PLAN_CONFIG[LicenseType.MENSUAL]
+    return _PLAN_CONFIG.get(license_type, _PLAN_CONFIG[LicenseType.MENSUAL])
 
 
 def get_license_limits(user: User) -> dict:
@@ -163,8 +242,9 @@ def get_license_limits(user: User) -> dict:
     if is_trial_active:
         return TRIAL_LIMITS.copy()
 
-    # Obtener límites según tipo de licencia
-    return get_tier_limits(user.license_type).copy()
+    # Obtener límites según tipo de licencia (copia profunda para que los
+    # consumidores no puedan mutar la configuración editable del admin)
+    return copy.deepcopy(get_tier_limits(user.license_type))
 
 
 def has_feature(license_type: Optional[LicenseType], feature: str) -> bool:

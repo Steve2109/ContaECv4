@@ -8,7 +8,7 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
@@ -44,6 +44,83 @@ def _render_template(template_str: str, data: dict[str, str]) -> str:
         # Security: escape HTML in values to prevent XSS
         return html.escape(str(value))
     return re.sub(r'\{\{(\w+)\}\}', replace_var, template_str)
+
+
+# ==========================================
+# Plantillas por defecto
+# ==========================================
+
+DEFAULT_TEMPLATES = [
+    {
+        "nombre": "Factura Electrónica",
+        "tipo": "factura",
+        "asunto": "Su Factura Electrónica {{secuencial}} de {{razon_social}}",
+        "cuerpo_html": """<p>Estimado/a <strong>{{cliente_nombre}}</strong>,</p>
+<p>Le adjuntamos su <strong>Factura Electrónica</strong> No. <strong>{{secuencial}}</strong> emitida el {{fecha_emision}} por {{razon_social}} (RUC: {{ruc}}).</p>
+<p><strong>Total:</strong> USD {{total}}</p>
+<p>Clave de acceso: <code>{{clave_acceso}}</code></p>
+<p>Gracias por su preferencia.</p>""",
+        "cuerpo_texto": "Estimado/a {{cliente_nombre}}, le adjuntamos su factura {{secuencial}} por USD {{total}}.",
+        "is_default": True,
+    },
+    {
+        "nombre": "Nota de Crédito",
+        "tipo": "nota_credito",
+        "asunto": "Su Nota de Crédito {{secuencial}} de {{razon_social}}",
+        "cuerpo_html": """<p>Estimado/a <strong>{{cliente_nombre}}</strong>,</p>
+<p>Le informamos que se ha emitido una <strong>Nota de Crédito</strong> No. <strong>{{secuencial}}</strong> por un valor de <strong>USD {{total}}</strong>.</p>
+<p>Clave de acceso: <code>{{clave_acceso}}</code></p>""",
+        "cuerpo_texto": "Estimado/a {{cliente_nombre}}, se ha emitido su nota de crédito {{secuencial}} por USD {{total}}.",
+        "is_default": True,
+    },
+    {
+        "nombre": "Proforma / Cotización",
+        "tipo": "proforma",
+        "asunto": "Su cotización {{secuencial}} de {{razon_social}}",
+        "cuerpo_html": """<p>Estimado/a <strong>{{cliente_nombre}}</strong>,</p>
+<p>Adjuntamos su <strong>cotización</strong> No. <strong>{{secuencial}}</strong> con un total de <strong>USD {{total}}</strong>.</p>
+<p>Este documento no tiene validez fiscal.</p>""",
+        "cuerpo_texto": "Estimado/a {{cliente_nombre}}, adjuntamos su cotización {{secuencial}} por USD {{total}}.",
+        "is_default": True,
+    },
+    {
+        "nombre": "Correo General",
+        "tipo": "general",
+        "asunto": "Mensaje de {{razon_social}}",
+        "cuerpo_html": """<p>Estimado/a <strong>{{cliente_nombre}}</strong>,</p>
+<p>Le escribimos desde <strong>{{razon_social}}</strong> (RUC: {{ruc}}).</p>
+<p>Ante cualquier duda, no dude en contactarnos.</p>""",
+        "cuerpo_texto": "Estimado/a {{cliente_nombre}}, le escribimos desde {{razon_social}}.",
+        "is_default": True,
+    },
+]
+
+
+async def _ensure_default_templates(db: AsyncSession, user_id: str) -> bool:
+    """
+    Crea las plantillas por defecto la primera vez que un usuario accede al editor.
+    Devuelve True si se crearon (no existían plantillas previas).
+    """
+    count = await db.scalar(
+        select(func.count(EmailTemplate.id)).where(EmailTemplate.user_id == user_id)
+    )
+    if (count or 0) > 0:
+        return False
+
+    for tpl in DEFAULT_TEMPLATES:
+        db.add(EmailTemplate(
+            user_id=user_id,
+            nombre=tpl["nombre"],
+            tipo=tpl["tipo"],
+            asunto=tpl["asunto"],
+            cuerpo_html=tpl["cuerpo_html"],
+            cuerpo_texto=tpl["cuerpo_texto"],
+            is_default=tpl["is_default"],
+            is_active=True,
+        ))
+    await db.flush()
+    logger.info(f"Plantillas por defecto creadas para el usuario {user_id}")
+    return True
 
 
 # ==========================================
@@ -107,6 +184,9 @@ async def list_email_templates(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar plantillas de correo del usuario"""
+    # Crear plantillas por defecto si el usuario no tiene ninguna
+    await _ensure_default_templates(db, current_user.id)
+
     query = select(EmailTemplate).where(
         EmailTemplate.user_id == current_user.id,
     )

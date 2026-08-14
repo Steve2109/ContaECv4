@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import {
   BookOpen,
   Building2,
@@ -78,6 +79,8 @@ import {
   Brain,
   Activity,
   Scale,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
@@ -130,7 +133,7 @@ interface ContaECDashboardProps {
   onLogout: () => void;
 }
 
-type NavItem = 'dashboard' | 'companies' | 'sri' | 'license' | 'invoices' | 'proformas' | 'products' | 'inventory' | 'warehouses' | 'pos' | 'hr' | 'suppliers' | 'purchases' | 'budgets' | 'crm' | 'projects' | 'integrations' | 'mlai' | 'accounting' | 'audit' | 'settings' | 'policies' | 'admin-overview' | 'admin-users' | 'admin-system' | 'admin-licenses' | 'admin-security';
+type NavItem = 'dashboard' | 'companies' | 'sri' | 'license' | 'invoices' | 'proformas' | 'products' | 'inventory' | 'warehouses' | 'pos' | 'hr' | 'suppliers' | 'purchases' | 'budgets' | 'crm' | 'projects' | 'integrations' | 'mlai' | 'accounting' | 'audit' | 'settings' | 'policies' | 'admin-overview' | 'admin-users' | 'admin-system' | 'admin-licenses' | 'admin-security' | 'admin-mlai';
 
 export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   const { theme, setTheme } = useTheme();
@@ -424,6 +427,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
     { id: 'admin-system', label: t('admin.system'), icon: <Server className="h-4 w-4" /> },
     { id: 'admin-licenses', label: t('nav.licenses'), icon: <Key className="h-4 w-4" /> },
     { id: 'admin-security', label: t('admin.security'), icon: <ShieldAlert className="h-4 w-4" /> },
+    { id: 'admin-mlai', label: 'ML / IA', icon: <Brain className="h-4 w-4" /> },
     { id: 'policies', label: t('nav.policies'), icon: <Scale className="h-4 w-4" /> },
   ];
 
@@ -2404,6 +2408,8 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
     total_clients: number;
     expiring_licenses: number;
     expired_licenses: number;
+    trial_users: number;
+    trial_users_total: number;
     license_distribution: Record<string, number>;
   } | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{
@@ -2414,6 +2420,9 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
     is_admin: boolean;
     license_type: string;
     license_end_date: string | null;
+    is_trial: boolean;
+    trial_start_date: string | null;
+    trial_end_date: string | null;
     created_at: string;
   }>>([]);
   const [health, setHealth] = useState<{
@@ -2423,7 +2432,7 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
   } | null>(null);
   const [securityData, setSecurityData] = useState<{
     expired_active_licenses: Array<{ user_id: string; email: string; full_name: string; license_end_date: string | null; days_expired: number | null }>;
-    users_without_config: Array<{ user_id: string; email: string; full_name: string }>;
+    users_without_config: Array<{ user_id: string; email: string; full_name: string; reason?: string; reason_label?: string }>;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [licenseDialogOpen, setLicenseDialogOpen] = useState(false);
@@ -2442,6 +2451,43 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Límites y features por plan (editables)
+  const [planLimits, setPlanLimits] = useState<Record<string, { label: string; price: number; months: number; limits: Record<string, number>; features: Record<string, boolean> }>>({});
+  const [limitLabels, setLimitLabels] = useState<Record<string, string>>({});
+  const [featureLabels, setFeatureLabels] = useState<Record<string, string>>({});
+  const [editingLimits, setEditingLimits] = useState(false);
+  const [savingLimits, setSavingLimits] = useState(false);
+
+  // Panel ML/IA (admin)
+  const [aiStatus, setAiStatus] = useState<{
+    global_enabled: boolean;
+    z_ai_installed: boolean;
+    users_total: number;
+    errors_count: number;
+  } | null>(null);
+  const [aiUsers, setAiUsers] = useState<Array<{
+    user_id: string;
+    email: string;
+    full_name: string;
+    is_admin: boolean;
+    ai_enabled: boolean;
+    ai_override: boolean | null;
+    chatbot_sessions: number;
+    predictions: number;
+  }>>([]);
+  const [aiErrors, setAiErrors] = useState<Array<{
+    id: string;
+    timestamp: string;
+    source: string;
+    message: string;
+    user_id: string | null;
+    company_id: string | null;
+    detail: string | null;
+  }>>([]);
+  const [aiToggling, setAiToggling] = useState<string | null>(null);
+  const [aiTestResult, setAiTestResult] = useState<Record<string, unknown> | null>(null);
+  const [aiTesting, setAiTesting] = useState(false);
+
   const loadAdminData = useCallback(async () => {
     setLoading(true);
     try {
@@ -2453,6 +2499,7 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
         fetch('/api/v1/admin/system-health', headers).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         fetch('/api/v1/admin/security-issues', headers).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         fetch('/api/v1/admin/license-prices', headers).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch('/api/v1/admin/license-plans', headers).then(r => r.ok ? r.json() : Promise.reject(r.status)),
       ]);
 
       // Detect session expiry: if ALL admin API calls are rejected, session is invalid
@@ -2468,6 +2515,41 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
       if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) setAdminUsers(results[1].value);
       if (results[2].status === 'fulfilled') setHealth(results[2].value);
       if (results[3].status === 'fulfilled') setSecurityData(results[3].value);
+      // Load editable limits + features per plan
+      if (results[5].status === 'fulfilled' && results[5].value?.plans) {
+        const plans = results[5].value.plans;
+        setLimitLabels(results[5].value.limit_labels || {});
+        const featureMap: Record<string, string> = {
+          electronic_invoicing: 'Facturación Electrónica',
+          proformas: 'Proformas',
+          basic_accounting: 'Contabilidad Básica',
+          inventory: 'Inventario',
+          pos: 'Punto de Venta (POS)',
+          multi_warehouse: 'Multi-Almacén',
+          payroll: 'Nómina (RRHH)',
+          budgets: 'Presupuestos',
+          crm: 'CRM',
+          projects: 'Proyectos',
+          banking_integration: 'Integración Bancaria',
+          ecommerce_integration: 'E-commerce',
+          ml_predictions: 'ML / IA',
+          api_access: 'API Access',
+          custom_reports: 'Reportes Personalizados',
+          priority_support: 'Soporte Prioritario',
+        };
+        setFeatureLabels(featureMap);
+        const normalized: Record<string, { label: string; price: number; months: number; limits: Record<string, number>; features: Record<string, boolean> }> = {};
+        Object.keys(plans).forEach((key) => {
+          normalized[key] = {
+            label: plans[key].label || key,
+            price: plans[key].price ?? 0,
+            months: plans[key].months ?? 1,
+            limits: plans[key].limits || {},
+            features: plans[key].features || {},
+          };
+        });
+        setPlanLimits(normalized);
+      }
       // Load license prices from API
       if (results[4].status === 'fulfilled' && results[4].value?.prices) {
         const prices = results[4].value.prices;
@@ -2576,6 +2658,134 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
     }
   }
 
+  const authHeaders = (): Record<string, string> => ({
+    Authorization: `Bearer ${localStorage.getItem('contaec_token') || ''}`,
+  });
+
+  async function handleSaveLimits() {
+    setSavingLimits(true);
+    try {
+      const body: Record<string, { limits: Record<string, number>; features: Record<string, boolean> }> = {};
+      Object.keys(planLimits).forEach((key) => {
+        body[key] = { limits: planLimits[key].limits, features: planLimits[key].features };
+      });
+      const res = await fetch('/api/v1/admin/license-plans', {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Error al guardar límites');
+      toast.success('Límites y features actualizados correctamente');
+      setEditingLimits(false);
+      loadAdminData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al guardar límites');
+    } finally {
+      setSavingLimits(false);
+    }
+  }
+
+  function updatePlanLimit(planKey: string, limitKey: string, value: string) {
+    const num = parseInt(value, 10);
+    if (isNaN(num) || num < 0) return;
+    setPlanLimits((prev) => ({
+      ...prev,
+      [planKey]: { ...prev[planKey], limits: { ...prev[planKey].limits, [limitKey]: num } },
+    }));
+  }
+
+  function togglePlanFeature(planKey: string, featureKey: string) {
+    setPlanLimits((prev) => ({
+      ...prev,
+      [planKey]: { ...prev[planKey], features: { ...prev[planKey].features, [featureKey]: !prev[planKey].features[featureKey] } },
+    }));
+  }
+
+  // ─── ML/IA (admin) ─────────────────────────────────────────────
+  const loadAIData = useCallback(async () => {
+    try {
+      const results = await Promise.allSettled([
+        fetch('/api/v1/admin/ai-status', { headers: authHeaders() }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch('/api/v1/admin/ai-users', { headers: authHeaders() }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch('/api/v1/admin/ai-errors', { headers: authHeaders() }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      ]);
+      if (results[0].status === 'fulfilled') setAiStatus(results[0].value);
+      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value?.users)) setAiUsers(results[1].value.users);
+      if (results[2].status === 'fulfilled' && Array.isArray(results[2].value?.errors)) setAiErrors(results[2].value.errors);
+    } catch {
+      // Silencioso: el panel muestra estado vacío
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeAdminTab === 'admin-mlai') loadAIData();
+  }, [activeAdminTab, loadAIData]);
+
+  async function handleToggleGlobalAI(enabled: boolean) {
+    setAiToggling('global');
+    try {
+      const res = await fetch('/api/v1/admin/ai-settings', {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error('Error al actualizar configuración de IA');
+      setAiStatus((prev) => (prev ? { ...prev, global_enabled: enabled } : prev));
+      toast.success(enabled ? 'IA habilitada globalmente' : 'IA deshabilitada globalmente');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error');
+    } finally {
+      setAiToggling(null);
+    }
+  }
+
+  async function handleToggleUserAI(userId: string, enabled: boolean) {
+    setAiToggling(userId);
+    try {
+      const res = await fetch(`/api/v1/admin/ai-users/${userId}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error('Error al actualizar IA del usuario');
+      setAiUsers((prev) => prev.map((u) => (u.user_id === userId ? { ...u, ai_enabled: enabled, ai_override: enabled } : u)));
+      toast.success(enabled ? 'IA habilitada para el usuario' : 'IA deshabilitada para el usuario');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error');
+    } finally {
+      setAiToggling(null);
+    }
+  }
+
+  async function handleRunAiTest() {
+    setAiTesting(true);
+    setAiTestResult(null);
+    try {
+      const res = await fetch('/api/v1/admin/ai/test', {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error('Error al ejecutar la prueba');
+      setAiTestResult(await res.json());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error');
+    } finally {
+      setAiTesting(false);
+    }
+  }
+
+  async function handleClearAiErrors() {
+    try {
+      const res = await fetch('/api/v1/admin/ai-errors', { method: 'DELETE', headers: authHeaders() });
+      if (!res.ok) throw new Error('Error al limpiar errores');
+      setAiErrors([]);
+      setAiStatus((prev) => (prev ? { ...prev, errors_count: 0 } : prev));
+      toast.success('Errores de IA eliminados');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error');
+    }
+  }
+
   const securityExpired = securityData?.expired_active_licenses ?? [];
   const securityNoConfig = securityData?.users_without_config ?? [];
   const totalSecurityIssues = securityExpired.length + securityNoConfig.length;
@@ -2633,6 +2843,16 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                 <p className="text-sm text-muted-foreground">Licencias Expiradas</p>
               </CardContent>
             </Card>
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Clock className="h-8 w-8 mx-auto text-amber-500 mb-2" />
+                <div className="text-3xl font-bold">{adminStats?.trial_users ?? 0}</div>
+                <p className="text-sm text-muted-foreground">Usuarios en Trial (vigente)</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {adminStats?.trial_users_total ?? 0} en total con trial
+                </p>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -2657,17 +2877,39 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {adminUsers.map((u) => (
+                    {adminUsers.map((u) => {
+                      const now = new Date();
+                      const trialEnd = u.trial_end_date ? new Date(u.trial_end_date) : null;
+                      const trialActive = !!u.is_trial && !!trialEnd && trialEnd > now;
+                      const trialDaysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0;
+                      const licenseLabel = { monthly: 'Mensual', quarterly: 'Trimestral', semiannual: 'Semestral', annual: 'Anual' }[u.license_type] || u.license_type || 'N/A';
+                      return (
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.full_name}</TableCell>
                         <TableCell>{u.email}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize">{u.license_type || 'N/A'}</Badge>
+                          {u.is_trial ? (
+                            <div className="flex flex-col gap-1">
+                              <Badge className="w-fit bg-amber-500">Trial</Badge>
+                              <span className="text-[10px] text-muted-foreground">({licenseLabel})</span>
+                            </div>
+                          ) : (
+                            <Badge variant="outline">{licenseLabel}</Badge>
+                          )}
                         </TableCell>
                         <TableCell>
-                          {u.license_end_date
-                            ? new Date(u.license_end_date).toLocaleDateString('es-EC')
-                            : 'Sin limite'}
+                          {trialActive && trialEnd ? (
+                            <div className="flex flex-col">
+                              <span>{trialEnd.toLocaleDateString('es-EC')}</span>
+                              <span className="text-[10px] text-amber-600">
+                                {trialDaysLeft} día(s) restantes
+                              </span>
+                            </div>
+                          ) : u.license_end_date ? (
+                            new Date(u.license_end_date).toLocaleDateString('es-EC')
+                          ) : (
+                            'Sin limite'
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant={u.is_active ? 'default' : 'destructive'}>
@@ -2701,7 +2943,8 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -2911,30 +3154,100 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
           </div>
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle className="text-base">Limites por Plan</CardTitle>
-              <CardDescription>Caracteristicas y limites de cada tipo de licencia</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Limites por Plan</CardTitle>
+                  <CardDescription>Caracteristicas y limites de cada tipo de licencia (editables)</CardDescription>
+                </div>
+                {!editingLimits ? (
+                  <Button variant="outline" size="sm" onClick={() => setEditingLimits(true)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1" />
+                    Editar Limites y Features
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => { setEditingLimits(false); loadAdminData(); }}>
+                      Cancelar
+                    </Button>
+                    <Button size="sm" onClick={handleSaveLimits} disabled={savingLimits}>
+                      {savingLimits ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                      Guardar Cambios
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Limite</TableHead>
-                      <TableHead>Mensual</TableHead>
-                      <TableHead>Trimestral</TableHead>
-                      <TableHead>Semestral</TableHead>
-                      <TableHead>Anual</TableHead>
+                      {['monthly', 'quarterly', 'semiannual', 'annual'].map((k) => (
+                        <TableHead key={k}>{planLimits[k]?.label || k}</TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow><TableCell className="font-medium">Empresas max.</TableCell><TableCell>1</TableCell><TableCell>2</TableCell><TableCell>5</TableCell><TableCell>Ilimitado</TableCell></TableRow>
-                    <TableRow><TableCell className="font-medium">Usuarios/empresa</TableCell><TableCell>2</TableCell><TableCell>5</TableCell><TableCell>10</TableCell><TableCell>Ilimitado</TableCell></TableRow>
-                    <TableRow><TableCell className="font-medium">Comprobantes/mes</TableCell><TableCell>50</TableCell><TableCell>200</TableCell><TableCell>500</TableCell><TableCell>Ilimitado</TableCell></TableRow>
-                    <TableRow><TableCell className="font-medium">Empleados</TableCell><TableCell>5</TableCell><TableCell>15</TableCell><TableCell>50</TableCell><TableCell>Ilimitado</TableCell></TableRow>
-                    <TableRow><TableCell className="font-medium">Productos</TableCell><TableCell>100</TableCell><TableCell>500</TableCell><TableCell>2,000</TableCell><TableCell>Ilimitado</TableCell></TableRow>
+                    {Object.keys(limitLabels).map((limitKey) => (
+                      <TableRow key={limitKey}>
+                        <TableCell className="font-medium">{limitLabels[limitKey] || limitKey}</TableCell>
+                        {['monthly', 'quarterly', 'semiannual', 'annual'].map((k) => (
+                          <TableCell key={k}>
+                            {editingLimits ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                className="w-24 h-8 text-sm"
+                                value={planLimits[k]?.limits?.[limitKey] ?? 0}
+                                onChange={(e) => updatePlanLimit(k, limitKey, e.target.value)}
+                              />
+                            ) : (
+                              <span>{planLimits[k]?.limits?.[limitKey]?.toLocaleString('es-EC') ?? 'Ilimitado'}</span>
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
+
+              {editingLimits && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Features por Plan (modulos habilitados)</h4>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Modulo</TableHead>
+                          {['monthly', 'quarterly', 'semiannual', 'annual'].map((k) => (
+                            <TableHead key={k}>{planLimits[k]?.label || k}</TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.keys(featureLabels).map((featureKey) => (
+                          <TableRow key={featureKey}>
+                            <TableCell className="font-medium">{featureLabels[featureKey] || featureKey}</TableCell>
+                            {['monthly', 'quarterly', 'semiannual', 'annual'].map((k) => (
+                              <TableCell key={k}>
+                                <Switch
+                                  checked={!!planLimits[k]?.features?.[featureKey]}
+                                  onCheckedChange={() => togglePlanFeature(k, featureKey)}
+                                />
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Los cambios se aplican de inmediato a la verificacion de accesos de los usuarios (el backend es la fuente de verdad).
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
           </div>
@@ -3057,13 +3370,16 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                           <div className="rounded-lg border border-yellow-500/30 overflow-x-auto">
                             <Table>
                               <TableHeader>
-                                <TableRow><TableHead>Usuario</TableHead><TableHead>Email</TableHead></TableRow>
+                                <TableRow><TableHead>Usuario</TableHead><TableHead>Email</TableHead><TableHead>Motivo</TableHead></TableRow>
                               </TableHeader>
                               <TableBody>
                                 {securityNoConfig.map((u) => (
                                   <TableRow key={u.user_id}>
                                     <TableCell className="font-medium">{u.full_name}</TableCell>
                                     <TableCell>{u.email}</TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className="text-xs">{u.reason_label || 'Sin configuracion'}</Badge>
+                                    </TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -3084,6 +3400,210 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* ML/IA */}
+        {activeAdminTab === 'admin-mlai' && (
+          <div className="space-y-6">
+            {/* Estado general */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  Módulo ML / IA
+                </CardTitle>
+                <CardDescription>
+                  Configure la inteligencia artificial para todos los usuarios y supervise su funcionamiento
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Capa de IA (LLM)</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {aiStatus?.global_enabled ? 'Habilitada globalmente' : 'Deshabilitada globalmente'}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={!!aiStatus?.global_enabled}
+                        onCheckedChange={handleToggleGlobalAI}
+                        disabled={aiToggling === 'global'}
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <p className="text-sm font-medium">CLI 'z-ai' en servidor</p>
+                    {aiStatus ? (
+                      <Badge variant={aiStatus.z_ai_installed ? 'default' : 'secondary'} className="mt-2">
+                        {aiStatus.z_ai_installed ? 'Instalado' : 'No instalado'}
+                      </Badge>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-2">Cargando...</p>
+                    )}
+                    {aiStatus && !aiStatus.z_ai_installed && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Sin el CLI, el chatbot responde con reglas locales (sin costo).
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <p className="text-sm font-medium">Errores registrados</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant={aiErrors.length > 0 ? 'destructive' : 'default'} className="text-xs">
+                        {aiErrors.length}
+                      </Badge>
+                      {aiErrors.length > 0 && (
+                        <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleClearAiErrors}>
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Limpiar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button onClick={handleRunAiTest} disabled={aiTesting}>
+                    {aiTesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                    Probar respuesta de IA
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={loadAIData}>
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                    Refrescar
+                  </Button>
+                </div>
+
+                {aiTestResult && (
+                  <Alert variant={aiTestResult.ok ? 'default' : 'destructive'}>
+                    <Sparkles className="h-4 w-4" />
+                    <AlertTitle className="text-sm">Resultado de la prueba</AlertTitle>
+                    <AlertDescription className="text-xs space-y-1">
+                      <p>Mensaje probado: "{String(aiTestResult.sample || '')}"</p>
+                      <p>Intención detectada: <strong>{String(aiTestResult.intent_detected || 'ninguna (usa LLM)')}</strong></p>
+                      <p>Capa LLM (z-ai): {aiTestResult.llm_available ? '✔ disponible' : '✘ no disponible'}</p>
+                      {aiTestResult.llm_response ? <p>Respuesta LLM: {String(aiTestResult.llm_response).slice(0, 200)}</p> : null}
+                      {aiTestResult.fallback_response ? (
+                        <p className="pt-1">Respuesta por reglas: {String(aiTestResult.fallback_response).slice(0, 200)}</p>
+                      ) : null}
+                      {aiTestResult.error ? <p className="text-destructive pt-1">Nota: {String(aiTestResult.error)}</p> : null}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Usuarios */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Acceso a IA por usuario</CardTitle>
+                <CardDescription>Active o desactive la capa inteligente para cada usuario (override)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {aiUsers.length > 0 ? (
+                  <ScrollArea className="max-h-96">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Usuario</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Sesiones Chatbot</TableHead>
+                          <TableHead>Predicciones</TableHead>
+                          <TableHead className="text-right">IA</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {aiUsers.map((u) => (
+                          <TableRow key={u.user_id}>
+                            <TableCell className="font-medium">
+                              <span className="flex items-center gap-2">
+                                {u.full_name}
+                                {u.is_admin && <Shield className="h-3.5 w-3.5 text-primary" />}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{u.email}</TableCell>
+                            <TableCell className="text-xs">{u.chatbot_sessions}</TableCell>
+                            <TableCell className="text-xs">{u.predictions}</TableCell>
+                            <TableCell className="text-right">
+                              <Switch
+                                checked={u.ai_enabled}
+                                onCheckedChange={(v) => handleToggleUserAI(u.user_id, v)}
+                                disabled={aiToggling === u.user_id || aiToggling === 'global'}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No se pudieron cargar los usuarios
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Errores */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  Errores recientes del módulo ML/IA
+                </CardTitle>
+                <CardDescription>Problemas de respuesta detectados y cómo resolverlos</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {aiErrors.length > 0 ? (
+                  <ScrollArea className="max-h-96">
+                    <div className="space-y-3">
+                      {aiErrors.map((err) => (
+                        <div key={err.id} className="rounded-lg border p-4 border-amber-500/30">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="text-sm font-medium">{err.source}</h4>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {err.timestamp ? new Date(err.timestamp).toLocaleString('es-EC') : ''}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{err.message}</p>
+                              {err.detail && <p className="text-[10px] text-muted-foreground break-all">{err.detail}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-6">
+                    <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500 mb-2" />
+                    <p className="text-sm text-muted-foreground">No hay errores registrados</p>
+                  </div>
+                )}
+
+                <div className="mt-4 rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                  <p className="font-medium mb-1">Cómo resolver los problemas más comunes:</p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>
+                      <strong>z-ai no instalado</strong>: instale y autentique el CLI <code className="bg-background px-1 rounded">z-ai</code> en el servidor para habilitar la capa inteligente. Sin él, el chatbot usa reglas locales.
+                    </li>
+                    <li>
+                      <strong>z-ai instalado pero sin respuesta</strong>: verifique la autenticación del CLI (<code className="bg-background px-1 rounded">z-ai auth</code>) o ejecute <code className="bg-background px-1 rounded">z-ai chat --prompt "hola"</code> manualmente.
+                    </li>
+                    <li>
+                      <strong>Errores de predicción/fraude</strong>: suelen deberse a datos insuficientes. Revise la sección ML/IA del usuario afectado.
+                    </li>
+                    <li>
+                      <strong>Reintente</strong>: tras resolver el problema, pulse <em>Refrescar</em> y <em>Probar respuesta de IA</em> para confirmar.
+                    </li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
       {/* License Dialog */}

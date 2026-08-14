@@ -456,6 +456,8 @@ interface AdminStats {
   total_clients: number;
   expiring_licenses: number;
   expired_licenses: number;
+  trial_users: number;
+  trial_users_total: number;
   license_distribution: Record<string, number>;
 }
 
@@ -525,7 +527,7 @@ async function getSystemHealth(): Promise<{
 
 async function getSecurityIssues(): Promise<{
   expired_active_licenses: Array<{ user_id: string; email: string; full_name: string; license_end_date: string | null; days_expired: number | null }>;
-  users_without_config: Array<{ user_id: string; email: string; full_name: string }>;
+  users_without_config: Array<{ user_id: string; email: string; full_name: string; reason?: string; reason_label?: string }>;
 }> {
   return apiGet('/v1/admin/security-issues');
 }

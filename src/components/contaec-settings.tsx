@@ -351,11 +351,18 @@ function ProfileTab({
   config: UserConfig;
   onConfigUpdate: () => void;
 }) {
-  const { setTheme } = useTheme();
+  const { theme: appliedTheme, setTheme } = useTheme();
   const [fullName, setFullName] = useState(config.user.full_name);
   const [phone, setPhone] = useState(config.user.phone || '');
   const [language, setLanguage] = useState(config.user.language || 'es_EC');
-  const [selectedTheme, setSelectedTheme] = useState(config.user.theme || 'system');
+  // El select de tema se inicializa y se mantiene sincronizado con el tema
+  // realmente aplicado (incluido el toggle de la parte superior). Así no se
+  // "revierta" el tema al guardar el perfil sin cambiar nada.
+  const [selectedTheme, setSelectedTheme] = useState<string>(config.user.theme || appliedTheme || 'system');
+
+  useEffect(() => {
+    if (appliedTheme) setSelectedTheme(appliedTheme);
+  }, [appliedTheme]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
