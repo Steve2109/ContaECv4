@@ -541,6 +541,7 @@ sudo systemctl start clamav-daemon clamav-freshclam
 sudo systemctl enable clamav-daemon clamav-freshclam
 # 5. Verificar estado
 sudo systemctl status clamav-daemon clamav-freshclam
+```
 
 ### Permisos de Archivos
 
@@ -555,10 +556,9 @@ chmod 755 /opt/contaec/backend/uploads
 chown www-data:www-data /opt/contaec/backend/.env /opt/contaec/backend/backups /opt/contaec/backend/signatures /opt/contaec/backend/uploads
 ```
 
-```sh
 ### 4.11 Integración de Email Templates en Frontend
-
-El sistema incluye un editor visual de plantillas de correo en `src/components/email-template-editor.tsx`.
+```sh
+# El sistema incluye un editor visual de plantillas de correo en `src/components/email-template-editor.tsx`.
 
 **Características del editor:**
 - Lista de plantillas con filtro por tipo (factura, nota_credito, proforma, general)
@@ -570,6 +570,7 @@ El sistema incluye un editor visual de plantillas de correo en `src/components/e
 
 **Variables disponibles:**
 `{{razon_social}}`, `{{ruc}}`, `{{cliente_nombre}}`, `{{cliente_cedula}}`, `{{secuencial}}`, `{{clave_acceso}}`, `{{fecha_emision}}`, `{{subtotal}}`, `{{iva}}`, `{{total}}`, `{{numero_autorizacion}}`
+```
 
 **Uso en la aplicación:**
 Importar el componente en la página de configuración de email:
@@ -585,6 +586,7 @@ import { EmailTemplateEditor } from '@/components/email-template-editor';
 ln -sf /opt/contaec/backend/uploads /opt/contaec/public/uploads
 ls -la /opt/contaec/public/
 ls -la /opt/contaec/backend/uploads/
+```
 ---
 
 ## Solución de Problemas
