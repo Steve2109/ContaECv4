@@ -176,11 +176,29 @@ async def get_crm_stats(
     )
     weighted_pipeline = weighted_result.scalar() or Decimal("0")
 
+    # Total activities
+    total_activities_result = await db.execute(
+        select(func.count(CRMActivity.id)).where(
+            CRMActivity.company_id == company_id,
+        )
+    )
+    total_activities = total_activities_result.scalar() or 0
+
+    # Total segments
+    total_segments_result = await db.execute(
+        select(func.count(CRMContactSegment.id)).where(
+            CRMContactSegment.company_id == company_id,
+        )
+    )
+    total_segments = total_segments_result.scalar() or 0
+
     return CRMStats(
         total_leads=total_leads,
         total_opportunities=total_opportunities,
         won_opportunities=won_opportunities,
         lost_opportunities=lost_opportunities,
+        total_activities=total_activities,
+        total_segments=total_segments,
         conversion_rate=conversion_rate,
         pipeline_value=pipeline_value,
         weighted_pipeline=weighted_pipeline,
@@ -1455,6 +1473,9 @@ async def create_segment(
 
     db.add(segment)
     await db.flush()
+    # Un segmento recién creado no tiene miembros; cargar explícitamente la
+    # relación evita un lazy-load asíncrono (MissingGreenlet) al validar.
+    segment.client_members = []
 
     await log_action(
         db=db,

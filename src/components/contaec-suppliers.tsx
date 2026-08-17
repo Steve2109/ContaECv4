@@ -39,6 +39,7 @@ import {
   Trash2,
   Mail,
   PlusCircle,
+  Power,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -163,6 +164,16 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
     }
   }
 
+  async function handleToggleStatus(sup: Supplier) {
+    try {
+      await updateSupplier(sup.id, { is_active: !sup.is_active });
+      toast.success(sup.is_active ? 'Proveedor desactivado' : 'Proveedor activado');
+      loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar estado');
+    }
+  }
+
   async function loadEmailTemplates() {
     try {
       const data = await getEmailTemplates();
@@ -253,6 +264,7 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
                       <TableCell><Badge variant={sup.is_active ? 'default' : 'secondary'} className={sup.is_active ? 'bg-emerald-600' : ''}>{sup.is_active ? 'Activo' : 'Inactivo'}</Badge></TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={sup.is_active ? 'Desactivar proveedor' : 'Activar proveedor'} onClick={() => handleToggleStatus(sup)}>{sup.is_active ? <Power className="h-3.5 w-3.5 text-amber-600" /> : <Power className="h-3.5 w-3.5 text-emerald-600" />}</Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(sup)}><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(sup.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                         </div>
@@ -278,7 +290,7 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-4 pr-2">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Tipo Identificación</Label><Select value={form.tipo_identificacion} onValueChange={(v) => setForm({ ...form, tipo_identificacion: v })}><SelectTrigger /><SelectContent><SelectItem value="04">RUC</SelectItem><SelectItem value="05">Cédula</SelectItem><SelectItem value="06">Pasaporte</SelectItem><SelectItem value="08">Exterior</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label>Tipo Identificación</Label><Select value={form.tipo_identificacion} onValueChange={(v) => setForm({ ...form, tipo_identificacion: v })}><SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger><SelectContent><SelectItem value="04">RUC</SelectItem><SelectItem value="05">Cédula</SelectItem><SelectItem value="06">Pasaporte</SelectItem><SelectItem value="08">Exterior</SelectItem></SelectContent></Select></div>
                 <div className="space-y-2"><Label>Identificación</Label><Input value={form.identificacion} onChange={(e) => setForm({ ...form, identificacion: e.target.value })} /></div>
               </div>
               <div className="space-y-2"><Label>Razón Social</Label><Input value={form.razon_social} onChange={(e) => setForm({ ...form, razon_social: e.target.value })} /></div>
@@ -356,7 +368,7 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
           <DialogHeader><DialogTitle>Nueva Plantilla</DialogTitle><DialogDescription>Cree una plantilla de correo</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Nombre</Label><Input value={templateForm.nombre} onChange={(e) => setTemplateForm({ ...templateForm, nombre: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Tipo</Label><Select value={templateForm.tipo} onValueChange={(v) => setTemplateForm({ ...templateForm, tipo: v })}><SelectTrigger /><SelectContent><SelectItem value="factura">Factura</SelectItem><SelectItem value="nota_credito">Nota Crédito</SelectItem><SelectItem value="nota_debito">Nota Débito</SelectItem><SelectItem value="proforma">Proforma</SelectItem><SelectItem value="general">General</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label>Tipo</Label><Select value={templateForm.tipo} onValueChange={(v) => setTemplateForm({ ...templateForm, tipo: v })}><SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger><SelectContent><SelectItem value="factura">Factura</SelectItem><SelectItem value="nota_credito">Nota Crédito</SelectItem><SelectItem value="nota_debito">Nota Débito</SelectItem><SelectItem value="proforma">Proforma</SelectItem><SelectItem value="general">General</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label>Asunto</Label><Input value={templateForm.asunto} onChange={(e) => setTemplateForm({ ...templateForm, asunto: e.target.value })} placeholder="Factura #{{secuencial}}" /></div>
             <div className="space-y-2"><Label>Cuerpo HTML</Label><Textarea value={templateForm.cuerpo_html} onChange={(e) => setTemplateForm({ ...templateForm, cuerpo_html: e.target.value })} rows={5} /></div>
             <div className="flex justify-end gap-2">

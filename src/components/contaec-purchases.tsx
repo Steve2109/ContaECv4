@@ -39,6 +39,7 @@ import {
   DollarSign,
   FileText,
   CreditCard,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -49,6 +50,8 @@ import {
   registerPaymentCuentaPorPagar,
   getRetencionesCompra,
   createRetencionCompra,
+  updateRetencionCompra,
+  deleteRetencionCompra,
   getSuppliers,
   type OrdenCompra,
   type CuentaPorPagar,
@@ -149,6 +152,7 @@ function OrdenesTab({ companyId }: { companyId: string }) {
       await createOrdenCompra({
         company_id: companyId,
         supplier_id: form.supplier_id,
+        fecha_emision: new Date().toISOString(),
         fecha_entrega_estimada: form.fecha_entrega_estimada || undefined,
         observaciones: form.observaciones || undefined,
         detalles: [{ codigo_principal: 'PEND', descripcion: 'Producto pendiente de detalle', cantidad: 1, precio_unitario: 0.01, iva_codigo: '10', iva_porcentaje: 13 }],
@@ -376,7 +380,7 @@ function CuentasTab({ companyId }: { companyId: string }) {
           <div className="space-y-4">
             <div className="space-y-2"><Label>Proveedor</Label><Select value={createForm.supplier_id} onValueChange={(v) => setCreateForm({ ...createForm, supplier_id: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent>{suppliers.map((s) => (<SelectItem key={s.id} value={s.id}>{s.razon_social}</SelectItem>))}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Número Factura</Label><Input value={createForm.numero_factura} onChange={(e) => setCreateForm({ ...createForm, numero_factura: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Número Factura</Label><Input maxLength={20} value={createForm.numero_factura} onChange={(e) => setCreateForm({ ...createForm, numero_factura: e.target.value })} placeholder="Máx. 20 caracteres" /></div>
               <div className="space-y-2"><Label>Fecha Emisión</Label><Input type="date" value={createForm.fecha_emision} onChange={(e) => setCreateForm({ ...createForm, fecha_emision: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -426,6 +430,33 @@ function RetencionesTab({ companyId }: { companyId: string }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  async function handleChangeEstado(id: string, estado: string) {
+    setUpdatingId(id);
+    try {
+      await updateRetencionCompra(id, { estado });
+      toast.success('Estado actualizado');
+      loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar estado');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteRetencionCompra(id);
+      toast.success('Retención eliminada');
+      setDeleteConfirm(null);
+      loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar retención');
+    }
+  }
+
   async function handleCreate() {
     if (!form.supplier_id) { toast.error('Seleccione un proveedor'); return; }
     setCreating(true);
@@ -474,6 +505,7 @@ function RetencionesTab({ companyId }: { companyId: string }) {
                     <TableHead className="text-right">Ret. IVA</TableHead>
                     <TableHead className="text-right">Base Renta</TableHead>
                     <TableHead className="text-right">Ret. Renta</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -486,6 +518,25 @@ function RetencionesTab({ companyId }: { companyId: string }) {
                       <TableCell className="text-right">${formatCurrency(r.retencion_iva_valor)}</TableCell>
                       <TableCell className="text-right">${formatCurrency(r.base_imponible_renta)}</TableCell>
                       <TableCell className="text-right">${formatCurrency(r.retencion_renta_valor)}</TableCell>
+                      <TableCell className="text-right">
+                        {r.estado === 'borrador' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Select value={r.estado} onValueChange={(v) => handleChangeEstado(r.id, v)} disabled={updatingId === r.id}>
+                              <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="borrador">Borrador</SelectItem>
+                                <SelectItem value="firmado">Firmado</SelectItem>
+                                <SelectItem value="enviado">Enviado</SelectItem>
+                                <SelectItem value="autorizado">Autorizado</SelectItem>
+                                <SelectItem value="rechazado">Rechazado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Eliminar retención" onClick={() => setDeleteConfirm(r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -496,6 +547,17 @@ function RetencionesTab({ companyId }: { companyId: string }) {
       ) : (
         <Card><CardContent className="py-12 text-center"><FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" /><h3 className="text-lg font-medium">Sin retenciones</h3></CardContent></Card>
       )}
+
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Eliminar Retención</DialogTitle><DialogDescription>¿Está seguro de eliminar esta retención?</DialogDescription></DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>Eliminar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +77,7 @@ import {
   updateProfile,
   changePassword,
   uploadCompanyLogo,
+  getCompanyLogoBlobUrl,
   deleteCompanyLogo,
   deleteDigitalSignature,
   validateSignature,
@@ -175,9 +176,12 @@ function RegularUserSettings() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [companyConfig, setCompanyConfig] = useState<CompanyConfig | null>(null);
+  // Pestaña activa controlada: guardar en un submenú no debe devolver a Perfil
+  const [activeTab, setActiveTab] = useState('profile');
+  const initialLoadDoneRef = useRef(false);
 
   const loadConfig = useCallback(async () => {
-    setLoading(true);
+    if (!initialLoadDoneRef.current) setLoading(true);
     setError(null);
     try {
       const [userData, companiesData] = await Promise.all([
@@ -199,6 +203,7 @@ function RegularUserSettings() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar configuracion');
     } finally {
+      initialLoadDoneRef.current = true;
       setLoading(false);
     }
   }, []);
@@ -290,7 +295,7 @@ function RegularUserSettings() {
         </Card>
       )}
 
-      <Tabs defaultValue="profile" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="profile" className="gap-1.5">
             <User className="h-3.5 w-3.5" />
@@ -373,6 +378,22 @@ function ProfileTab({
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [deletingLogo, setDeletingLogo] = useState(false);
   const [confirmLogoDelete, setConfirmLogoDelete] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoFileName, setLogoFileName] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    if (config.company_logo_path) {
+      getCompanyLogoBlobUrl().then((url) => {
+        if (active && url) setLogoUrl(url);
+      });
+    } else {
+      setLogoUrl(null);
+    }
+    return () => {
+      active = false;
+    };
+  }, [config.company_logo_path]);
 
   async function handleSaveProfile() {
     setSaving(true);
@@ -400,6 +421,18 @@ function ProfileTab({
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Solo WebP y máximo 2MB
+    if (!file.name.toLowerCase().endsWith('.webp')) {
+      toast.error('El logo debe estar en formato .webp. Convierta su imagen a WebP e intente nuevamente.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('El logo no debe exceder 2MB.');
+      e.target.value = '';
+      return;
+    }
+    setLogoFileName(file.name);
     setUploadingLogo(true);
     try {
       await uploadCompanyLogo(file);
@@ -541,14 +574,13 @@ function ProfileTab({
             <CardDescription>Logo que aparecera en sus comprobantes</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
-            <div className="w-32 h-32 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/50">
-              {config.company_logo_path ? (
-                <Image
-                  src={config.company_logo_path}
+            <div className="w-32 h-32 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/50 overflow-hidden">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
                   alt="Logo de empresa"
-                  width={128}
-                  height={128}
-                  className="object-contain rounded-lg"
+                  className="w-full h-full object-contain rounded-lg"
                 />
               ) : (
                 <Upload className="h-8 w-8 text-muted-foreground" />
@@ -579,15 +611,24 @@ function ProfileTab({
                 </Button>
               )}
             </div>
+            <label
+              htmlFor="logo-upload"
+              className="w-full rounded-md border border-dashed border-input bg-muted/30 px-3 py-2 text-center text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+            >
+              <span className="block font-medium text-foreground">Seleccionar archivo</span>
+              <span className="block text-xs text-muted-foreground truncate mt-0.5">
+                {logoFileName || 'Ningún archivo seleccionado'}
+              </span>
+            </label>
             <input
               id="logo-upload"
               type="file"
-              accept="image/*"
+              accept=".webp"
               className="hidden"
               onChange={handleLogoUpload}
             />
             <p className="text-xs text-muted-foreground text-center">
-              PNG, JPG o SVG. Máximo 2MB.
+              Formato: <span className="font-medium text-foreground">.webp</span> | Máximo 2MB
             </p>
           </CardContent>
         </Card>
@@ -894,12 +935,25 @@ function SignatureTab({
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="sig-file">Archivo de Firma (.p12 / .pfx)</Label>
-            <Input
+            <label
+              htmlFor="sig-file"
+              className="block w-full rounded-md border border-dashed border-input bg-muted/30 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+            >
+              <span className="block font-medium text-foreground">Seleccionar archivo .p12</span>
+              <span className="block text-xs text-muted-foreground truncate mt-0.5">
+                {sigFile ? sigFile.name : 'Ningún archivo seleccionado'}
+              </span>
+            </label>
+            <input
               id="sig-file"
               type="file"
               accept=".p12,.pfx"
+              className="hidden"
               onChange={(e) => setSigFile(e.target.files?.[0] || null)}
             />
+            <p className="text-xs text-muted-foreground">
+              Formato: <span className="font-medium text-foreground">.p12 / .pfx</span> | Máximo 5MB
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -1422,8 +1476,8 @@ function SMTPTab({
     setMessage(null);
     try {
       const result = await testSMTP(selectedCompanyId || undefined);
-      if (result.success) {
-        setMessage({ type: 'success', text: 'Prueba de correo exitosa. Revise su bandeja.' });
+      if (result.success !== false) {
+        setMessage({ type: 'success', text: result.message || 'Prueba de correo exitosa. Revise su bandeja.' });
       } else {
         setMessage({ type: 'error', text: result.message || 'La prueba de correo fallo.' });
       }
@@ -2046,6 +2100,7 @@ function SecurityTab({
   const [backupKeyConfirm, setBackupKeyConfirm] = useState('');
   const [savingKey, setSavingKey] = useState(false);
   const [showBackupKey, setShowBackupKey] = useState(false);
+  const [changingKey, setChangingKey] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Password change state
@@ -2126,9 +2181,11 @@ function SecurityTab({
     setMessage(null);
     try {
       await setBackupKey(backupKey);
-      setMessage({ type: 'success', text: 'Clave de cifrado configurada correctamente' });
+      setMessage({ type: 'success', text: 'Clave de cifrado configurada correctamente. Ya puede crear respaldos.' });
       setBackupKey('');
       setBackupKeyConfirm('');
+      setChangingKey(false);
+      setShowBackupKey(false);
       onConfigUpdate();
     } catch (err) {
       setMessage({
@@ -2249,13 +2306,13 @@ function SecurityTab({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {config.has_backup_key && !backupKey ? (
+          {config.has_backup_key && !changingKey && !backupKey ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-emerald-600">
                 <CheckCircle2 className="h-4 w-4" />
                 <span className="font-medium">Clave de cifrado configurada</span>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setBackupKey(' ')}>
+              <Button variant="outline" size="sm" onClick={() => setChangingKey(true)}>
                 <Lock className="mr-2 h-4 w-4" />
                 Cambiar Clave
               </Button>
@@ -2297,7 +2354,17 @@ function SecurityTab({
                   value={backupKeyConfirm}
                   onChange={(e) => setBackupKeyConfirm(e.target.value)}
                   placeholder="Repita la clave"
+                  className={backupKeyConfirm && backupKeyConfirm !== backupKey ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {backupKeyConfirm && backupKeyConfirm !== backupKey && (
+                  <p className="text-xs text-destructive">Las claves no coinciden</p>
+                )}
+                {backupKeyConfirm && backupKeyConfirm === backupKey && backupKey.length >= 8 && (
+                  <p className="text-xs text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Las claves coinciden
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-2">
@@ -2317,8 +2384,8 @@ function SecurityTab({
                     </>
                   )}
                 </Button>
-                {config.has_backup_key && backupKey && (
-                  <Button variant="outline" onClick={() => { setBackupKey(''); setBackupKeyConfirm(''); }}>
+                {(config.has_backup_key && (backupKey || changingKey)) && (
+                  <Button variant="outline" onClick={() => { setBackupKey(''); setBackupKeyConfirm(''); setChangingKey(false); }}>
                     Cancelar
                   </Button>
                 )}

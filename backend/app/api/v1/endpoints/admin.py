@@ -24,6 +24,7 @@ from app.core.ai_admin import (
     set_ai_global_enabled,
     set_user_ai_enabled,
     z_ai_installed,
+    llm_configured,
 )
 from app.core.database import get_db
 from app.core.licenses import get_plan_config, update_plan_config
@@ -696,9 +697,22 @@ async def get_ai_status(
     """Estado general del módulo ML/IA"""
     total_users = await db.scalar(select(func.count(User.id))) or 0
 
+    from app.core.config import get_settings as get_app_settings
+
+    has_api_key = bool(getattr(get_app_settings(), "LLM_API_KEY", ""))
+    cli_ok = z_ai_installed()
+    if has_api_key:
+        llm_mode = "api"
+    elif cli_ok:
+        llm_mode = "cli"
+    else:
+        llm_mode = "none"
+
     return {
         "global_enabled": ai_global_enabled(),
-        "z_ai_installed": z_ai_installed(),
+        "z_ai_installed": cli_ok,
+        "llm_configured": llm_configured(),
+        "llm_mode": llm_mode,
         "users_total": total_users,
         "errors_count": ai_errors_count(),
     }

@@ -794,6 +794,22 @@ async function changePassword(currentPassword: string, newPassword: string): Pro
   });
 }
 
+async function getCompanyLogoBlobUrl(): Promise<string | null> {
+  // Descarga el logo autenticado y devuelve una URL de objeto para <img>
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const response = await fetch(buildUrl('/v1/config/company-logo'), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+}
+
 async function uploadCompanyLogo(file: File): Promise<{ message: string; logo_path: string }> {
   const formData = new FormData();
   formData.append('file', file);
@@ -1729,6 +1745,7 @@ interface SupplierCreate {
   retencion_renta_codigo?: string;
   retencion_renta_porcentaje?: number;
   observaciones?: string;
+  is_active?: boolean;
 }
 
 // Supplier API functions
@@ -1774,6 +1791,7 @@ interface OrdenCompra {
 interface OrdenCompraCreate {
   company_id: string;
   supplier_id: string;
+  fecha_emision?: string;
   fecha_entrega_estimada?: string;
   observaciones?: string;
   detalles: Array<{
@@ -1897,6 +1915,23 @@ async function createRetencionCompra(data: {
   observaciones?: string;
 }): Promise<RetencionCompra> {
   return apiPost<RetencionCompra>('/v1/purchases/retenciones', data);
+}
+
+async function updateRetencionCompra(id: string, data: Partial<{
+  estado?: string;
+  base_imponible_iva?: number;
+  retencion_iva_codigo?: string;
+  retencion_iva_porcentaje?: number;
+  base_imponible_renta?: number;
+  retencion_renta_codigo?: string;
+  retencion_renta_porcentaje?: number;
+  observaciones?: string;
+}>): Promise<RetencionCompra> {
+  return apiPut<RetencionCompra>(`/v1/purchases/retenciones/${id}`, data);
+}
+
+async function deleteRetencionCompra(id: string): Promise<{ message: string }> {
+  return apiDelete(`/v1/purchases/retenciones/${id}`);
 }
 
 // ============ AUDIT LOG TYPES ============
@@ -2984,7 +3019,16 @@ async function getCRMOpportunities(params?: {
   if (params?.prioridad) query.push(`prioridad=${params.prioridad}`);
   if (params?.is_active !== undefined) query.push(`is_active=${params.is_active}`);
   const qs = query.length ? `?${query.join('&')}` : '';
-  return apiGet<CRMOpportunity[]>(`/v1/crm/opportunities${qs}`);
+  const list = await apiGet<Array<Record<string, unknown>>>(`/v1/crm/opportunities${qs}`);
+  // Normalizar campos del backend a los alias legacy que usa el componente
+  return list.map((o) => ({
+    ...o,
+    titulo: (o.name as string) || (o.titulo as string) || '',
+    etapa: (o.stage_id as string) || undefined,
+    valor_estimado: o.estimated_amount as number | undefined,
+    cliente_razon_social: (o.client_name as string | null) || undefined,
+    fecha_cierre_estimada: (o.expected_close_date as string | null) || undefined,
+  } as CRMOpportunity));
 }
 
 async function getCRMOpportunity(id: string): Promise<CRMOpportunity> {
@@ -3003,8 +3047,8 @@ async function deleteCRMOpportunity(id: string): Promise<void> {
   return apiDelete(`/v1/crm/opportunities/${id}`);
 }
 
-async function moveCRMOpportunity(id: string, etapa: string): Promise<CRMOpportunity> {
-  return apiPost<CRMOpportunity>(`/v1/crm/opportunities/${id}/move`, { etapa });
+async function moveCRMOpportunity(id: string, stageId: string): Promise<CRMOpportunity> {
+  return apiPut<CRMOpportunity>(`/v1/crm/opportunities/${id}/stage`, { stage_id: stageId });
 }
 
 async function convertCRMOpportunityToProforma(id: string): Promise<{ message: string; proforma_id: string }> {
@@ -3088,7 +3132,20 @@ async function deleteCRMAutomation(id: string): Promise<void> {
 
 async function getCRMStats(companyId?: string): Promise<CRMStats> {
   const qs = companyId ? `?company_id=${companyId}` : '';
-  return apiGet<CRMStats>(`/v1/crm/stats${qs}`);
+  const raw = await apiGet<Record<string, unknown>>(`/v1/crm/stats${qs}`);
+  // Mapear la respuesta del backend (total_opportunities, pipeline_value, ...) a la forma que usa el componente
+  return {
+    total_oportunidades: Number(raw.total_opportunities ?? 0),
+    valor_pipeline: Number(raw.pipeline_value ?? 0),
+    valor_ganado: Number(raw.won_opportunities ?? 0),
+    valor_perdido: Number(raw.lost_opportunities ?? 0),
+    tasa_conversion: Number(raw.conversion_rate ?? 0),
+    promedio_cierre_dias: 0,
+    oportunidades_por_etapa: {},
+    valor_por_etapa: {},
+    actividades_pendientes: Number(raw.total_activities ?? 0),
+    actividades_vencidas: 0,
+  };
 }
 
 // ============ PROJECT (PHASE 14) TYPES ============
@@ -3698,6 +3755,40 @@ async function getExtractosBancarios(params?: {
   return apiGet<ExtractoBancarioResponse[]>(`/v1/integrations/bank/statements${qs}`);
 }
 
+async function importBankExtractFile(cuentaBancariaId: string, companyId: string, file: File): Promise<{
+  message: string;
+  cuenta_id: string;
+  extracto_id: string;
+  movimientos_importados: number;
+  filas_ignoradas: number;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = getToken();
+  const response = await fetch(
+    buildUrl(`/v1/integrations/bank/import-csv?cuenta_bancaria_id=${encodeURIComponent(cuentaBancariaId)}&company_id=${encodeURIComponent(companyId)}`),
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'Error de servidor' }));
+    const detail = errorData.detail;
+    let message: string;
+    if (Array.isArray(detail)) {
+      message = detail.map((e: { msg?: string }) => e.msg || e).filter(Boolean).join(', ');
+    } else if (typeof detail === 'string') {
+      message = detail;
+    } else {
+      message = `Error ${response.status}`;
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
 async function createExtractoBancario(data: ExtractoBancarioCreate): Promise<ExtractoBancarioResponse> {
   return apiPost<ExtractoBancarioResponse>('/v1/integrations/bank/statements', data);
 }
@@ -3770,6 +3861,53 @@ async function testEcommerceConnection(connectorId: string): Promise<{ status: s
 async function syncEcommerceConnector(connectorId: string, tipoSync?: string): Promise<EcommerceSyncLogResponse> {
   const qs = tipoSync ? `?tipo_sync=${tipoSync}` : '';
   return apiPost<EcommerceSyncLogResponse>(`/v1/integrations/ecommerce/connectors/${connectorId}/sync${qs}`);
+}
+
+interface EcommerceSyncProductsResponse {
+  connector_id: string;
+  connector_nombre: string;
+  plataforma: string;
+  total_procesados: number;
+  total_creados: number;
+  total_actualizados: number;
+  total_errores: number;
+  errores: string[];
+  sync_log_id: string;
+}
+
+interface EcommerceSyncOrdersResponse {
+  connector_id: string;
+  connector_nombre: string;
+  plataforma: string;
+  total_procesados: number;
+  total_creados: number;
+  total_actualizados: number;
+  total_errores: number;
+  errores: string[];
+  sync_log_id: string;
+}
+
+interface EcommerceSyncInventoryResponse {
+  connector_id: string;
+  connector_nombre: string;
+  plataforma: string;
+  total_procesados: number;
+  total_actualizados: number;
+  total_errores: number;
+  errores: string[];
+  sync_log_id: string;
+}
+
+async function syncEcommerceProducts(connectorId: string): Promise<EcommerceSyncProductsResponse> {
+  return apiPost<EcommerceSyncProductsResponse>(`/v1/integrations/ecommerce/${connectorId}/sync-products`);
+}
+
+async function syncEcommerceOrders(connectorId: string): Promise<EcommerceSyncOrdersResponse> {
+  return apiPost<EcommerceSyncOrdersResponse>(`/v1/integrations/ecommerce/${connectorId}/sync-orders`);
+}
+
+async function syncEcommerceInventory(connectorId: string): Promise<EcommerceSyncInventoryResponse> {
+  return apiPost<EcommerceSyncInventoryResponse>(`/v1/integrations/ecommerce/${connectorId}/sync-inventory`);
 }
 
 // E-Commerce Sync Logs
@@ -4795,6 +4933,7 @@ export {
   setBackupKey,
   changePassword,
   uploadCompanyLogo,
+  getCompanyLogoBlobUrl,
   deleteDigitalSignature,
   deleteCompanyLogo,
   validateSignature,
@@ -4879,6 +5018,8 @@ export {
   // Purchase Retention functions
   getRetencionesCompra,
   createRetencionCompra,
+  updateRetencionCompra,
+  deleteRetencionCompra,
   // Audit Log functions
   getAuditLogs,
   getAuditStats,
@@ -5029,6 +5170,7 @@ export {
   deleteCuentaBancaria,
   getExtractosBancarios,
   createExtractoBancario,
+  importBankExtractFile,
   deleteExtractoBancario,
   getMovimientosBancarios,
   createMovimientoBancario,
@@ -5041,6 +5183,9 @@ export {
   deleteEcommerceConnector,
   testEcommerceConnection,
   syncEcommerceConnector,
+  syncEcommerceProducts,
+  syncEcommerceOrders,
+  syncEcommerceInventory,
   getEcommerceSyncLogs,
   // ML/IA functions (Phase 16)
   getMLStats,

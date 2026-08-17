@@ -140,6 +140,12 @@ async def create_proyecto(
 
     db.add(proyecto)
     await db.flush()
+    # Un proyecto recién creado no tiene tareas/recursos/timesheets/costos;
+    # cargar las relaciones explícitamente evita lazy-load asíncrono (MissingGreenlet) al validar.
+    proyecto.tareas = []
+    proyecto.recursos = []
+    proyecto.timesheets = []
+    proyecto.costos = []
 
     await log_action(
         db=db,

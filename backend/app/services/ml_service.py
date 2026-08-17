@@ -18,6 +18,7 @@ from sqlalchemy import func, select, extract, cast, String, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.ai_admin import log_ai_error, is_ai_enabled_for_user
+from app.core.config import get_settings
 from app.core.database import engine
 
 from app.models.client import Client
@@ -810,17 +811,69 @@ Reglas importantes:
 """
 
 
+async def _call_llm_http(mensaje: str, system_prompt: str, company_id: str) -> Optional[str]:
+    """
+    Llama a un proveedor LLM OpenAI-compatible usando la API key configurada
+    (LLM_API_KEY). No requiere instalar nada en el servidor.
+    """
+    import httpx
+
+    settings = get_settings()
+    api_key = getattr(settings, "LLM_API_KEY", "") or ""
+    base_url = (getattr(settings, "LLM_BASE_URL", "") or "https://api.openai.com/v1").rstrip("/")
+    model = getattr(settings, "LLM_MODEL", "") or "gpt-4o-mini"
+    if not api_key:
+        return None
+
+    url = f"{base_url}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": mensaje},
+        ],
+        "temperature": 0.4,
+        "max_tokens": 700,
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code != 200:
+                log_ai_error(
+                    "chatbot_llm",
+                    f"LLM HTTP devolvió {resp.status_code}: {resp.text[:200]}",
+                    company_id=company_id,
+                )
+                return None
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            if content and len(content.strip()) > 5:
+                return content.strip()
+            return None
+    except Exception as e:
+        log_ai_error("chatbot_llm", f"Error al llamar al proveedor LLM: {e}", company_id=company_id)
+        return None
+
+
 async def _generate_llm_response(
     mensaje: str,
     contexto: dict,
     company_id: str,
 ) -> Optional[str]:
     """
-    Genera una respuesta usando LLM (z-ai) para consultas complejas
+    Genera una respuesta usando LLM para consultas complejas
     que no pueden ser resueltas por el sistema basado en reglas.
-    
-    Uses the z-ai CLI tool for chat completions.
-    Falls back to None if the LLM is unavailable.
+
+    Estrategia:
+    1. Si hay API key OpenAI-compatible configurada (LLM_API_KEY), la usa por HTTP
+       (no requiere instalar nada en el servidor).
+    2. Si no, intenta el CLI 'z-ai'.
+    3. Devuelve None si la capa LLM no está disponible.
     """
     import asyncio
     import tempfile
@@ -834,7 +887,14 @@ async def _generate_llm_response(
             context_info += f" Entidades previas: {json.dumps(contexto['ultima_entidades'])}"
         
         full_prompt = f"{mensaje}{context_info}"
-        
+
+        # 1. Intentar primero con la API key (OpenAI-compatible), sin CLI
+        if getattr(get_settings(), "LLM_API_KEY", ""):
+            respuesta_http = await _call_llm_http(full_prompt, CHATBOT_SYSTEM_PROMPT, company_id)
+            if respuesta_http:
+                return respuesta_http
+
+        # 2. Fallback: CLI z-ai
         # Use z-ai CLI for LLM chat completion
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
             tmp_path = tmp.name

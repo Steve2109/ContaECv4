@@ -65,6 +65,8 @@ import {
   markAlertaRead,
   markAlertaResolved,
   getAlertaSummary,
+  getCuentasContables,
+  type CuentaContable,
   type PresupuestoAnual,
   type PresupuestoStats,
   type ComparativoGeneral,
@@ -364,7 +366,28 @@ function CreatePresupuestoDialog({ open, onOpenChange, companyId, companies, onC
   const [cuentas, setCuentas] = useState<PresupuestoCuentaCreate[]>([
     { cuenta_codigo: '', cuenta_nombre: '', cuenta_tipo: 'ingreso', monto_anual: 0 },
   ]);
+  const [cuentasContables, setCuentasContables] = useState<CuentaContable[]>([]);
   const [creating, setCreating] = useState(false);
+
+  // Cargar el plan de cuentas contables para autocompletar código → nombre
+  useEffect(() => {
+    if (!selectedCompany) return;
+    getCuentasContables(selectedCompany)
+      .then((list) => setCuentasContables(list))
+      .catch(() => setCuentasContables([]));
+  }, [selectedCompany]);
+
+  function selectCuentaContable(index: number, codigo: string) {
+    const cuenta = cuentasContables.find((cc) => cc.codigo === codigo);
+    const updated = [...cuentas];
+    updated[index] = {
+      ...updated[index],
+      cuenta_codigo: codigo,
+      cuenta_nombre: cuenta?.nombre || updated[index].cuenta_nombre,
+      cuenta_tipo: (cuenta?.tipo === 'ingreso' || cuenta?.tipo === 'egreso') ? cuenta.tipo : updated[index].cuenta_tipo,
+    };
+    setCuentas(updated);
+  }
 
   function addCuenta() {
     setCuentas([...cuentas, { cuenta_codigo: '', cuenta_nombre: '', cuenta_tipo: 'egreso', monto_anual: 0 }]);
@@ -448,7 +471,7 @@ function CreatePresupuestoDialog({ open, onOpenChange, companyId, companies, onC
             <div className="space-y-3">
               {cuentas.map((c, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-3">
-                  <div className="col-span-2 space-y-1"><Label className="text-xs">Código</Label><Input value={c.cuenta_codigo} onChange={(e) => updateCuenta(i, 'cuenta_codigo', e.target.value)} placeholder="1.1.1" /></div>
+                  <div className="col-span-2 space-y-1"><Label className="text-xs">Código</Label><Select value={c.cuenta_codigo} onValueChange={(v) => selectCuentaContable(i, v)}><SelectTrigger><SelectValue placeholder="Seleccione código" /></SelectTrigger><SelectContent className="max-h-64">{(cuentasContables.length > 0 ? cuentasContables : [{ id: '__', codigo: c.cuenta_codigo || '', nombre: c.cuenta_nombre }] as CuentaContable[]).map((cc) => (<SelectItem key={cc.codigo} value={cc.codigo}>{cc.codigo} - {cc.nombre}</SelectItem>))}</SelectContent></Select></div>
                   <div className="col-span-3 space-y-1"><Label className="text-xs">Nombre</Label><Input value={c.cuenta_nombre} onChange={(e) => updateCuenta(i, 'cuenta_nombre', e.target.value)} placeholder="Ventas" /></div>
                   <div className="col-span-3 space-y-1"><Label className="text-xs">Tipo</Label><Select value={c.cuenta_tipo} onValueChange={(v) => updateCuenta(i, 'cuenta_tipo', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ingreso">Ingreso</SelectItem><SelectItem value="egreso">Egreso</SelectItem></SelectContent></Select></div>
                   <div className="col-span-3 space-y-1"><Label className="text-xs">Monto Anual</Label><Input type="number" value={c.monto_anual || ''} onChange={(e) => updateCuenta(i, 'monto_anual', parseFloat(e.target.value) || 0)} /></div>

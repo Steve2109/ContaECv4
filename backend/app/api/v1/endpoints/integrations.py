@@ -2,11 +2,14 @@
 ContaEC - Endpoints de Integraciones
 Integracion bancaria (extractos, conciliacion) y conectores e-commerce
 """
+import csv
+import io
 import logging
+from datetime import date as date_cls
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -752,17 +755,58 @@ async def delete_movimiento(
 # 5. IMPORTAR EXTRACTO (CSV/Excel parsing)
 # ==========================================
 
+def _parse_fecha(value: str) -> date_cls | None:
+    """Intenta interpretar una fecha en formatos comunes de extractos bancarios."""
+    v = (value or "").strip().strip('"').strip("'")
+    if not v:
+        return None
+    for fmt in ("%d/%m/%Y", "%d/%m/%y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d-%m-%y", "%Y/%m/%d", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(v, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_monto(value: str) -> Decimal | None:
+    """Limpia y convierte un monto (quita $, comas, espacios, parentesis = negativo)."""
+    v = (value or "").strip().strip('"').strip("'").replace("$", "").replace(" ", "")
+    if not v:
+        return None
+    negativo = v.startswith("(") and v.endswith(")")
+    if negativo:
+        v = v[1:-1]
+    # Detectar separador decimal por el que aparece al final
+    if "," in v and "." in v:
+        if v.rfind(",") > v.rfind("."):
+            v = v.replace(".", "").replace(",", ".")
+        else:
+            v = v.replace(",", "")
+    elif "," in v:
+        partes = v.split(",")
+        if len(partes) == 2 and len(partes[1]) in (1, 2):
+            v = v.replace(",", ".")
+        else:
+            v = v.replace(",", "")
+    try:
+        monto = Decimal(v)
+        return -monto if negativo else monto
+    except Exception:
+        return None
+
+
 @router.post("/bank/import-csv")
 async def import_bank_csv(
     cuenta_bancaria_id: str = Query(...),
     company_id: str = Query(...),
+    file: UploadFile | None = File(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Importar extracto bancario desde CSV/Excel.
-    Nota: En produccion se procesaria el archivo subido.
-    Aqui se crea el extracto con los datos proporcionados.
+    Importar extracto bancario subiendo el archivo del banco (CSV).
+    Detecta las columnas por nombre (fecha, descripcion, debito/credito/monto,
+    saldo, referencia) y crea el extracto con sus movimientos.
     """
     company_id = validate_uuid(company_id, "company_id")
     await _get_company_for_user(db, company_id, current_user.id)
@@ -774,13 +818,188 @@ async def import_bank_csv(
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta bancaria no encontrada.")
 
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe adjuntar el archivo de extracto (CSV) para importar los movimientos.",
+        )
+
+    try:
+        content = await file.read()
+    except Exception:
+        raise HTTPException(status_code=400, detail="No se pudo leer el archivo adjunto.")
+
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("latin-1")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Use CSV (UTF-8).")
+
+    try:
+        rows = [r for r in csv.reader(io.StringIO(text)) if r and any((c or "").strip() for c in r)]
+    except Exception:
+        raise HTTPException(status_code=400, detail="El archivo no es un CSV válido.")
+
+    if len(rows) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="El archivo no contiene movimientos. Verifique que el CSV tenga al menos una fila de datos.",
+        )
+
+    # Detectar encabezado: la primera fila es encabezado si alguna columna sugiere un nombre conocido
+    header = [str(h).strip().lower() for h in rows[0]]
+    KNOWN = ["fecha", "date", "descripcion", "description", "detalle", "monto", "amount",
+             "debito", "debit", "credito", "credit", "saldo", "balance", "referencia",
+             "reference", "beneficiario", "valor", "importe", "concepto"]
+    has_header = any(any(k in h for k in KNOWN) for h in header)
+    data_rows = rows[1:] if has_header else rows
+    if has_header:
+        header = [(h or "") for h in header]
+    else:
+        header = []
+
+    def find_col(names: list[str]) -> int | None:
+        if not header:
+            return None
+        for i, h in enumerate(header):
+            for n in names:
+                if n in h:
+                    return i
+        return None
+
+    col_fecha = find_col(["fecha", "date"])
+    col_desc = find_col(["descripcion", "description", "detalle", "concepto", "glosa"])
+    col_debito = find_col(["debito", "debit", "debe", "cargo", "retiro", "salida", "egreso", "pago"])
+    col_credito = find_col(["credito", "credit", "haber", "abono", "deposito", "ingreso", "entrada"])
+    col_monto = find_col(["monto", "amount", "valor", "importe", "total"])
+    col_saldo = find_col(["saldo", "balance"])
+    col_ref = find_col(["referencia", "reference", "numero", "nro", "num"])
+    col_benef = find_col(["beneficiario", "beneficiary", "titular", "originante"])
+    col_doc = find_col(["documento", "document", "cheque"])
+
+    movimientos: list[MovimientoBancario] = []
+    errores_fila = 0
+    fechas: list[date_cls] = []
+    total_debitos = Decimal("0")
+    total_creditos = Decimal("0")
+
+    for row in data_rows:
+        if not row:
+            continue
+        try:
+            # Fecha
+            fecha = None
+            if col_fecha is not None and col_fecha < len(row):
+                fecha = _parse_fecha(row[col_fecha])
+            if fecha is None:
+                errores_fila += 1
+                continue
+            fechas.append(fecha)
+
+            # Tipo y monto
+            monto = None
+            tipo = None
+            if col_debito is not None and col_debito < len(row) and _parse_monto(row[col_debito]) not in (None, Decimal("0")):
+                monto = _parse_monto(row[col_debito])
+                tipo = MovimientoTipo.DEBITO.value
+            elif col_credito is not None and col_credito < len(row) and _parse_monto(row[col_credito]) not in (None, Decimal("0")):
+                monto = _parse_monto(row[col_credito])
+                tipo = MovimientoTipo.CREDITO.value
+            elif col_monto is not None and col_monto < len(row):
+                monto = _parse_monto(row[col_monto])
+                if monto is None:
+                    errores_fila += 1
+                    continue
+                tipo = MovimientoTipo.DEBITO.value if monto < 0 else MovimientoTipo.CREDITO.value
+                monto = abs(monto)
+            else:
+                errores_fila += 1
+                continue
+
+            if monto is None or monto <= 0:
+                errores_fila += 1
+                continue
+
+            desc = ""
+            if col_desc is not None and col_desc < len(row):
+                desc = (row[col_desc] or "").strip()
+            ref = None
+            if col_ref is not None and col_ref < len(row):
+                ref = (row[col_ref] or "").strip()[:100] or None
+            benef = None
+            if col_benef is not None and col_benef < len(row):
+                benef = (row[col_benef] or "").strip()[:200] or None
+            doc = None
+            if col_doc is not None and col_doc < len(row):
+                doc = (row[col_doc] or "").strip()[:50] or None
+            saldo = None
+            if col_saldo is not None and col_saldo < len(row):
+                saldo = _parse_monto(row[col_saldo])
+
+            if tipo == MovimientoTipo.DEBITO.value:
+                total_debitos += monto
+            else:
+                total_creditos += monto
+
+            movimientos.append(MovimientoBancario(
+                company_id=company_id,
+                cuenta_bancaria_id=cuenta_bancaria_id,
+                fecha=datetime.combine(fecha, datetime.min.time(), tzinfo=timezone.utc),
+                tipo=tipo,
+                monto=monto,
+                saldo_posterior=saldo,
+                referencia=ref,
+                descripcion=desc or None,
+                beneficiario=benef,
+                documento=doc,
+                conciliacion_estado=ConciliacionEstado.PENDIENTE.value,
+            ))
+        except Exception:
+            errores_fila += 1
+            continue
+
+    if not movimientos:
+        raise HTTPException(
+            status_code=400,
+            detail="No se pudieron extraer movimientos del archivo. Verifique el formato de las columnas (fecha, monto/debito/credito).",
+        )
+
+    extracto = ExtractoBancario(
+        company_id=company_id,
+        cuenta_bancaria_id=cuenta_bancaria_id,
+        fecha_desde=datetime.combine(min(fechas), datetime.min.time(), tzinfo=timezone.utc),
+        fecha_hasta=datetime.combine(max(fechas), datetime.min.time(), tzinfo=timezone.utc),
+        saldo_inicial=Decimal("0"),
+        saldo_final=total_creditos - total_debitos,
+        total_debitos=total_debitos,
+        total_creditos=total_creditos,
+        estado=ExtractoEstado.IMPORTADO.value,
+        numero_movimientos=len(movimientos),
+        archivo_original=(file.filename or "extracto.csv")[:500],
+    )
+    extracto.movimientos = movimientos
+    db.add(extracto)
+    await db.flush()
+
     # Update last sync date
     cuenta.ultima_fecha_sincronizacion = datetime.now(timezone.utc)
     await db.flush()
 
+    await log_action(
+        db=db, user_id=current_user.id, user_email=current_user.email,
+        action="IMPORT", entity_type="extracto_bancario", entity_id=extracto.id,
+        description=f"Extracto importado desde archivo: {len(movimientos)} movimientos ({file.filename})",
+        ip_address=request.client.host if request.client else None,
+    )
+
     return {
-        "message": "Extracto importado exitosamente. Configure el mapeo de columnas para procesar los datos.",
+        "message": f"Extracto importado exitosamente: {len(movimientos)} movimientos procesados.",
         "cuenta_id": cuenta_bancaria_id,
+        "extracto_id": extracto.id,
+        "movimientos_importados": len(movimientos),
+        "filas_ignoradas": errores_fila,
     }
 
 

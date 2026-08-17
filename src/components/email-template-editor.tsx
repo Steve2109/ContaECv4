@@ -379,13 +379,48 @@ export function EmailTemplateEditor({ companyId: _companyId }: EmailTemplateEdit
           <DialogHeader>
             <DialogTitle>Vista Previa de Plantilla</DialogTitle>
             <DialogDescription>
-              Vista previa con datos de ejemplo
+              Vista previa con datos de ejemplo (simula el correo que recibirá el cliente)
             </DialogDescription>
           </DialogHeader>
-          <div
-            className="border rounded-md p-4 bg-white"
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-          />
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/40 px-4 py-2.5 text-sm">
+              <span className="font-medium text-muted-foreground">Asunto: </span>
+              <span className="text-foreground">{formData.asunto || '(sin asunto)'}</span>
+            </div>
+            <div className="rounded-md border overflow-hidden">
+              {/* iframe aislado: el HTML de la plantilla se ve como un correo real,
+                  con fondo blanco y texto oscuro, sin importar el tema de la app */}
+              <iframe
+                title="Vista previa de plantilla"
+                sandbox=""
+                srcDoc={`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  table, td, tr { border-collapse: collapse; }
+  img { max-width: 100%; height: auto; }
+  a { color: #2563eb; }
+  p, h1, h2, h3, h4, h5, h6, div, span, td { color: #111827; }
+  h1, h2, h3 { color: #111827; }
+</style>
+</head>
+<body>${previewHtml}</body>
+</html>`}
+                className="w-full bg-white"
+                style={{ minHeight: 420, border: 0 }}
+              />
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

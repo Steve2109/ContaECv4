@@ -109,6 +109,20 @@ def z_ai_installed() -> bool:
     return shutil.which("z-ai") is not None
 
 
+def llm_configured() -> bool:
+    """
+    ¿Hay una capa LLM configurada? True si hay API key OpenAI-compatible
+    (LLM_API_KEY) o si el CLI z-ai está instalado.
+    """
+    try:
+        from app.core.config import get_settings
+        if getattr(get_settings(), "LLM_API_KEY", ""):
+            return True
+    except Exception:
+        pass
+    return z_ai_installed()
+
+
 # ==========================================
 # Buffer de errores ML/IA
 # ==========================================
@@ -191,6 +205,7 @@ async def ai_self_test() -> dict:
         "fallback_response": None,
         "error": None,
         "z_ai_installed": z_ai_installed(),
+        "llm_configured": llm_configured(),
         "global_enabled": ai_global_enabled(),
     }
 
@@ -217,15 +232,16 @@ async def ai_self_test() -> dict:
 
     if result["llm_available"]:
         result["ok"] = True
-    elif not result["error"] and not z_ai_installed():
+    elif not result["error"] and not llm_configured():
         result["error"] = (
-            "El CLI 'z-ai' no está instalado en el servidor. La capa inteligente (LLM) no está "
-            "disponible; el chatbot funciona con respuestas basadas en reglas. "
-            "Instale y autentique el CLI z-ai para habilitar la capa LLM."
+            "La capa inteligente (LLM) no está configurada. Configure una API key "
+            "(LLM_API_KEY en el .env) de un proveedor OpenAI-compatible —OpenAI, OpenRouter, "
+            "Groq, Ollama, etc.— para habilitarla sin instalar nada en el servidor, "
+            "o instale el CLI z-ai. Mientras tanto, el chatbot funciona con respuestas basadas en reglas."
         )
         log_ai_error("self_test", result["error"])
     elif not result["error"]:
-        result["error"] = "z-ai está instalado pero no devolvió respuesta (¿autenticación pendiente?)."
+        result["error"] = "La capa LLM está configurada pero no devolvió respuesta (¿API key inválida o sin crédito?)."
 
     # El sistema siempre puede responder (fallback por reglas)
     result["ok"] = True

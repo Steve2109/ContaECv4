@@ -520,7 +520,8 @@ async def scan_upload(
     results.append(clamav_result)
 
     # 2. Escaneo VirusTotal (opcional, activable por usuario)
-    if use_virustotal and settings.VIRUSTOTAL_ENABLED:
+    # Se usa con solo tener la API key configurada; el switch por usuario lo activa.
+    if use_virustotal and settings.VIRUSTOTAL_API_KEY:
         vt_result = await virustotal_scanner.scan_bytes(content, filename)
         results.append(vt_result)
 

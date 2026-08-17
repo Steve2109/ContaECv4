@@ -165,6 +165,9 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
   const [activeSesionId, setActiveSesionId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
 
+  // Pestaña activa controlada (evita que vuelva a "predicciones" al recargar datos)
+  const [activeTab, setActiveTab] = useState('predicciones');
+
   // Filters
   const [filterTipoPrediccion, setFilterTipoPrediccion] = useState<string>('');
   const [filterSeveridad, setFilterSeveridad] = useState<string>('');
@@ -210,9 +213,11 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  const initialLoadDoneRef = useRef(false);
+
   const loadData = useCallback(async () => {
     if (!companyId) return;
-    setLoading(true);
+    if (!initialLoadDoneRef.current) setLoading(true); // solo spinner en la carga inicial
     try {
       const [statsData, predsData, alertasData, sesionesData, recsData, reglasData] = await Promise.all([
         getMLStats(companyId).catch(() => null),
@@ -231,6 +236,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
     } catch {
       toast.error('Error al cargar datos de ML/IA');
     } finally {
+      initialLoadDoneRef.current = true;
       setLoading(false);
     }
   }, [companyId]);
@@ -374,7 +380,12 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
     setGenerating(true);
     try {
       const result = await generateMLRecomendaciones(companyId);
-      toast.success(result.message || `${result.recomendaciones_creadas} recomendaciones generadas`);
+      const count = result?.recomendaciones_creadas ?? 0;
+      if (count > 0) {
+        toast.success(`Se generaron ${count} recomendación(es) basadas en tus datos`);
+      } else {
+        toast.info('No se encontraron datos suficientes: crea facturas, clientes, productos o cuentas por pagar para obtener recomendaciones.');
+      }
       loadData();
     } catch {
       toast.error('Error al generar recomendaciones');
@@ -549,7 +560,7 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
       </div>
 
       {/* Main Tabs */}
-      <Tabs defaultValue="predicciones" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="predicciones" className="flex items-center gap-1">
             <TrendingUp className="h-3 w-3" />
@@ -943,6 +954,17 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
 
         {/* Tab: RECOMENDACIONES */}
         <TabsContent value="recomendaciones" className="space-y-4">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">
+                Las recomendaciones se generan analizando <strong>tus propios datos</strong>:
+                facturas autorizadas (productos más/menos vendidos, mejores clientes), stock
+                de productos por debajo del mínimo e inventario, y cuentas por pagar pendientes.
+                Si acabas de empezar, primero crea facturas, clientes, productos o compras para
+                que el sistema tenga información de la que extraer recomendaciones.
+              </p>
+            </CardContent>
+          </Card>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Select value={filterTipoRecomendacion} onValueChange={(v) => setFilterTipoRecomendacion(v === 'all' ? '' : v)}>

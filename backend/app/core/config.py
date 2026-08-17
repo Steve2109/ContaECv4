@@ -124,6 +124,16 @@ class Settings(BaseSettings):
     VIRUSTOTAL_API_KEY: str = ""
 
     # ==========================================
+    # Capa LLM (ML/IA) — OpenAI-compatible
+    # ==========================================
+    # Configura LLM_API_KEY con la API key de un proveedor OpenAI-compatible
+    # (OpenAI, OpenRouter, Groq, Ollama local, etc.) para habilitar la capa
+    # inteligente del chatbot SIN necesidad de instalar el CLI 'z-ai'.
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_MODEL: str = "gpt-4o-mini"
+
+    # ==========================================
     # SRI RUC Lookup
     # ==========================================
     # Set to True to use mock data for RUC lookup (development only)

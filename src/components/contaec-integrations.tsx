@@ -65,7 +65,7 @@ import {
   updateCuentaBancaria,
   deleteCuentaBancaria,
   getExtractosBancarios,
-  createExtractoBancario,
+  importBankExtractFile,
   deleteExtractoBancario,
   getMovimientosBancarios,
   updateMovimientoBancario,
@@ -75,6 +75,9 @@ import {
   deleteEcommerceConnector,
   testEcommerceConnection,
   syncEcommerceConnector,
+  syncEcommerceProducts,
+  syncEcommerceOrders,
+  syncEcommerceInventory,
   getEcommerceSyncLogs,
   type User as UserType,
   type Company as CompanyType,
@@ -268,16 +271,23 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
   };
 
   // ---- Extracto CRUD ----
-  const handleSaveExtracto = async () => {
+  const [extractoFile, setExtractoFile] = useState<File | null>(null);
+
+  const handleImportExtracto = async () => {
     if (!extractoForm.cuenta_bancaria_id) {
       toast.error('Seleccione una cuenta bancaria');
       return;
     }
+    if (!extractoFile) {
+      toast.error('Seleccione el archivo del extracto (CSV)');
+      return;
+    }
     setSaving(true);
     try {
-      await createExtractoBancario({ ...extractoForm, company_id: companyId });
-      toast.success('Extracto importado');
+      const result = await importBankExtractFile(extractoForm.cuenta_bancaria_id, companyId, extractoFile);
+      toast.success(result.message || 'Extracto importado');
       setShowExtractoDialog(false);
+      setExtractoFile(null);
       loadData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al importar extracto');
@@ -376,8 +386,35 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
   const handleSync = async (id: string, tipoSync: string = 'completo') => {
     setSyncing(id);
     try {
-      const result = await syncEcommerceConnector(id, tipoSync);
-      toast.success(`Sincronización ${result.estado}: ${result.registros_procesados} registros`);
+      if (tipoSync === 'productos') {
+        const r = await syncEcommerceProducts(id);
+        toast.success(`Productos sincronizados: ${r.total_creados} creados, ${r.total_actualizados} actualizados${r.total_errores ? `, ${r.total_errores} errores` : ''}`);
+      } else if (tipoSync === 'ordenes') {
+        const r = await syncEcommerceOrders(id);
+        toast.success(`Órdenes sincronizadas: ${r.total_creados} creadas, ${r.total_actualizados} actualizadas${r.total_errores ? `, ${r.total_errores} errores` : ''}`);
+      } else if (tipoSync === 'inventario') {
+        const r = await syncEcommerceInventory(id);
+        toast.success(`Inventario sincronizado: ${r.total_actualizados} productos actualizados${r.total_errores ? `, ${r.total_errores} errores` : ''}`);
+      } else {
+        // Completo: ejecuta productos + órdenes + inventario
+        const [p, o, i] = await Promise.allSettled([
+          syncEcommerceProducts(id),
+          syncEcommerceOrders(id),
+          syncEcommerceInventory(id),
+        ]);
+        let creados = 0; let actualizados = 0; let errores = 0;
+        for (const res of [p, o, i]) {
+          if (res.status === 'fulfilled') {
+            const r = res.value as unknown as Record<string, unknown>;
+            creados += Number(r.total_creados ?? 0);
+            actualizados += Number(r.total_actualizados ?? 0);
+            errores += Number(r.total_errores ?? 0);
+          } else {
+            errores += 1;
+          }
+        }
+        toast.success(`Sincronización completa: ${creados} creados, ${actualizados} actualizados${errores ? `, ${errores} errores` : ''}`);
+      }
       loadData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al sincronizar');
@@ -1152,12 +1189,12 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Importar Extracto */}
+      {/* Dialog: Importar Extracto (subir archivo del banco) */}
       <Dialog open={showExtractoDialog} onOpenChange={setShowExtractoDialog}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Importar Extracto Bancario</DialogTitle>
-            <DialogDescription>Registre los datos del extracto bancario</DialogDescription>
+            <DialogDescription>Suba el archivo CSV descargado del banco para importar los movimientos automáticamente</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
@@ -1176,84 +1213,23 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fecha Desde</Label>
-                <Input
-                  type="date"
-                  value={extractoForm.fecha_desde}
-                  onChange={(e) => setExtractoForm({ ...extractoForm, fecha_desde: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha Hasta</Label>
-                <Input
-                  type="date"
-                  value={extractoForm.fecha_hasta}
-                  onChange={(e) => setExtractoForm({ ...extractoForm, fecha_hasta: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Saldo Inicial</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={extractoForm.saldo_inicial}
-                  onChange={(e) => setExtractoForm({ ...extractoForm, saldo_inicial: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Saldo Final</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={extractoForm.saldo_final}
-                  onChange={(e) => setExtractoForm({ ...extractoForm, saldo_final: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Total Debitos</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={extractoForm.total_debitos}
-                  onChange={(e) => setExtractoForm({ ...extractoForm, total_debitos: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Total Créditos</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={extractoForm.total_creditos}
-                  onChange={(e) => setExtractoForm({ ...extractoForm, total_creditos: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Nro. Movimientos</Label>
-                <Input
-                  type="number"
-                  value={extractoForm.numero_movimientos}
-                  onChange={(e) => setExtractoForm({ ...extractoForm, numero_movimientos: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Label>Notas</Label>
-              <Textarea
-                placeholder="Notas adicionales del extracto"
-                value={extractoForm.notas || ''}
-                onChange={(e) => setExtractoForm({ ...extractoForm, notas: e.target.value })}
+              <Label>Archivo del Extracto * (CSV)</Label>
+              <Input
+                type="file"
+                accept=".csv,.txt"
+                onChange={(e) => setExtractoFile(e.target.files?.[0] || null)}
               />
+              <p className="text-xs text-muted-foreground">
+                {extractoFile
+                  ? `Archivo seleccionado: ${extractoFile.name}`
+                  : 'El sistema detecta columnas como fecha, descripción, débito/crédito y saldo.'}
+              </p>
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowExtractoDialog(false)}>Cancelar</Button>
-            <Button onClick={handleSaveExtracto} disabled={saving}>
+            <Button variant="outline" onClick={() => { setShowExtractoDialog(false); setExtractoFile(null); }}>Cancelar</Button>
+            <Button onClick={handleImportExtracto} disabled={saving || !extractoFile}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Importar Extracto
             </Button>

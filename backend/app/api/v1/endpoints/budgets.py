@@ -271,6 +271,7 @@ async def create_presupuesto(
             ejecuciones.append(ejecucion)
 
         cuenta.ejecuciones_mensuales = ejecuciones
+        cuenta.alertas = []
         cuentas.append(cuenta)
 
     presupuesto.cuentas = cuentas

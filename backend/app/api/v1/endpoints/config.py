@@ -407,10 +407,10 @@ async def toggle_virustotal(
     db: AsyncSession = Depends(get_db),
 ):
     """Activar o desactivar VirusTotal para el escaneo de archivos del usuario"""
-    if enabled and (not settings.VIRUSTOTAL_ENABLED or not settings.VIRUSTOTAL_API_KEY):
+    if enabled and not settings.VIRUSTOTAL_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="VirusTotal no está configurado en el servidor. Contacte al administrador.",
+            detail="VirusTotal no está configurado en el servidor (falta VIRUSTOTAL_API_KEY en el .env). Contacte al administrador.",
         )
 
     result = await db.execute(
@@ -737,14 +737,22 @@ async def upload_company_logo(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Subir logotipo de la empresa"""
-    if not file.content_type or not file.content_type.startswith("image/"):
+    """Subir logotipo de la empresa (solo .webp, máx. 2MB para no pesar en el servidor)"""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext != ".webp":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El archivo debe ser una imagen."
+            detail="El logotipo debe ser formato .webp (máx. 2MB). Convierta la imagen a .webp e intente nuevamente."
         )
 
     content = await file.read()
+
+    # Verificar tamaño (máximo 2MB)
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El logotipo no debe exceder 2MB."
+        )
 
     # Escaneo de malware
     scan_results = await scan_upload(content=content, filename=file.filename or "logo")

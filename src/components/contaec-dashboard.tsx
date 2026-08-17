@@ -35,6 +35,13 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   BookOpen,
   Building2,
   ChevronLeft,
@@ -2462,6 +2469,11 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
   const [aiStatus, setAiStatus] = useState<{
     global_enabled: boolean;
     z_ai_installed: boolean;
+    llm_mode: string;
+    llm_configured: boolean;
+    llm_enabled_env: boolean;
+    llm_model: string;
+    llm_base_url: string;
     users_total: number;
     errors_count: number;
   } | null>(null);
@@ -3434,18 +3446,29 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                     </div>
                   </div>
                   <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">CLI 'z-ai' en servidor</p>
+                    <p className="text-sm font-medium">Capa LLM (respuesta inteligente)</p>
                     {aiStatus ? (
-                      <Badge variant={aiStatus.z_ai_installed ? 'default' : 'secondary'} className="mt-2">
-                        {aiStatus.z_ai_installed ? 'Instalado' : 'No instalado'}
-                      </Badge>
+                      <>
+                        <Badge variant={aiStatus.llm_configured ? 'default' : 'secondary'} className="mt-2">
+                          {aiStatus.llm_mode === 'api'
+                            ? (aiStatus.llm_configured ? 'API key configurada' : 'API key presente (LLM_ENABLED=false)')
+                            : aiStatus.llm_mode === 'cli'
+                              ? 'CLI z-ai instalado'
+                              : 'No configurada'}
+                        </Badge>
+                        {aiStatus.llm_mode === 'api' && (
+                          <p className="text-xs text-muted-foreground mt-2 break-all">
+                            Modelo: {aiStatus.llm_model || '-'} · {aiStatus.llm_base_url || ''}
+                          </p>
+                        )}
+                        {aiStatus.llm_mode === 'none' && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Sin LLM, el chatbot responde con reglas locales (sin costo).
+                          </p>
+                        )}
+                      </>
                     ) : (
                       <p className="text-xs text-muted-foreground mt-2">Cargando...</p>
-                    )}
-                    {aiStatus && !aiStatus.z_ai_installed && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Sin el CLI, el chatbot responde con reglas locales (sin costo).
-                      </p>
                     )}
                   </div>
                   <div className="rounded-lg border p-4">
@@ -3482,7 +3505,7 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                     <AlertDescription className="text-xs space-y-1">
                       <p>Mensaje probado: "{String(aiTestResult.sample || '')}"</p>
                       <p>Intención detectada: <strong>{String(aiTestResult.intent_detected || 'ninguna (usa LLM)')}</strong></p>
-                      <p>Capa LLM (z-ai): {aiTestResult.llm_available ? '✔ disponible' : '✘ no disponible'}</p>
+                      <p>Capa LLM: {aiTestResult.llm_available ? '✔ disponible' : '✘ no disponible'}{aiTestResult.llm_model ? ` (${String(aiTestResult.llm_model)})` : ''}</p>
                       {aiTestResult.llm_response ? <p>Respuesta LLM: {String(aiTestResult.llm_response).slice(0, 200)}</p> : null}
                       {aiTestResult.fallback_response ? (
                         <p className="pt-1">Respuesta por reglas: {String(aiTestResult.fallback_response).slice(0, 200)}</p>
@@ -3588,10 +3611,16 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                   <p className="font-medium mb-1">Cómo resolver los problemas más comunes:</p>
                   <ul className="list-disc pl-4 space-y-1">
                     <li>
-                      <strong>z-ai no instalado</strong>: instale y autentique el CLI <code className="bg-background px-1 rounded">z-ai</code> en el servidor para habilitar la capa inteligente. Sin él, el chatbot usa reglas locales.
+                      <strong>Capa LLM no configurada</strong>: en el archivo <code className="bg-background px-1 rounded">.env</code> del backend agregue <code className="bg-background px-1 rounded">LLM_ENABLED=true</code> y <code className="bg-background px-1 rounded">LLM_API_KEY=sk-...</code> (compatible con OpenAI, DeepSeek, Groq u otra API de chat compatible). <strong>No requiere instalar nada en el servidor</strong>. Reinicie el backend.
                     </li>
                     <li>
-                      <strong>z-ai instalado pero sin respuesta</strong>: verifique la autenticación del CLI (<code className="bg-background px-1 rounded">z-ai auth</code>) o ejecute <code className="bg-background px-1 rounded">z-ai chat --prompt "hola"</code> manualmente.
+                      <strong>LLM_API_KEY presente pero desactivada</strong>: revise que <code className="bg-background px-1 rounded">LLM_ENABLED=true</code> en el .env y reinicie el backend.
+                    </li>
+                    <li>
+                      <strong>API de IA rechaza la petición</strong>: verifique que la clave sea válida, que el modelo <code className="bg-background px-1 rounded">LLM_MODEL</code> exista en su proveedor y que <code className="bg-background px-1 rounded">LLM_BASE_URL</code> apunte al endpoint correcto (para OpenAI: <code className="bg-background px-1 rounded">https://api.openai.com/v1</code>; para DeepSeek: <code className="bg-background px-1 rounded">https://api.deepseek.com/v1</code>).
+                    </li>
+                    <li>
+                      <strong>Alternativa con CLI</strong>: si prefiere el CLI, instale y autentique <code className="bg-background px-1 rounded">z-ai</code> en el servidor.
                     </li>
                     <li>
                       <strong>Errores de predicción/fraude</strong>: suelen deberse a datos insuficientes. Revise la sección ML/IA del usuario afectado.
@@ -3616,15 +3645,24 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Tipo de Licencia</Label>
-              <select
-                className="w-full rounded-md border px-3 py-2 text-sm"
-                value={licenseForm.license_type}
-                onChange={(e) => setLicenseForm({ license_type: e.target.value })}
+              <Select
+                value={licenseForm.license_type || undefined}
+                onValueChange={(v) => setLicenseForm({ license_type: v })}
               >
-                {licensePrices.map((p) => (
-                  <option key={p.key} value={p.key}>{p.type} - ${p.price.toFixed(2)}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full bg-background text-foreground">
+                  <SelectValue placeholder="Seleccione tipo de licencia" />
+                </SelectTrigger>
+                <SelectContent>
+                  {licensePrices.map((p) => (
+                    <SelectItem key={p.key} value={p.key}>
+                      <span className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${p.color}`} />
+                        {p.type} - ${p.price.toFixed(2)}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={handleModifyLicense} disabled={modifying} className="w-full">
               {modifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

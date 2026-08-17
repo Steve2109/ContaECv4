@@ -132,9 +132,11 @@ const ESTADOS_ACTIVIDAD = [
 const ESTADOS_LEAD = [
   { key: 'nuevo', label: 'Nuevo', badgeClass: 'bg-sky-500' },
   { key: 'contactado', label: 'Contactado', badgeClass: 'bg-amber-500' },
-  { key: 'calificado', label: 'Calificado', badgeClass: 'bg-emerald-600' },
-  { key: 'no_calificado', label: 'No Calificado', badgeClass: 'bg-red-500' },
-  { key: 'convertido', label: 'Convertido', badgeClass: 'bg-purple-600' },
+  { key: 'cualificado', label: 'Cualificado', badgeClass: 'bg-emerald-600' },
+  { key: 'propuesta', label: 'Propuesta', badgeClass: 'bg-indigo-500' },
+  { key: 'negociacion', label: 'Negociación', badgeClass: 'bg-purple-600' },
+  { key: 'ganado', label: 'Ganado', badgeClass: 'bg-green-600' },
+  { key: 'perdido', label: 'Perdido', badgeClass: 'bg-red-500' },
 ] as const;
 
 function getEtapaBadge(etapa: string) {
@@ -280,12 +282,26 @@ function PipelineTab({ companyId }: { companyId: string }) {
 
   if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
-  // Group opportunities by etapa
-  const pipelineStages = ETAPAS_PIPELINE.map((etapa) => ({
-    ...etapa,
-    opportunities: opportunities.filter((o) => o.etapa === etapa.key),
-    totalValue: opportunities.filter((o) => o.etapa === etapa.key).reduce((sum, o) => sum + (o.valor_estimado ?? 0), 0),
+  // Columnas del kanban desde las etapas reales de los pipelines configurados
+  const stageOfPipeline = new Map<string, string>();
+  pipelines.forEach((p) => (p.stages ?? []).forEach((s) => stageOfPipeline.set(s.id, p.id)));
+  const allStages = [...pipelines.flatMap((p) => p.stages ?? [])].sort((a, b) => a.order - b.order);
+  const pipelineStages = allStages.map((stage) => ({
+    key: stage.id,
+    label: stage.name,
+    color: stage.color || 'bg-slate-400',
+    opportunities: opportunities.filter((o) => o.stage_id === stage.id),
+    totalValue: opportunities.filter((o) => o.stage_id === stage.id).reduce((sum, o) => sum + (o.valor_estimado ?? 0), 0),
   }));
+  if (pipelineStages.length === 0) {
+    pipelineStages.push({
+      key: 'sin_etapas',
+      label: 'Sin etapas configuradas',
+      color: 'bg-slate-400',
+      opportunities: opportunities,
+      totalValue: opportunities.reduce((sum, o) => sum + (o.valor_estimado ?? 0), 0),
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -358,12 +374,13 @@ function PipelineTab({ companyId }: { companyId: string }) {
                         <span className="text-xs text-muted-foreground">{opp.probability}%</span>
                       </div>
                       <div className="flex gap-1 pt-1">
-                        {ETAPAS_PIPELINE.filter((e) => e.key !== stage.key).slice(0, 3).map((e) => (
+                        {pipelineStages.filter((e) => e.key !== stage.key && stageOfPipeline.get(e.key) === opp.pipeline_id).slice(0, 3).map((e) => (
                           <Button
                             key={e.key}
                             variant="ghost"
                             size="sm"
                             className="h-6 px-1.5 text-xs"
+                            title={`Mover a ${e.label}`}
                             onClick={() => handleMoveStage(opp.id, e.key)}
                             disabled={!!movingId}
                           >
@@ -620,6 +637,9 @@ function OportunidadesTab({ companyId }: { companyId: string }) {
     }
   }
 
+  // Etapas reales de los pipelines configurados
+  const stageOptions = pipelines.flatMap((p) => (p.stages ?? []).map((s) => ({ ...s, pipeline: p.name })));
+
   const filteredOpps = opportunities.filter((o) => filterEtapa === 'all' || o.stage_id === filterEtapa || o.etapa === filterEtapa);
 
   if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -631,7 +651,9 @@ function OportunidadesTab({ companyId }: { companyId: string }) {
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Etapa" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
-            {ETAPAS_PIPELINE.map((e) => (<SelectItem key={e.key} value={e.key}>{e.label}</SelectItem>))}
+            {stageOptions.length === 0
+              ? <SelectItem value="__none__" disabled>No hay etapas configuradas</SelectItem>
+              : stageOptions.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name} ({s.pipeline})</SelectItem>))}
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
@@ -669,7 +691,9 @@ function OportunidadesTab({ companyId }: { companyId: string }) {
                         <Select value={opp.stage_id || opp.etapa || ''} onValueChange={(v) => handleMoveStage(opp.id, v)} disabled={operating}>
                           <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {ETAPAS_PIPELINE.map((e) => (<SelectItem key={e.key} value={e.key}>{e.label}</SelectItem>))}
+                            {stageOptions.length === 0
+                              ? <SelectItem value="__none__" disabled>Sin etapas</SelectItem>
+                              : stageOptions.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -1157,7 +1181,7 @@ function CreateLeadDialog({ open, onOpenChange, companyId, onCreated }: {
             <div className="space-y-2"><Label>Teléfono</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0991234567" /></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Fuente</Label><Select value={source} onValueChange={setSource}><SelectTrigger /><SelectContent>{FUENTES.map((f) => (<SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>))}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>Fuente</Label><Select value={source} onValueChange={setSource}><SelectTrigger><SelectValue placeholder="Seleccione fuente" /></SelectTrigger><SelectContent>{FUENTES.map((f) => (<SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>))}</SelectContent></Select></div>
             <div className="space-y-2"><Label>Valor Estimado ($)</Label><Input type="number" value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} placeholder="0.00" /></div>
           </div>
           <div className="space-y-2"><Label>Siguiente Seguimiento</Label><Input type="date" value={nextFollowUp} onChange={(e) => setNextFollowUp(e.target.value)} /></div>
@@ -1239,8 +1263,8 @@ function EditLeadDialog({ lead, open, onOpenChange, onUpdated }: {
             <div className="space-y-2"><Label>Teléfono</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Fuente</Label><Select value={source} onValueChange={setSource}><SelectTrigger /><SelectContent>{FUENTES.map((f) => (<SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>))}</SelectContent></Select></div>
-            <div className="space-y-2"><Label>Estado</Label><Select value={status} onValueChange={setStatus}><SelectTrigger /><SelectContent>{ESTADOS_LEAD.map((e) => (<SelectItem key={e.key} value={e.key}>{e.label}</SelectItem>))}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>Fuente</Label><Select value={source} onValueChange={setSource}><SelectTrigger><SelectValue placeholder="Seleccione fuente" /></SelectTrigger><SelectContent>{FUENTES.map((f) => (<SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>))}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>Estado</Label><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue placeholder="Seleccione estado" /></SelectTrigger><SelectContent>{ESTADOS_LEAD.map((e) => (<SelectItem key={e.key} value={e.key}>{e.label}</SelectItem>))}</SelectContent></Select></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Valor Estimado ($)</Label><Input type="number" value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} /></div>
@@ -1520,7 +1544,9 @@ function CreateActivityDialog({ open, onOpenChange, companyId, opportunities, on
               <Select value={opportunityId} onValueChange={setOpportunityId}>
                 <SelectTrigger><SelectValue placeholder="Sin oportunidad" /></SelectTrigger>
                 <SelectContent>
-                  {opportunities.map((o) => (<SelectItem key={o.id} value={o.id}>{o.name || o.titulo}</SelectItem>))}
+                  {opportunities.length === 0
+                    ? <SelectItem value="__none__" disabled>No hay oportunidades disponibles</SelectItem>
+                    : opportunities.map((o) => (<SelectItem key={o.id} value={o.id}>{o.name || o.titulo}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
