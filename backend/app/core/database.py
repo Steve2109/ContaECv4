@@ -85,6 +85,29 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         # session.close() is handled by async with context manager
 
 
+async def _ensure_new_columns(conn) -> None:
+    """
+    Migraciones ligeras e idempotentes para columnas añadidas al modelo
+    sin un sistema de migraciones formal (no hay Alembic en este proyecto).
+
+    create_all NO agrega columnas nuevas a tablas existentes, por lo que
+    las columnas agregadas posteriormente deben crearse con ALTER TABLE
+    (solo PostgreSQL en producción; SQLite se omite).
+    """
+    dialect = conn.dialect.name
+    if dialect != "postgresql":
+        return
+
+    from sqlalchemy import text
+
+    statements = [
+        # Usuarios: contraseña temporal pendiente de cambio (recuperación de contraseña)
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE",
+    ]
+    for stmt in statements:
+        await conn.execute(text(stmt))
+
+
 async def init_db() -> None:
     """
     Inicializa la base de datos creando todas las tablas.
@@ -98,6 +121,7 @@ async def init_db() -> None:
         import app.models  # noqa: F401
 
         await conn.run_sync(Base.metadata.create_all)
+        await _ensure_new_columns(conn)
 
 
 async def close_db() -> None:

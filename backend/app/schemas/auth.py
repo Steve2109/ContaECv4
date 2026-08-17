@@ -176,6 +176,10 @@ class UserResponse(BaseModel):
     full_name: str = Field(..., description="Nombre completo")
     is_active: bool = Field(..., description="Indica si el usuario está activo")
     is_admin: bool = Field(..., description="Indica si el usuario es administrador")
+    must_change_password: bool = Field(
+        False,
+        description="Indica si el usuario debe cambiar su contraseña en el próximo inicio de sesión",
+    )
     phone: str | None = Field(None, description="Número de teléfono")
     language: str = Field("es_EC", description="Idioma preferido")
     theme: str = Field("light", description="Tema de la interfaz")
@@ -228,6 +232,70 @@ class UserUpdate(BaseModel):
         if v is not None and v not in ("light", "dark", "system"):
             raise ValueError("Tema no válido. Opciones: light, dark, system")
         return v
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Solicitud de recuperación de contraseña desde el panel de inicio de sesión.
+
+    Se piden 1-2 datos de validación (nombre completo y/o teléfono) además del
+    correo registrado para evitar que terceros soliciten contraseñas ajenas.
+    """
+    email: EmailStr = Field(..., description="Correo electrónico registrado")
+    full_name: str | None = Field(
+        None,
+        min_length=2,
+        max_length=255,
+        description="Nombre completo del usuario (dato de validación)",
+    )
+    phone: str | None = Field(
+        None,
+        max_length=20,
+        description="Teléfono del usuario (dato de validación)",
+    )
+
+
+class ForcePasswordChange(BaseModel):
+    """Cambio de contraseña obligatorio tras iniciar sesión con una contraseña temporal."""
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="Nueva contraseña (mínimo 8 caracteres)",
+    )
+    confirm_new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="Confirmación de la nueva contraseña",
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Valida que la nueva contraseña cumpla con los requisitos de seguridad"""
+        return validate_strong_password(v)
+
+    @field_validator("confirm_new_password")
+    @classmethod
+    def passwords_match(cls, v: str, info) -> str:
+        """Valida que las contraseñas coincidan"""
+        if "new_password" in info.data and v != info.data["new_password"]:
+            raise ValueError("Las contraseñas no coinciden")
+        return v
+
+
+class AdminResetPassword(BaseModel):
+    """Restablecimiento de contraseña por parte del administrador."""
+    temporary_password: str | None = Field(
+        None,
+        min_length=8,
+        max_length=128,
+        description="Contraseña temporal. Si se omite, el sistema genera una automáticamente.",
+    )
+    send_email: bool = Field(
+        True,
+        description="Enviar la contraseña temporal por correo al cliente",
+    )
 
 
 class PasswordChange(BaseModel):

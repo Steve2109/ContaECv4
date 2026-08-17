@@ -113,12 +113,10 @@ async def export_products_excel(
         ws = wb.active
         ws.title = "Productos"
 
-        # Encabezados
+        # Encabezados: solo los campos que existen al crear un item manualmente
+        # (sin tipo, códigos ICE/IVA, activo, ni campos de inventario vacíos)
         headers = [
-            "Código Principal", "Código Auxiliar", "Descripción", "Tipo",
-            "Precio Unitario", "IVA Código", "IVA %", "ICE Código", "ICE %",
-            "Unidad Medida", "Descuento %", "Código Barras", "Stock",
-            "Stock Mínimo", "Ubicación", "Activo",
+            "Código Principal", "Descripción", "Precio Unitario", "IVA %", "Descuento %",
         ]
 
         # Estilos
@@ -143,28 +141,17 @@ async def export_products_excel(
         for row_idx, product in enumerate(products, 2):
             values = [
                 product.codigo_principal,
-                product.codigo_auxiliar,
                 product.descripcion,
-                "Bien" if product.tipo == "B" else "Servicio",
                 float(product.precio_unitario) if product.precio_unitario else 0,
-                product.iva_codigo,
                 float(product.iva_porcentaje) if product.iva_porcentaje else 0,
-                product.ice_codigo,
-                float(product.ice_porcentaje) if product.ice_porcentaje else None,
-                product.unidad_medida,
                 float(product.descuento) if product.descuento else 0,
-                getattr(product, "codigo_barras", None),
-                float(getattr(product, "stock", 0) or 0),
-                float(getattr(product, "stock_minimo", 0) or 0),
-                getattr(product, "ubicacion", None),
-                "Sí" if product.is_active else "No",
             ]
             for col, value in enumerate(values, 1):
                 cell = ws.cell(row=row_idx, column=col, value=value)
                 cell.border = thin_border
 
         # Ajustar anchos de columna
-        column_widths = [15, 15, 40, 10, 15, 12, 8, 12, 8, 15, 12, 18, 10, 12, 20, 8]
+        column_widths = [18, 40, 15, 8, 12]
         for col, width in enumerate(column_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
 
@@ -207,33 +194,19 @@ async def export_products_csv(
         output = io.StringIO()
         writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
 
-        # Encabezados
+        # Encabezados (mismos campos que al crear un item manualmente)
         writer.writerow([
-            "codigo_principal", "codigo_auxiliar", "descripcion", "tipo",
-            "precio_unitario", "iva_codigo", "iva_porcentaje", "ice_codigo",
-            "ice_porcentaje", "unidad_medida", "descuento", "codigo_barras",
-            "stock", "stock_minimo", "ubicacion", "is_active",
+            "codigo_principal", "descripcion", "precio_unitario", "iva_porcentaje", "descuento",
         ])
 
         # Datos
         for product in products:
             writer.writerow([
                 product.codigo_principal,
-                product.codigo_auxiliar or "",
                 product.descripcion,
-                product.tipo,
                 product.precio_unitario,
-                product.iva_codigo,
                 product.iva_porcentaje,
-                product.ice_codigo or "",
-                product.ice_porcentaje or "",
-                product.unidad_medida,
-                product.descuento,
-                getattr(product, "codigo_barras", "") or "",
-                getattr(product, "stock", 0) or 0,
-                getattr(product, "stock_minimo", 0) or 0,
-                getattr(product, "ubicacion", "") or "",
-                product.is_active,
+                product.descuento or 0,
             ])
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")

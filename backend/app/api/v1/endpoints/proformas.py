@@ -2,6 +2,7 @@
 ContaEC - Endpoints de Proformas
 CRUD de proformas, envío, conversión a factura
 """
+import io
 import json
 import logging
 from datetime import datetime, timezone
@@ -58,8 +59,12 @@ async def _get_company_for_user(
     return company
 
 
-def _calcular_totales_proforma(detalles: list) -> dict:
-    """Calcula los totales de la proforma a partir de los detalles"""
+def _calcular_totales_proforma(detalles: list, propina: Decimal | None = None) -> dict:
+    """Calcula los totales de la proforma a partir de los detalles.
+
+    La propina (monto fijo en dólares) se suma al total final.
+    """
+    propina = (propina or Decimal("0")).quantize(Decimal("0.01"))
     subtotal_sin_impuestos = Decimal("0")
     total_iva = Decimal("0")
     total_ice = Decimal("0")
@@ -134,13 +139,14 @@ def _calcular_totales_proforma(detalles: list) -> dict:
             "descuento": descuento_monto,
         })
 
-    total_con_impuestos = (subtotal_sin_impuestos + total_iva + total_ice).quantize(Decimal("0.01"))
+    total_con_impuestos = (subtotal_sin_impuestos + total_iva + total_ice + propina).quantize(Decimal("0.01"))
 
     return {
         "subtotal_sin_impuestos": subtotal_sin_impuestos.quantize(Decimal("0.01")),
         "total_iva": total_iva.quantize(Decimal("0.01")),
         "total_ice": total_ice.quantize(Decimal("0.01")),
         "total_descuento": total_descuento.quantize(Decimal("0.01")),
+        "propina": propina,
         "total_con_impuestos": total_con_impuestos,
         "subtotal_iva_0": subtotal_iva_0.quantize(Decimal("0.01")),
         "subtotal_iva_5": subtotal_iva_5.quantize(Decimal("0.01")),
@@ -200,8 +206,13 @@ async def create_proforma(
             cliente_email = client.email
             cliente_telefono = client.telefono
 
-        # Calculate totals
-        totales = _calcular_totales_proforma(data.detalles)
+        # Calculate totals (la propina se suma al total)
+        totales = _calcular_totales_proforma(data.detalles, propina=data.propina)
+
+        # Guardar la propina en info_adicional para referencia (no hay columna propia)
+        info_adicional = dict(data.info_adicional) if data.info_adicional else {}
+        if data.propina is not None:
+            info_adicional["propina"] = str(data.propina)
 
         # Get sequential
         secuencial = company.get_next_secuencial_proforma()
@@ -221,7 +232,8 @@ async def create_proforma(
             secuencial=secuencial,
             fecha_emision=datetime.now(timezone.utc),
             fecha_validez=fecha_validez,
-            estado=ProformaEstado.BORRADOR,
+            # Una proforma creada desde el wizard es una proforma REALIZADA/CERRADA (no un borrador)
+            estado=ProformaEstado.CERRADA,
             cliente_tipo_identificacion=cliente_tipo_identificacion,
             cliente_identificacion=cliente_identificacion,
             cliente_razon_social=cliente_razon_social,
@@ -244,16 +256,51 @@ async def create_proforma(
             total_con_impuestos=totales["total_con_impuestos"],
             forma_pago=data.forma_pago,
             observaciones=data.observaciones,
-            info_adicional=json.dumps(data.info_adicional) if data.info_adicional else None,
+            info_adicional=json.dumps(info_adicional) if info_adicional else None,
         )
         db.add(proforma)
         await db.flush()
 
         for i, det_data in enumerate(data.detalles):
             det_result = totales["detalle_resultados"][i]
+
+            # Los items ingresados manualmente (sin product_id) se registran también
+            # como producto del catálogo (menú de Productos).
+            product_id = det_data.product_id
+            if not product_id and det_data.codigo_principal:
+                from app.models.product import Product
+
+                existing = await db.execute(
+                    select(Product).where(
+                        Product.company_id == data.company_id,
+                        Product.codigo_principal == det_data.codigo_principal,
+                        Product.is_active == True,
+                    )
+                )
+                existing_product = existing.scalars().first()
+                if existing_product:
+                    product_id = existing_product.id
+                else:
+                    new_product = Product(
+                        company_id=data.company_id,
+                        codigo_principal=det_data.codigo_principal,
+                        codigo_auxiliar=det_data.codigo_auxiliar,
+                        descripcion=det_data.descripcion,
+                        tipo="B",
+                        precio_unitario=det_data.precio_unitario,
+                        iva_codigo=det_data.iva_codigo,
+                        iva_porcentaje=det_data.iva_porcentaje,
+                        ice_codigo=det_data.ice_codigo,
+                        ice_porcentaje=det_data.ice_porcentaje,
+                        unidad_medida=det_data.unidad_medida or "Unidad",
+                    )
+                    db.add(new_product)
+                    await db.flush()
+                    product_id = new_product.id
+
             detalle = ProformaDetalle(
                 proforma_id=proforma.id,
-                product_id=det_data.product_id,
+                product_id=product_id,
                 codigo_principal=det_data.codigo_principal,
                 codigo_auxiliar=det_data.codigo_auxiliar,
                 descripcion=det_data.descripcion,
@@ -356,6 +403,7 @@ async def get_proforma_stats(
     stats = {
         "total": len(proformas),
         "borrador": 0,
+        "cerrada": 0,
         "enviada": 0,
         "aceptada": 0,
         "rechazada": 0,
@@ -366,6 +414,8 @@ async def get_proforma_stats(
         estado = p.estado
         if estado == ProformaEstado.BORRADOR:
             stats["borrador"] += 1
+        elif estado == ProformaEstado.CERRADA:
+            stats["cerrada"] += 1
         elif estado == ProformaEstado.ENVIADA:
             stats["enviada"] += 1
         elif estado == ProformaEstado.ACEPTADA:
@@ -437,10 +487,10 @@ async def update_proforma(
 
     await _get_company_for_user(db, proforma.company_id, current_user.id)
 
-    if proforma.estado != ProformaEstado.BORRADOR:
+    if proforma.estado not in (ProformaEstado.BORRADOR, ProformaEstado.CERRADA):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Solo se pueden editar proformas en estado BORRADOR.",
+            detail="Solo se pueden editar proformas en estado BORRADOR o CERRADA.",
         )
 
     # Update client if provided
@@ -481,7 +531,7 @@ async def update_proforma(
         proforma.detalles.clear()
         await db.flush()
 
-        totales = _calcular_totales_proforma(data.detalles)
+        totales = _calcular_totales_proforma(data.detalles, propina=data.propina)
 
         proforma.subtotal_sin_impuestos = totales["subtotal_sin_impuestos"]
         proforma.subtotal_iva_0 = totales["subtotal_iva_0"]
@@ -531,8 +581,40 @@ async def update_proforma(
             proforma.fecha_validez = datetime.fromisoformat(data.fecha_validez).replace(tzinfo=timezone.utc)
         except ValueError:
             pass
+
+    # Propina: si se proporciona sin detalles, recalcular el total con la propina actual
+    if data.propina is not None and data.detalles is None:
+        propina = data.propina
+        totales = _calcular_totales_proforma(proforma.detalles, propina=propina)
+        proforma.total_con_impuestos = totales["total_con_impuestos"]
+    elif data.propina is not None and data.detalles is not None:
+        propina = data.propina
+    else:
+        propina = None
+
+    if propina is not None:
+        info_adicional = {}
+        if proforma.info_adicional:
+            try:
+                info_adicional = json.loads(proforma.info_adicional)
+            except Exception:
+                info_adicional = {}
+        if propina:
+            info_adicional["propina"] = str(propina)
+        else:
+            info_adicional.pop("propina", None)
+        proforma.info_adicional = json.dumps(info_adicional) if info_adicional else None
+
     if data.info_adicional is not None:
-        proforma.info_adicional = json.dumps(data.info_adicional)
+        merged = dict(data.info_adicional)
+        if proforma.info_adicional:
+            try:
+                merged = {**json.loads(proforma.info_adicional), **merged}
+            except Exception:
+                pass
+        if propina is not None:
+            merged["propina"] = str(propina) if propina else "0"
+        proforma.info_adicional = json.dumps(merged) if merged else None
 
     await db.flush()
 
@@ -545,7 +627,7 @@ async def delete_proforma(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Eliminar lógicamente una proforma (solo BORRADOR)"""
+    """Eliminar lógicamente una proforma (solo BORRADOR/CERRADA)"""
     proforma_id = validate_uuid(proforma_id, "proforma_id")
     result = await db.execute(
         select(Proforma).where(
@@ -563,10 +645,10 @@ async def delete_proforma(
 
     await _get_company_for_user(db, proforma.company_id, current_user.id)
 
-    if proforma.estado != ProformaEstado.BORRADOR:
+    if proforma.estado not in (ProformaEstado.BORRADOR, ProformaEstado.CERRADA):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Solo se pueden eliminar proformas en estado BORRADOR.",
+            detail="Solo se pueden eliminar proformas en estado BORRADOR o CERRADA.",
         )
 
     proforma.is_active = False
@@ -575,19 +657,208 @@ async def delete_proforma(
     return {"message": "Proforma eliminada exitosamente."}
 
 
+def _generar_pdf_proforma(proforma: Proforma, company: Company) -> bytes:
+    """Genera el PDF de una proforma (documento sin valor fiscal) usando reportlab."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import (
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=0.75 * inch,
+        leftMargin=0.75 * inch,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "ProformaTitle", parent=styles["Title"], fontSize=18, spaceAfter=4
+    )
+    sub_style = ParagraphStyle(
+        "ProformaSub", parent=styles["Normal"], fontSize=9, textColor=colors.grey
+    )
+    label_style = ParagraphStyle(
+        "ProformaLbl", parent=styles["Normal"], fontSize=8, textColor=colors.grey
+    )
+    value_style = ParagraphStyle(
+        "ProformaVal", parent=styles["Normal"], fontSize=9
+    )
+    bold_style = ParagraphStyle(
+        "ProformaBold", parent=styles["Normal"], fontSize=9, fontName="Helvetica-Bold"
+    )
+
+    elements = []
+
+    # Encabezado
+    elements.append(Paragraph("PROFORMA", title_style))
+    elements.append(Paragraph(
+        f"<b>{company.razon_social}</b><br/>RUC: {company.ruc} &nbsp;|&nbsp; {company.dir_matriz or ''}",
+        sub_style,
+    ))
+    elements.append(Spacer(1, 10))
+
+    # Datos del documento
+    header_data = [
+        [
+            Paragraph(f"<b>Proforma N°</b><br/>{proforma.secuencial}", value_style),
+            Paragraph(f"<b>Fecha Emisión</b><br/>{proforma.fecha_emision.strftime('%d/%m/%Y')}", value_style),
+            Paragraph(
+                f"<b>Cliente</b><br/>{proforma.cliente_razon_social}<br/>{proforma.cliente_identificacion}",
+                value_style,
+            ),
+        ]
+    ]
+    header_table = Table(header_data, colWidths=[2.2 * inch, 2.0 * inch, 3.0 * inch])
+    header_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F5F5F5")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 14))
+
+    # Detalles
+    det_rows = [[
+        Paragraph("<b>Código</b>", label_style),
+        Paragraph("<b>Descripción</b>", label_style),
+        Paragraph("<b>Cant.</b>", label_style),
+        Paragraph("<b>P. Unit.</b>", label_style),
+        Paragraph("<b>IVA %</b>", label_style),
+        Paragraph("<b>Subtotal</b>", label_style),
+    ]]
+    for det in proforma.detalles:
+        det_rows.append([
+            Paragraph(det.codigo_principal or "", label_style),
+            Paragraph(det.descripcion or "", label_style),
+            Paragraph(str(det.cantidad), label_style),
+            Paragraph(f"${float(det.precio_unitario):,.2f}", label_style),
+            Paragraph(str(det.iva_porcentaje), label_style),
+            Paragraph(f"${float(det.precio_total_sin_impuestos):,.2f}", label_style),
+        ])
+
+    det_table = Table(det_rows, colWidths=[1.0 * inch, 3.2 * inch, 0.6 * inch, 1.0 * inch, 0.7 * inch, 1.2 * inch])
+    det_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1B5E20")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (2, 1), (5, -1), "RIGHT"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F0F0F0")]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(det_table)
+    elements.append(Spacer(1, 14))
+
+    # Totales
+    propina = Decimal("0")
+    if proforma.info_adicional:
+        try:
+            info = json.loads(proforma.info_adicional)
+            propina = Decimal(str(info.get("propina", "0")))
+        except Exception:
+            propina = Decimal("0")
+
+    total_rows = [
+        ["Subtotal sin impuestos", f"${float(proforma.subtotal_sin_impuestos):,.2f}"],
+        ["IVA", f"${float(proforma.total_iva):,.2f}"],
+        ["ICE", f"${float(proforma.total_ice):,.2f}"],
+        ["Propina", f"${float(propina):,.2f}"],
+        ["TOTAL", f"${float(proforma.total_con_impuestos):,.2f}"],
+    ]
+    total_table = Table(total_rows, colWidths=[3.0 * inch, 1.6 * inch])
+    total_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+        ("BACKGROUND", (0, 4), (-1, 4), colors.HexColor("#1B5E20")),
+        ("TEXTCOLOR", (0, 4), (-1, 4), colors.white),
+        ("FONTNAME", (0, 4), (-1, 4), "Helvetica-Bold"),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(total_table)
+
+    if proforma.observaciones:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph(f"<b>Observaciones:</b> {proforma.observaciones}", value_style))
+
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(
+        "Este documento es una cotización/proforma y NO tiene validez fiscal ante el SRI.",
+        sub_style,
+    ))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+@router.get("/{proforma_id}/pdf")
+async def download_proforma_pdf(
+    proforma_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Descargar la proforma en PDF (documento sin valor fiscal)."""
+    from fastapi.responses import Response
+    from sqlalchemy.orm import selectinload
+
+    proforma_id = validate_uuid(proforma_id, "proforma_id")
+    result = await db.execute(
+        select(Proforma)
+        .options(selectinload(Proforma.detalles))
+        .where(Proforma.id == proforma_id, Proforma.is_active == True)
+    )
+    proforma = result.scalars().first()
+    if not proforma:
+        raise HTTPException(status_code=404, detail="Proforma no encontrada.")
+
+    company = await _get_company_for_user(db, proforma.company_id, current_user.id)
+    pdf_bytes = _generar_pdf_proforma(proforma, company)
+
+    filename = f"Proforma_{proforma.secuencial}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/{proforma_id}/enviar")
 async def enviar_proforma(
     proforma_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Marcar proforma como ENVIADA"""
+    """
+    Enviar la proforma al cliente.
+
+    Las proformas NO se envían al SRI: se envía un correo con el PDF al correo
+    del cliente registrado (o consumidor final). Si el cliente no tiene correo,
+    se marca como enviada y el frontend ofrece descargar el PDF.
+    """
+    from sqlalchemy.orm import selectinload
+
     proforma_id = validate_uuid(proforma_id, "proforma_id")
     result = await db.execute(
-        select(Proforma).where(
-            Proforma.id == proforma_id,
-            Proforma.is_active == True,
-        )
+        select(Proforma)
+        .options(selectinload(Proforma.detalles))
+        .where(Proforma.id == proforma_id, Proforma.is_active == True)
     )
     proforma = result.scalars().first()
 
@@ -597,20 +868,49 @@ async def enviar_proforma(
             detail="Proforma no encontrada.",
         )
 
-    await _get_company_for_user(db, proforma.company_id, current_user.id)
+    company = await _get_company_for_user(db, proforma.company_id, current_user.id)
 
-    if proforma.estado != ProformaEstado.BORRADOR:
+    if proforma.estado not in (ProformaEstado.BORRADOR, ProformaEstado.CERRADA):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"La proforma debe estar en estado BORRADOR para enviarla. Estado actual: {proforma.estado}",
+            detail=f"La proforma debe estar en estado BORRADOR o CERRADA para enviarla. Estado actual: {proforma.estado}",
+        )
+
+    # Generar el PDF y enviarlo por correo al cliente (si tiene correo registrado)
+    email_result = None
+    pdf_bytes = _generar_pdf_proforma(proforma, company)
+
+    if proforma.cliente_email:
+        from app.core.email_service import send_proforma_email
+
+        email_result = await send_proforma_email(
+            to_email=proforma.cliente_email,
+            cliente_razon_social=proforma.cliente_razon_social or "Cliente",
+            empresa_razon_social=company.razon_social,
+            secuencial=proforma.secuencial,
+            total=f"{float(proforma.total_con_impuestos):,.2f}",
+            pdf_content=pdf_bytes,
         )
 
     proforma.estado = ProformaEstado.ENVIADA
     await db.flush()
 
+    message = "Proforma marcada como enviada."
+    if email_result and email_result.get("success"):
+        message = f"Proforma enviada por correo a {proforma.cliente_email}."
+    elif proforma.cliente_email:
+        message = (
+            "Proforma marcada como enviada, pero NO se pudo enviar el correo: "
+            f"{email_result.get('message') if email_result else 'error desconocido'}"
+        )
+    else:
+        message = "Proforma marcada como enviada. El cliente no tiene correo registrado; puede descargar el PDF."
+
     return {
-        "message": "Proforma marcada como enviada.",
+        "message": message,
         "estado": proforma.estado,
+        "email_sent": bool(email_result and email_result.get("success")),
+        "download_available": True,
     }
 
 

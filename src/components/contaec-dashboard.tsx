@@ -59,6 +59,7 @@ import {
   Sun,
   User,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   XCircle,
   UserX,
@@ -112,6 +113,8 @@ import { LOPDPolicy, TermsPolicy, RefundPolicy } from '@/components/policies';
 import {
   logout,
   clearTokens,
+  forceChangePassword,
+  updateUserProfile,
   getLicenseStatus,
   getLicenseOptions,
   getCompanies,
@@ -159,6 +162,28 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [licenseExpiring, setLicenseExpiring] = useState(false);
   const [locale, setLocale] = useState<Locale>(getCurrentLocale);
+
+  // Cambio forzado de contraseña (contraseña temporal: recuperación o admin)
+  const [forcePasswordOpen, setForcePasswordOpen] = useState(false);
+  const [forcePwNew, setForcePwNew] = useState('');
+  const [forcePwConfirm, setForcePwConfirm] = useState('');
+  const [forcePwLoading, setForcePwLoading] = useState(false);
+  const [forcePwError, setForcePwError] = useState<string | null>(null);
+
+  // Aplicar el tema guardado del usuario (persiste entre navegadores/dispositivos)
+  useEffect(() => {
+    if (user.theme && ['light', 'dark', 'system'].includes(user.theme)) {
+      setTheme(user.theme);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.theme]);
+
+  // Si el usuario entró con una contraseña temporal, bloquear el sistema hasta cambiarla
+  useEffect(() => {
+    if (user.must_change_password) {
+      setForcePasswordOpen(true);
+    }
+  }, [user.must_change_password]);
 
   // New company dialog
   const [showNewCompany, setShowNewCompany] = useState(false);
@@ -607,7 +632,14 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              onClick={() => {
+                const next = theme === 'dark' ? 'light' : 'dark';
+                setTheme(next);
+                // Persistir el tema en el perfil del usuario (aplica en cualquier navegador)
+                updateUserProfile({ theme: next }).catch(() => {
+                  // No romper la UI si falla la persistencia
+                });
+              }}
             >
               {theme === 'dark' ? (
                 <Sun className="h-4 w-4" />
@@ -661,6 +693,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                   invoiceStats={invoiceStats}
                   ivaRates={ivaRates}
                   documentTypes={documentTypes}
+                  onNavigate={(nav) => setActiveNav(nav)}
                 />
               )}
               {activeNav === 'companies' && (
@@ -1031,6 +1064,100 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cambio forzado de contraseña (contraseña temporal) */}
+      <Dialog open={forcePasswordOpen} onOpenChange={(o) => {
+        // No permitir cerrar el modal sin cambiar la contraseña
+        if (!o) return;
+        setForcePasswordOpen(true);
+      }}>
+        <DialogContent className="sm:max-w-md" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-amber-500" />
+              Cambio de contraseña requerido
+            </DialogTitle>
+            <DialogDescription>
+              Ingresaste con una contraseña temporal. Por seguridad, debes crear una nueva contraseña antes de continuar.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setForcePwError(null);
+              if (forcePwNew.length < 8) {
+                setForcePwError('La contraseña debe tener al menos 8 caracteres');
+                return;
+              }
+              if (!/[A-Z]/.test(forcePwNew) || !/[a-z]/.test(forcePwNew) || !/\d/.test(forcePwNew) || !/[^A-Za-z0-9\s]/.test(forcePwNew)) {
+                setForcePwError('La contraseña debe incluir mayúscula, minúscula, número y símbolo');
+                return;
+              }
+              if (forcePwNew !== forcePwConfirm) {
+                setForcePwError('Las contraseñas no coinciden');
+                return;
+              }
+              setForcePwLoading(true);
+              try {
+                await forceChangePassword({
+                  new_password: forcePwNew,
+                  confirm_new_password: forcePwConfirm,
+                });
+                setForcePasswordOpen(false);
+                toast.success('Contraseña actualizada exitosamente');
+              } catch (err) {
+                setForcePwError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
+              } finally {
+                setForcePwLoading(false);
+              }
+            }}
+          >
+            {forcePwError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{forcePwError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="fpw-new">Nueva contraseña</Label>
+              <Input
+                id="fpw-new"
+                type="password"
+                value={forcePwNew}
+                onChange={(e) => setForcePwNew(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                autoFocus
+                disabled={forcePwLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fpw-confirm">Confirmar nueva contraseña</Label>
+              <Input
+                id="fpw-confirm"
+                type="password"
+                value={forcePwConfirm}
+                onChange={(e) => setForcePwConfirm(e.target.value)}
+                placeholder="Repita la nueva contraseña"
+                disabled={forcePwLoading}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              La contraseña debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.
+            </p>
+            <Button type="submit" className="w-full" disabled={forcePwLoading}>
+              {forcePwLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Cambiar contraseña'
+              )}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1045,6 +1172,7 @@ function DashboardView({
   invoiceStats,
   ivaRates,
   documentTypes,
+  onNavigate,
 }: {
   user: UserType;
   license: LicenseStatusType | null;
@@ -1053,6 +1181,7 @@ function DashboardView({
   invoiceStats: InvoiceStatsType | null;
   ivaRates: SRIIVARate[];
   documentTypes: SRIDocumentType[];
+  onNavigate: (nav: NavItem) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -1132,14 +1261,20 @@ function DashboardView({
         />
       </div>
 
-      {/* License Status + SRI Catalogs Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* License Card */}
-        <Card>
+      {/* License Status + Companies + SRI Catalogs Preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="space-y-6">
+        {/* License Card (click → menu Licencia) */}
+        <Card
+          className="cursor-pointer hover:bg-accent/40 transition-colors"
+          onClick={() => onNavigate('license')}
+          title={t('dash.go_license')}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
               {t('dash.license_status')}
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1222,12 +1357,21 @@ function DashboardView({
           </CardContent>
         </Card>
 
-        {/* SRI Catalogs Preview */}
-        <Card>
+        {/* Companies Carousel (click → menu Empresas) */}
+        <CompaniesCarousel companies={companies} onNavigate={() => onNavigate('companies')} />
+        </div>
+
+        {/* SRI Catalogs Preview (click → menú Catálogos SRI) */}
+        <Card
+          className="cursor-pointer hover:bg-accent/40 transition-colors h-fit"
+          onClick={() => onNavigate('sri')}
+          title={t('dash.go_sri')}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
               {t('dash.sri_catalogs')}
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </CardTitle>
             <CardDescription>
               {t('dash.sri_catalogs_desc')}
@@ -1239,7 +1383,8 @@ function DashboardView({
                 <h4 className="text-sm font-medium mb-2">{t('dash.iva_rates')}</h4>
                 {ivaRates.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
-                    {ivaRates.slice(0, 6).map((rate) => (
+                    {/* Preview: muestra la tarifa general (15%) y oculta la transitoria 13% */}
+                    {ivaRates.filter((r) => r.codigo !== '10').slice(0, 6).map((rate) => (
                       <div
                         key={rate.codigo}
                         className="flex items-center justify-between rounded-md border px-3 py-1.5"
@@ -1284,56 +1429,108 @@ function DashboardView({
           </CardContent>
         </Card>
       </div>
-
-      {/* Companies Quick List */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" />
-            {t('dash.companies_registered')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {companies.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {companies.map((company) => (
-                <div
-                  key={company.id}
-                  className="rounded-lg border p-4 hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium">{company.razon_social}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        RUC: {company.ruc}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={company.is_active ? 'default' : 'secondary'}
-                      className={company.is_active ? 'bg-primary' : ''}
-                    >
-                      {company.is_active ? t('companies.active') : t('companies.inactive')}
-                    </Badge>
-                  </div>
-                  {company.nombre_comercial && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {company.nombre_comercial}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Building2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
-                {t('dash.no_companies')}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+/**
+ * Carrusel de empresas registradas: al hacer scroll (rueda del ratón) sobre el
+ * recuadro, se cambia de empresa una por una (hacia arriba = anterior, hacia
+ * abajo = siguiente). Clic en el recuadro → menú de Empresas.
+ */
+function CompaniesCarousel({
+  companies,
+  onNavigate,
+}: {
+  companies: CompanyType[];
+  onNavigate: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (companies.length === 0) return;
+    setIndex((i) => (i >= companies.length ? 0 : i));
+  }, [companies.length]);
+
+  const company = companies.length > 0 ? companies[index % companies.length] : null;
+
+  return (
+    <Card
+      className="cursor-pointer hover:bg-accent/40 transition-colors"
+      onClick={onNavigate}
+      title={t('dash.go_companies')}
+    >
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary" />
+          {t('dash.companies_registered')}
+          <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+        </CardTitle>
+        {companies.length > 1 && (
+          <CardDescription>
+            {t('dash.companies_scroll_hint')}
+          </CardDescription>
+        )}
+      </CardHeader>
+      <CardContent>
+        {company ? (
+          <div
+            className="rounded-lg border p-4 space-y-2"
+            onWheel={(e) => {
+              if (companies.length <= 1) return;
+              e.preventDefault();
+              if (e.deltaY > 0) {
+                setIndex((i) => (i + 1) % companies.length);
+              } else {
+                setIndex((i) => (i - 1 + companies.length) % companies.length);
+              }
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h4 className="text-sm font-medium truncate">{company.razon_social}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  RUC: {company.ruc}
+                </p>
+              </div>
+              <Badge
+                variant={company.is_active ? 'default' : 'secondary'}
+                className={company.is_active ? 'bg-primary shrink-0' : 'shrink-0'}
+              >
+                {company.is_active ? t('companies.active') : t('companies.inactive')}
+              </Badge>
+            </div>
+            {company.nombre_comercial && (
+              <p className="text-xs text-muted-foreground truncate">
+                {company.nombre_comercial}
+              </p>
+            )}
+            {companies.length > 1 && (
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex gap-1">
+                  {companies.map((_, i) => (
+                    <span
+                      key={i}
+                      className={`h-1.5 rounded-full transition-all ${i === index % companies.length ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {index + 1} / {companies.length}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <Building2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {t('dash.no_companies')}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

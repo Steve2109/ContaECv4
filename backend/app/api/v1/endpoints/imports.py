@@ -216,9 +216,8 @@ async def import_products_excel(
             row_dict = dict(zip(headers, row))
             mapped = _map_row_to_dict(row_dict, PRODUCT_FIELD_MAPPING, parsed_map)
 
-            # Validar campos requeridos
-            required = ["codigo_principal", "descripcion", "tipo", "precio_unitario",
-                        "iva_codigo", "iva_porcentaje"]
+            # Validar campos requeridos (mínimos: código, descripción y precio)
+            required = ["codigo_principal", "descripcion", "precio_unitario"]
             missing = [f for f in required if f not in mapped or not mapped[f]]
             if missing:
                 error_count += 1
@@ -228,8 +227,8 @@ async def import_products_excel(
                 })
                 continue
 
-            # Validar tipo
-            tipo = str(mapped["tipo"]).strip().upper()
+            # Validar tipo (opcional: por defecto B = Bien)
+            tipo = str(mapped.get("tipo") or "B").strip().upper()
             if tipo not in ("B", "S"):
                 error_count += 1
                 errors.append({
@@ -274,8 +273,8 @@ async def import_products_excel(
                     descripcion=str(mapped["descripcion"]).strip(),
                     tipo=tipo,
                     precio_unitario=precio,
-                    iva_codigo=str(mapped["iva_codigo"]).strip(),
-                    iva_porcentaje=_safe_decimal(mapped["iva_porcentaje"]) or Decimal("0"),
+                    iva_codigo=str(mapped.get("iva_codigo") or "4").strip(),
+                    iva_porcentaje=_safe_decimal(mapped.get("iva_porcentaje")) or Decimal("15"),
                     ice_codigo=_safe_str(mapped.get("ice_codigo")),
                     ice_porcentaje=_safe_decimal(mapped.get("ice_porcentaje")),
                     unidad_medida=_safe_str(mapped.get("unidad_medida")) or "Unidad",
@@ -369,9 +368,8 @@ async def import_products_csv(
 
             mapped = _map_row_to_dict(row_dict, PRODUCT_FIELD_MAPPING, parsed_map)
 
-            # Validar campos requeridos
-            required = ["codigo_principal", "descripcion", "tipo", "precio_unitario",
-                        "iva_codigo", "iva_porcentaje"]
+            # Validar campos requeridos (mínimos: código, descripción y precio)
+            required = ["codigo_principal", "descripcion", "precio_unitario"]
             missing = [f for f in required if f not in mapped or not mapped[f]]
             if missing:
                 error_count += 1
@@ -381,8 +379,8 @@ async def import_products_csv(
                 })
                 continue
 
-            # Validar tipo
-            tipo = str(mapped["tipo"]).strip().upper()
+            # Validar tipo (opcional: por defecto B = Bien)
+            tipo = str(mapped.get("tipo") or "B").strip().upper()
             if tipo not in ("B", "S"):
                 error_count += 1
                 errors.append({
@@ -427,8 +425,8 @@ async def import_products_csv(
                     descripcion=str(mapped["descripcion"]).strip(),
                     tipo=tipo,
                     precio_unitario=precio,
-                    iva_codigo=str(mapped["iva_codigo"]).strip(),
-                    iva_porcentaje=_safe_decimal(mapped["iva_porcentaje"]) or Decimal("0"),
+                    iva_codigo=str(mapped.get("iva_codigo") or "4").strip(),
+                    iva_porcentaje=_safe_decimal(mapped.get("iva_porcentaje")) or Decimal("15"),
                     ice_codigo=_safe_str(mapped.get("ice_codigo")),
                     ice_porcentaje=_safe_decimal(mapped.get("ice_porcentaje")),
                     unidad_medida=_safe_str(mapped.get("unidad_medida")) or "Unidad",

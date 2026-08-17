@@ -57,6 +57,7 @@ import {
   getTrialUsers,
   getSystemHealth,
   getSecurityIssues,
+  adminResetUserPassword,
   type AdminStats,
   type AdminUser,
 } from '@/lib/api';
@@ -86,6 +87,37 @@ export function ContaECAdmin({ onBack }: ContaECAdminProps) {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [licenseForm, setLicenseForm] = useState({ license_type: '' });
   const [modifying, setModifying] = useState(false);
+
+  // Reset password dialog
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+  const [resetForm, setResetForm] = useState({ temporary_password: '', send_email: true });
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<string | null>(null);
+
+  function openResetDialog(u: AdminUser) {
+    setResetUser(u);
+    setResetForm({ temporary_password: '', send_email: true });
+    setResetResult(null);
+    setResetDialogOpen(true);
+  }
+
+  async function handleResetPassword() {
+    if (!resetUser) return;
+    setResetting(true);
+    try {
+      const result = await adminResetUserPassword(resetUser.id, {
+        temporary_password: resetForm.temporary_password.trim() || undefined,
+        send_email: resetForm.send_email,
+      });
+      setResetResult(result.temporary_password);
+      toast.success(result.message || 'Contraseña restablecida');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al restablecer la contraseña');
+    } finally {
+      setResetting(false);
+    }
+  }
 
   // License prices management
   const [licensePrices, setLicensePrices] = useState([
@@ -502,6 +534,15 @@ export function ContaECAdmin({ onBack }: ContaECAdminProps) {
                               >
                                 <Key className="mr-1 h-3 w-3" />
                                 Licencia
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => openResetDialog(u)}
+                              >
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Contraseña
                               </Button>
                               <Button
                                 variant={u.is_active ? 'destructive' : 'default'}
@@ -1037,6 +1078,80 @@ export function ContaECAdmin({ onBack }: ContaECAdminProps) {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restablecer Contraseña</DialogTitle>
+            <DialogDescription>
+              Restablecer la contraseña de {resetUser?.full_name} ({resetUser?.email})
+            </DialogDescription>
+          </DialogHeader>
+          {resetResult ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-emerald-800 dark:text-emerald-200 text-sm">Contraseña temporal</p>
+                  <p className="font-mono text-lg text-emerald-700 dark:text-emerald-300 mt-1 break-all">{resetResult}</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                    {resetForm.send_email
+                      ? 'La contraseña temporal se envió al correo del cliente. Al ingresar con ella, el sistema le pedirá crear una nueva.'
+                      : 'Anota esta contraseña y compártela con el cliente. Al ingresar con ella, el sistema le pedirá crear una nueva.'}
+                  </p>
+                </div>
+              </div>
+              <Button className="w-full" onClick={() => setResetDialogOpen(false)}>
+                Cerrar
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-password">Contraseña temporal (opcional)</Label>
+                <Input
+                  id="reset-password"
+                  type="text"
+                  placeholder="Déjela vacía para generarla automáticamente"
+                  value={resetForm.temporary_password}
+                  onChange={(e) => setResetForm({ ...resetForm, temporary_password: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Mínimo 8 caracteres con mayúscula, minúscula, número y símbolo. Si la deja vacía, el sistema genera una segura.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={resetForm.send_email}
+                  onChange={(e) => setResetForm({ ...resetForm, send_email: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm">Enviar la contraseña temporal por correo al cliente</span>
+              </label>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleResetPassword}
+                  disabled={resetting || !!resetForm.temporary_password && resetForm.temporary_password.length < 8}
+                >
+                  {resetting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Restableciendo...
+                    </>
+                  ) : (
+                    'Restablecer Contraseña'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

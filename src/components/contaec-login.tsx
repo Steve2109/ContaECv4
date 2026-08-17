@@ -9,6 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Eye,
   EyeOff,
   Loader2,
@@ -18,7 +25,12 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import { login, register, type User } from '@/lib/api';
+import {
+  login,
+  register,
+  forgotPassword,
+  type User,
+} from '@/lib/api';
 import { t } from '@/lib/i18n';
 
 interface ContaECLoginProps {
@@ -31,6 +43,15 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
+
+  // Forgot password dialog
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotFullName, setForgotFullName] = useState('');
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -65,6 +86,24 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
       setError(err instanceof Error ? err.message : t('login.login_error'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotError(null);
+    setForgotLoading(true);
+    try {
+      await forgotPassword({
+        email: forgotEmail,
+        full_name: forgotFullName.trim() || undefined,
+        phone: forgotPhone.trim() || undefined,
+      });
+      setForgotSuccess(true);
+    } catch (err) {
+      setForgotError(err instanceof Error ? err.message : t('login.forgot_error'));
+    } finally {
+      setForgotLoading(false);
     }
   }
 
@@ -220,6 +259,20 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
                       t('login.sign_in')
                     )}
                   </Button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotSuccess(false);
+                        setForgotError(null);
+                        setForgotEmail(loginEmail);
+                        setShowForgot(true);
+                      }}
+                      className="text-xs text-primary hover:underline underline-offset-4"
+                    >
+                      {t('login.forgot_password')}
+                    </button>
+                  </div>
                 </form>
               )}
 
@@ -333,6 +386,93 @@ export function ContaECLogin({ onAuthSuccess }: ContaECLoginProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Forgot Password Dialog */}
+          <Dialog open={showForgot} onOpenChange={setShowForgot}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>{t('login.forgot_title')}</DialogTitle>
+                <DialogDescription>
+                  {t('login.forgot_desc')}
+                </DialogDescription>
+              </DialogHeader>
+              {forgotSuccess ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                    <Check className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-emerald-800 dark:text-emerald-200 text-sm">
+                        {t('login.forgot_success_title')}
+                      </p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                        {t('login.forgot_success_desc')}
+                      </p>
+                    </div>
+                  </div>
+                  <Button className="w-full" onClick={() => setShowForgot(false)}>
+                    {t('login.back_to_login')}
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  {forgotError && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">{t('login.email_label')}</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="usuario@empresa.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                      disabled={forgotLoading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-name">{t('login.forgot_name_label')}</Label>
+                    <Input
+                      id="forgot-name"
+                      type="text"
+                      placeholder="Juan Perez"
+                      value={forgotFullName}
+                      onChange={(e) => setForgotFullName(e.target.value)}
+                      disabled={forgotLoading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-phone">{t('login.forgot_phone_label')}</Label>
+                    <Input
+                      id="forgot-phone"
+                      type="tel"
+                      placeholder="0991234567"
+                      value={forgotPhone}
+                      onChange={(e) => setForgotPhone(e.target.value)}
+                      disabled={forgotLoading}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t('login.forgot_validation_hint')}
+                  </p>
+                  <Button type="submit" className="w-full" disabled={forgotLoading}>
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('login.sending')}
+                      </>
+                    ) : (
+                      t('login.send_recovery')
+                    )}
+                  </Button>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Feature highlights */}
           <div className="mt-8 grid grid-cols-3 gap-4 text-center">

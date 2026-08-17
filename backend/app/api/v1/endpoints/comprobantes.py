@@ -369,10 +369,44 @@ async def create_comprobante(
     # 6b. Crear ComprobanteDetalle para cada línea
     for i, det_data in enumerate(data.detalles):
         det_result = totales["detalle_resultados"][i]
-        
+
+        # Los items ingresados manualmente (sin product_id) se registran también
+        # como producto del catálogo, para que aparezcan en el menú de Productos.
+        product_id = det_data.product_id
+        if not product_id and det_data.codigo_principal:
+            from app.models.product import Product
+
+            existing = await db.execute(
+                select(Product).where(
+                    Product.company_id == data.company_id,
+                    Product.codigo_principal == det_data.codigo_principal,
+                    Product.is_active == True,
+                )
+            )
+            existing_product = existing.scalars().first()
+            if existing_product:
+                product_id = existing_product.id
+            else:
+                new_product = Product(
+                    company_id=data.company_id,
+                    codigo_principal=det_data.codigo_principal,
+                    codigo_auxiliar=det_data.codigo_auxiliar,
+                    descripcion=det_data.descripcion,
+                    tipo="B",
+                    precio_unitario=det_data.precio_unitario,
+                    iva_codigo=det_data.iva_codigo,
+                    iva_porcentaje=det_data.iva_porcentaje,
+                    ice_codigo=det_data.ice_codigo,
+                    ice_porcentaje=det_data.ice_porcentaje,
+                    unidad_medida=det_data.unidad_medida or "Unidad",
+                )
+                db.add(new_product)
+                await db.flush()
+                product_id = new_product.id
+
         detalle = ComprobanteDetalle(
             comprobante_id=comprobante.id,
-            product_id=det_data.product_id,
+            product_id=product_id,
             codigo_principal=det_data.codigo_principal,
             codigo_auxiliar=det_data.codigo_auxiliar,
             descripcion=det_data.descripcion,
@@ -2169,11 +2203,11 @@ async def corregir_comprobante(
     # Verificar empresa del usuario
     await _get_company_for_user(db, comprobante.company_id, current_user.id)
     
-    # Validar estado
-    if comprobante.estado != ComprobanteEstado.RECHAZADO:
+    # Validar estado: RECHAZADO (corrección SRI) o BORRADOR (edición con errores de validación)
+    if comprobante.estado not in (ComprobanteEstado.RECHAZADO, ComprobanteEstado.BORRADOR):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Solo se pueden corregir comprobantes en estado RECHAZADO. Estado actual: {comprobante.estado}",
+            detail=f"Solo se pueden editar comprobantes en estado RECHAZADO o BORRADOR. Estado actual: {comprobante.estado}",
         )
     
     # Resetear estado y limpiar campos SRI

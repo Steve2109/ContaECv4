@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -54,12 +55,15 @@ import {
   Package,
   Users,
   FileText,
+  Check,
   CheckCircle2,
+  AlertCircle,
   XCircle,
   Send,
   Eye,
   FileDown,
   AlertTriangle,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Shield,
@@ -143,13 +147,17 @@ const TIPOS_IDENTIFICACION: { codigo: string; descripcion: string }[] = [
   { codigo: '08', descripcion: 'Identificación Exterior' },
 ];
 
+// Tabla 23 del SRI - Formas de pago válidas (01, 15-21). Los códigos 02-06 no existen
+// en el SRI y provocaban el error "Código de forma de pago inválido: '05'" al validar.
 const FORMAS_PAGO: { codigo: string; descripcion: string }[] = [
-  { codigo: '01', descripcion: 'Efectivo' },
-  { codigo: '02', descripcion: 'Tarjeta' },
-  { codigo: '03', descripcion: 'Cheque' },
-  { codigo: '04', descripcion: 'Transferencia' },
-  { codigo: '05', descripcion: 'Otro con utilizacion del sistema financiero - transferencia' },
-  { codigo: '06', descripcion: 'Otro con utilizacion del sistema financiero - efectivo' },
+  { codigo: '01', descripcion: 'Sin utilización del sistema financiero' },
+  { codigo: '15', descripcion: 'Compensación de deudas' },
+  { codigo: '16', descripcion: 'Tarjeta de débito' },
+  { codigo: '17', descripcion: 'Dinero electrónico' },
+  { codigo: '18', descripcion: 'Tarjeta prepago' },
+  { codigo: '19', descripcion: 'Tarjeta de crédito' },
+  { codigo: '20', descripcion: 'Otros con utilización del sistema financiero' },
+  { codigo: '21', descripcion: 'Endoso de títulos' },
 ];
 
 const IVA_RATES: { codigo: string; porcentaje: number; descripcion: string }[] = [
@@ -189,6 +197,70 @@ function getEstadoBadge(estado: string) {
 
 function formatCurrency(amount: number | null | undefined): string {
   return (Number(amount) || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Formatea un valor numérico como texto editable: separador de miles con punto
+ * y decimales con coma (formato es-EC). Ej: 5863 → "5.863,00"
+ */
+function formatPriceDisplay(value: number): string {
+  if (value === null || value === undefined || isNaN(value)) return '';
+  return value.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Input de precio que acepta punto O coma como separador decimal y coloca
+ * automáticamente el punto de miles. Almacena el valor numérico real.
+ */
+function PriceInput({
+  value,
+  onChange,
+  placeholder,
+  className,
+  disabled,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const [text, setText] = useState<string>('');
+
+  // Sincronizar el texto cuando el valor cambia externamente
+  useEffect(() => {
+    setText(value ? formatPriceDisplay(value) : '');
+  }, [value]);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    let raw = e.target.value;
+    // Punto → coma (separador decimal): el usuario puede escribir punto o coma
+    raw = raw.replace(/\./g, ',').replace(/[^\d,]/g, '');
+    // Permitir solo una coma (decimales)
+    const firstComma = raw.indexOf(',');
+    if (firstComma !== -1) {
+      raw = raw.slice(0, firstComma + 1) + raw.slice(firstComma + 1).replace(/,/g, '');
+    }
+    // Punto de miles automático (cada 3 dígitos en la parte entera)
+    const [intPart, decPart] = raw.split(',');
+    const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const display = decPart !== undefined ? `${groupedInt},${decPart}` : groupedInt;
+    setText(display);
+    // Valor numérico: quitar puntos de miles, coma → punto decimal
+    const normalized = display.replace(/\./g, '').replace(',', '.');
+    onChange(parseFloat(normalized) || 0);
+  }
+
+  return (
+    <Input
+      inputMode="decimal"
+      value={text}
+      onChange={handleChange}
+      placeholder={placeholder ?? '0,00'}
+      className={className}
+      disabled={disabled}
+    />
+  );
 }
 
 type DescuentoTipo = 'porcentaje' | 'dolares';
@@ -284,7 +356,26 @@ type TotalesSRI = ReturnType<typeof computeTotales>;
  * SUBTOTAL IVA 15%, SUBTOTAL IVA 0%, No objeto, Exento, SUBTOTAL SIN IMPUESTOS,
  * TOTAL DE DESCUENTO, IVA 15%, ICE, IRBPNR, PROPINA, VALOR TOTAL.
  */
-function TotalesSRI({ totals }: { totals: TotalesSRI }) {
+/**
+ * Etiqueta del IVA: si solo se usa UNA tarifa positiva, muestra esa tarifa
+ * (ej: "IVA 8%") en lugar de fijar 15% aunque el cálculo sea de otra tarifa.
+ */
+function ivaLabel(totals: TotalesSRI): string {
+  const positive: { label: string; value: number }[] = [
+    { label: '5%', value: totals.subtotal_iva_5 },
+    { label: '8%', value: totals.subtotal_iva_8 },
+    { label: '12%', value: totals.subtotal_iva_12 },
+    { label: '13%', value: totals.subtotal_iva_13 },
+    { label: '14%', value: totals.subtotal_iva_14 },
+    { label: '15%', value: totals.subtotal_iva_15 },
+  ];
+  const used = positive.filter((p) => p.value > 0);
+  if (used.length === 1) return `IVA ${used[0].label}`;
+  return 'IVA';
+}
+
+function TotalesSRI({ totals, propinaOverride }: { totals: TotalesSRI; propinaOverride?: number }) {
+  const propina = propinaOverride ?? totals.propina ?? 0;
   const rows = [
     { label: 'Subtotal IVA 15%', value: totals.subtotal_iva_15 },
     { label: 'Subtotal IVA 0%', value: totals.subtotal_iva_0 },
@@ -297,11 +388,12 @@ function TotalesSRI({ totals }: { totals: TotalesSRI }) {
     ...(totals.subtotal_iva_14 ? [{ label: 'Subtotal IVA 14%', value: totals.subtotal_iva_14 }] : []),
     { label: 'Subtotal sin impuestos', value: totals.subtotal_sin_impuestos },
     { label: 'Total de descuento', value: totals.total_descuento },
-    { label: 'IVA 15%', value: totals.total_iva },
+    { label: ivaLabel(totals), value: totals.total_iva },
     { label: 'ICE', value: totals.total_ice },
     { label: 'IRBPNR', value: totals.total_irbpnr },
-    { label: 'Propina', value: totals.propina },
+    ...(propina > 0 ? [{ label: 'Propina', value: propina }] : []),
   ];
+  const total = totals.total + (propinaOverride ? propinaOverride - (totals.propina ?? 0) : 0);
   return (
     <div className="space-y-1.5">
       {rows.map((r) => (
@@ -313,7 +405,7 @@ function TotalesSRI({ totals }: { totals: TotalesSRI }) {
       <Separator />
       <div className="flex justify-between font-bold text-base">
         <span>VALOR TOTAL</span>
-        <span>${formatCurrency(totals.total)}</span>
+        <span>${formatCurrency(total)}</span>
       </div>
     </div>
   );
@@ -338,7 +430,9 @@ function totalesFromResponse(d: {
   total_ice: number;
   total_descuento: number;
   total_con_impuestos: number;
+  propina?: number;
 }): TotalesSRI {
+  const propina = d.propina ?? 0;
   return {
     subtotal_sin_impuestos: d.subtotal_sin_impuestos,
     subtotal_iva_0: d.subtotal_iva_0,
@@ -354,7 +448,7 @@ function totalesFromResponse(d: {
     total_ice: d.total_ice,
     total_descuento: d.total_descuento,
     total_irbpnr: 0,
-    propina: 0,
+    propina,
     total: d.total_con_impuestos,
   };
 }
@@ -567,6 +661,8 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [validationDialog, setValidationDialog] = useState<{ open: boolean; result: ValidationResult | null; comprobanteId: string }>({ open: false, result: null, comprobanteId: '' });
   const [rechazadoDialog, setRechazadoDialog] = useState<{ open: boolean; comprobanteId: string; sriMensaje: string; sriMensajeDetallado: string }>({ open: false, comprobanteId: '', sriMensaje: '', sriMensajeDetallado: '' });
+  // Edición de comprobante (borrador con errores o rechazado)
+  const [editDialog, setEditDialog] = useState<{ open: boolean; comprobanteId: string | null }>({ open: false, comprobanteId: null });
 
   const loadData = useCallback(async () => {
     if (!companyId) return;
@@ -601,10 +697,24 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
           await firmarComprobante(id);
           toast.success('Comprobante firmado exitosamente');
           break;
-        case 'enviar':
-          await enviarComprobanteSRI(id);
-          toast.success('Comprobante enviado al SRI');
+        case 'enviar': {
+          const result = (await enviarComprobanteSRI(id)) as { estado?: string; sri_mensaje?: string } | undefined;
+          if (result && result.estado === 'RECHAZADO') {
+            // Mostrar el motivo real del rechazo del SRI
+            setRechazadoDialog({
+              open: true,
+              comprobanteId: id,
+              sriMensaje: result.sri_mensaje || 'El SRI rechazó el comprobante. Verifique los datos.',
+              sriMensajeDetallado: '',
+            });
+            toast.error('Comprobante rechazado por el SRI');
+          } else if (result && result.estado === 'AUTORIZADO') {
+            toast.success('Comprobante autorizado por el SRI');
+          } else {
+            toast.success('Comprobante enviado al SRI');
+          }
           break;
+        }
         case 'consultar':
           await consultarComprobanteSRI(id);
           toast.success('Consulta al SRI realizada');
@@ -688,6 +798,11 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
             sriMensaje: comp.sri_mensaje || 'Sin mensaje del SRI',
             sriMensajeDetallado: '',
           });
+          setActionLoading(null);
+          return;
+        }
+        case 'editar': {
+          setEditDialog({ open: true, comprobanteId: id });
           setActionLoading(null);
           return;
         }
@@ -852,17 +967,30 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
                             title="Ver detalle"
                           >
                             {detailLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                          </Button>
-                          {comp.estado.toUpperCase() === 'BORRADOR' && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-emerald-600"
-                                onClick={() => handleAction('validar', comp.id)}
-                                disabled={!!actionLoading}
-                                title="Validar"
-                              >
+                          </Button>          {comp.estado.toUpperCase() === 'BORRADOR' && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleAction('editar', comp.id)}
+                disabled={!!actionLoading}
+                title="Editar comprobante"
+              >
+                {actionLoading === comp.id + 'editar' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Pencil className="h-3.5 w-3.5" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-emerald-600"
+                onClick={() => handleAction('validar', comp.id)}
+                disabled={!!actionLoading}
+                title="Validar"
+              >
                                 {actionLoading === comp.id + 'validar' ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
@@ -896,37 +1024,39 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
                             </>
                           )}
                           {comp.estado.toUpperCase() === 'RECHAZADO' && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-amber-500"
-                              onClick={() => handleAction('corregir', comp.id)}
-                              disabled={!!actionLoading}
-                              title="Corregir y Reenviar"
-                            >
-                              {actionLoading === comp.id + 'corregir' ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Pencil className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
-                          )}
-                          {comp.estado.toUpperCase() === 'FIRMADO' && (
                             <>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-sky-600"
-                                onClick={() => handleAction('recuperar', comp.id)}
+                                className="h-7 w-7 text-amber-500"
+                                onClick={() => handleAction('corregir', comp.id)}
                                 disabled={!!actionLoading}
-                                title="Recuperar del SRI (máx. 72h desde la emisión)"
+                                title="Ver motivo del rechazo"
                               >
-                                {actionLoading === comp.id + 'recuperar' ? (
+                                {actionLoading === comp.id + 'corregir' ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <History className="h-3.5 w-3.5" />
+                                  <AlertTriangle className="h-3.5 w-3.5" />
                                 )}
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleAction('editar', comp.id)}
+                                disabled={!!actionLoading}
+                                title="Editar y corregir"
+                              >
+                                {actionLoading === comp.id + 'editar' ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Pencil className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            </>
+                          )}
+                          {comp.estado.toUpperCase() === 'FIRMADO' && (
+                            <>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1180,6 +1310,18 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
                 </div>
               )}
               <DialogFooter>
+                {!validationDialog.result.valid && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setValidationDialog({ ...validationDialog, open: false });
+                      setEditDialog({ open: true, comprobanteId: validationDialog.comprobanteId });
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar factura
+                  </Button>
+                )}
                 {!validationDialog.result.valid && validationDialog.result.warnings.length > 0 && (
                   <Button
                     variant="outline"
@@ -1237,24 +1379,304 @@ function ComprobanteListado({ companyId }: { companyId: string }) {
               Cancelar
             </Button>
             <Button
-              onClick={async () => {
-                try {
-                  await corregirComprobante(rechazadoDialog.comprobanteId, {});
-                  toast.success('Comprobante corregido. Ahora puede editarlo y reenviarlo.');
-                  setRechazadoDialog({ ...rechazadoDialog, open: false });
-                  loadData();
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : 'Error al corregir comprobante');
-                }
+              onClick={() => {
+                setRechazadoDialog({ ...rechazadoDialog, open: false });
+                setEditDialog({ open: true, comprobanteId: rechazadoDialog.comprobanteId });
               }}
             >
               <Pencil className="h-4 w-4 mr-2" />
-              Corregir y Reenviar
+              Editar y Corregir
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edición de comprobante (BORRADOR con errores o RECHAZADO) */}
+      <EditarComprobanteDialog
+        open={editDialog.open}
+        comprobanteId={editDialog.comprobanteId}
+        onClose={() => setEditDialog({ open: false, comprobanteId: null })}
+        onSaved={() => { setEditDialog({ open: false, comprobanteId: null }); loadData(); }}
+        onValidate={(result) => {
+          setEditDialog({ open: false, comprobanteId: null });
+          setValidationDialog({ open: true, result, comprobanteId: editDialog.comprobanteId || '' });
+        }}
+      />
     </div>
+  );
+}
+
+// ─── Editar Comprobante Dialog ───────────────────────────────────
+
+/**
+ * Dialog para editar un comprobante en estado BORRADOR (con errores de
+ * validación) o RECHAZADO. Permite corregir cliente, forma de pago e items,
+ * guardar y validar de nuevo (mostrando los errores reales del SRI).
+ */
+function EditarComprobanteDialog({
+  open,
+  comprobanteId,
+  onClose,
+  onSaved,
+  onValidate,
+}: {
+  open: boolean;
+  comprobanteId: string | null;
+  onClose: () => void;
+  onSaved: () => void;
+  onValidate: (result: ValidationResult) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formaPago, setFormaPago] = useState('01');
+  const [items, setItems] = useState<
+    {
+      codigo_principal: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      iva_codigo: string;
+      iva_porcentaje: number;
+      descuento?: number;
+    }[]
+  >([]);
+
+  // Cargar el comprobante cuando se abre el dialog
+  useEffect(() => {
+    if (!open || !comprobanteId) return;
+    setLoading(true);
+    setError(null);
+    getComprobante(comprobanteId)
+      .then((comp) => {
+        setFormaPago(comp.forma_pago || '01');
+        setItems(
+          (comp.detalles || []).map((d) => ({
+            codigo_principal: d.codigo_principal,
+            descripcion: d.descripcion,
+            cantidad: Number(d.cantidad),
+            precio_unitario: Number(d.precio_unitario),
+            iva_codigo: d.iva_codigo || '4',
+            iva_porcentaje: Number(d.iva_porcentaje || 15),
+            descuento: Number(d.descuento || 0),
+          }))
+        );
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Error al cargar el comprobante'))
+      .finally(() => setLoading(false));
+  }, [open, comprobanteId]);
+
+  function updateItem(index: number, updates: Partial<(typeof items)[number]>) {
+    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...updates } : it)));
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function addItem() {
+    setItems((prev) => [
+      ...prev,
+      { codigo_principal: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_codigo: '4', iva_porcentaje: 15 },
+    ]);
+  }
+
+  async function handleSave() {
+    if (!comprobanteId) return;
+    if (items.length === 0) {
+      setError('Debe existir al menos un item');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await corregirComprobante(comprobanteId, {
+        detalles: items.map((it) => ({
+          codigo_principal: it.codigo_principal,
+          descripcion: it.descripcion,
+          cantidad: it.cantidad,
+          precio_unitario: it.precio_unitario,
+          iva_codigo: it.iva_codigo,
+          iva_porcentaje: it.iva_porcentaje,
+          descuento: it.descuento || undefined,
+        })),
+        forma_pago: formaPago,
+      });
+      toast.success('Comprobante actualizado correctamente');
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar el comprobante');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleValidate() {
+    if (!comprobanteId) return;
+    setValidating(true);
+    setError(null);
+    try {
+      const result = await validarComprobante(comprobanteId);
+      onValidate(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al validar');
+    } finally {
+      setValidating(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Comprobante</DialogTitle>
+          <DialogDescription>
+            Corrija los datos y guarde, o valide de nuevo para ver los errores del SRI.
+          </DialogDescription>
+        </DialogHeader>
+        {loading ? (
+          <div className="flex items-center justify-center h-40">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label>Forma de Pago</Label>
+              <Select value={formaPago} onValueChange={setFormaPago}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FORMAS_PAGO.map((fp) => (
+                    <SelectItem key={fp.codigo} value={fp.codigo}>
+                      {fp.codigo} - {fp.descripcion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">Items ({items.length})</h4>
+              <Button variant="outline" size="sm" onClick={addItem}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Agregar item
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {items.map((item, i) => (
+                <div key={i} className="rounded-md border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Item {i + 1}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(i)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Código</Label>
+                      <Input
+                        className="h-8 text-sm"
+                        value={item.codigo_principal}
+                        onChange={(e) => updateItem(i, { codigo_principal: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Descripción</Label>
+                      <Input
+                        className="h-8 text-sm"
+                        value={item.descripcion}
+                        onChange={(e) => updateItem(i, { descripcion: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Cantidad</Label>
+                      <Input
+                        className="h-8 text-sm"
+                        type="number"
+                        min="0"
+                        value={item.cantidad}
+                        onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Precio Unitario</Label>
+                      <PriceInput
+                        className="h-8 text-sm"
+                        value={item.precio_unitario}
+                        onChange={(v) => updateItem(i, { precio_unitario: v })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">IVA</Label>
+                      <Select
+                        value={item.iva_codigo}
+                        onValueChange={(v) => {
+                          const rate = IVA_RATES.find((r) => r.codigo === v);
+                          updateItem(i, { iva_codigo: v, iva_porcentaje: rate?.porcentaje ?? 0 });
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {IVA_RATES.map((r) => (
+                            <SelectItem key={r.codigo} value={r.codigo}>
+                              {r.descripcion} ({r.porcentaje}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Descuento ($)</Label>
+                      <Input
+                        className="h-8 text-sm"
+                        type="number"
+                        min="0"
+                        value={item.descuento ?? ''}
+                        onChange={(e) => updateItem(i, { descuento: parseFloat(e.target.value) || undefined })}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    Subtotal: ${formatCurrency(getItemSubtotal(item))}
+                    {item.iva_porcentaje > 0 && (
+                      <span> + IVA ${formatCurrency(getItemSubtotal(item) * item.iva_porcentaje / 100)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Separator />
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button variant="outline" onClick={handleValidate} disabled={validating}>
+                {validating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                Validar
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                Guardar cambios
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2192,6 +2614,8 @@ function ItemsEditor({
 }) {
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  // Índice del item expandido: al agregar un nuevo item, los anteriores se contraen
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const filteredProducts = products.filter(
     (p) =>
@@ -2212,7 +2636,9 @@ function ItemsEditor({
       iva_codigo: product.iva_codigo,
       iva_porcentaje: product.iva_porcentaje,
     };
-    onChange([...items, newItem]);
+    const newItems = [...items, newItem];
+    onChange(newItems);
+    setExpandedIndex(newItems.length - 1);
     setShowSearch(false);
     setSearch('');
   }
@@ -2227,7 +2653,9 @@ function ItemsEditor({
       iva_codigo: '4',
       iva_porcentaje: 15,
     };
-    onChange([...items, newItem]);
+    const newItems = [...items, newItem];
+    onChange(newItems);
+    setExpandedIndex(newItems.length - 1);
   }
 
   function updateItem(index: number, updates: Partial<ComprobanteDetalleCreate>) {
@@ -2300,161 +2728,209 @@ function ItemsEditor({
           </div>
         )}
 
-        {/* Items List */}
+        {/* Items List: colapsados salvo el item expandido */}
         {items.length > 0 ? (
-          <div className="space-y-3">
-            {items.map((item, i) => (
-              <div key={i} className="rounded-md border p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Item {i + 1}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(i)}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Código Principal</Label>
-                    <Input
-                      value={item.codigo_principal}
-                      onChange={(e) => updateItem(i, { codigo_principal: e.target.value })}
-                      placeholder="COD001"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1 sm:col-span-2 lg:col-span-2">
-                    <Label className="text-xs">Descripción</Label>
-                    <Input
-                      value={item.descripcion}
-                      onChange={(e) => updateItem(i, { descripcion: e.target.value })}
-                      placeholder="Descripción del producto o servicio"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Cantidad</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.cantidad}
-                      onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Precio Unitario</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.precio_unitario}
-                      onChange={(e) => updateItem(i, { precio_unitario: parseFloat(e.target.value) || 0 })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tipo Descuento</Label>
-                    <Select
-                      value={item.descuento_tipo || 'dolares'}
-                      onValueChange={(v) =>
-                        updateItem(i, {
-                          descuento_tipo: v as DescuentoTipo,
-                          descuento: v === 'porcentaje' && item.descuento_valor != null
-                            ? (item.cantidad * item.precio_unitario * item.descuento_valor) / 100
-                            : item.descuento_valor ?? undefined,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dolares">Dólares ($)</SelectItem>
-                        <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Descuento {item.descuento_tipo === 'porcentaje' ? '(%)' : '($)'}</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.descuento_valor ?? item.descuento ?? ''}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value) || 0;
-                        updateItem(i, {
-                          descuento_valor: v,
-                          descuento:
-                            item.descuento_tipo === 'porcentaje'
-                              ? (item.cantidad * item.precio_unitario * v) / 100
-                              : v || undefined,
-                        });
-                      }}
-                      placeholder={item.descuento_tipo === 'porcentaje' ? '0' : '0.00'}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">IRBPNR / unidad ($)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.irbpnr_valor ?? ''}
-                      onChange={(e) => updateItem(i, { irbpnr_valor: parseFloat(e.target.value) || undefined })}
-                      placeholder="0.00"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tasa IVA</Label>
-                    <Select
-                      value={item.iva_codigo}
-                      onValueChange={(v) => {
-                        const rate = IVA_RATES.find((r) => r.codigo === v);
-                        if (rate) {
-                          updateItem(i, { iva_codigo: v, iva_porcentaje: rate.porcentaje });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {IVA_RATES.map((r) => (
-                          <SelectItem key={r.codigo} value={r.codigo}>
-                            {r.descripcion} (cod. {r.codigo})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Unidad</Label>
-                    <Input
-                      value={item.unidad_medida || ''}
-                      onChange={(e) => updateItem(i, { unidad_medida: e.target.value })}
-                      placeholder="Unidad"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-                {/* Item subtotal */}
-                <div className="text-right text-xs text-muted-foreground">
-                  Subtotal: ${formatCurrency(getItemSubtotal(item))}
-                  {getItemDiscount(item) > 0 && (
-                    <span className="text-destructive"> - Desc. ${formatCurrency(getItemDiscount(item))}</span>
+          <div className="space-y-2">
+            {items.map((item, i) => {
+              const expanded = expandedIndex === i;
+              return (
+                <div key={i} className="rounded-md border">
+                  {/* Encabezado: clic para expandir/contraer */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedIndex(expanded ? null : i)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-accent/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {expanded ? (
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="text-xs font-medium text-muted-foreground shrink-0">Item {i + 1}</span>
+                      <span className="text-sm font-medium truncate">
+                        {item.descripcion || item.codigo_principal || 'Sin descripción'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {item.cantidad} × ${formatCurrency(item.precio_unitario)}
+                      </span>
+                      <span className="text-xs font-semibold">${formatCurrency(getItemSubtotal(item))}</span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Eliminar item"
+                        onClick={(e) => { e.stopPropagation(); removeItem(i); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeItem(i); } }}
+                        className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-destructive/10 text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                  </button>
+
+                  {expanded && (
+                    <div className="px-3 pb-3 space-y-3 border-t pt-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Código Principal</Label>
+                          <Input
+                            value={item.codigo_principal}
+                            onChange={(e) => updateItem(i, { codigo_principal: e.target.value })}
+                            placeholder="COD001"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2 lg:col-span-2">
+                          <Label className="text-xs">Descripción</Label>
+                          <Input
+                            value={item.descripcion}
+                            onChange={(e) => updateItem(i, { descripcion: e.target.value })}
+                            placeholder="Descripción del producto o servicio"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Cantidad</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.cantidad}
+                            onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Precio Unitario</Label>
+                          <PriceInput
+                            value={item.precio_unitario}
+                            onChange={(v) => updateItem(i, { precio_unitario: v })}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Tipo Descuento</Label>
+                          <Select
+                            value={item.descuento_tipo || 'dolares'}
+                            onValueChange={(v) =>
+                              updateItem(i, {
+                                descuento_tipo: v as DescuentoTipo,
+                                descuento: v === 'porcentaje' && item.descuento_valor != null
+                                  ? (item.cantidad * item.precio_unitario * item.descuento_valor) / 100
+                                  : item.descuento_valor ?? undefined,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="dolares">Dólares ($)</SelectItem>
+                              <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Descuento {item.descuento_tipo === 'porcentaje' ? '(%)' : '($)'}</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.descuento_valor ?? item.descuento ?? ''}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value) || 0;
+                              updateItem(i, {
+                                descuento_valor: v,
+                                descuento:
+                                  item.descuento_tipo === 'porcentaje'
+                                    ? (item.cantidad * item.precio_unitario * v) / 100
+                                    : v || undefined,
+                              });
+                            }}
+                            placeholder={item.descuento_tipo === 'porcentaje' ? '0' : '0.00'}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">IRBPNR / unidad ($)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.irbpnr_valor ?? ''}
+                            onChange={(e) => updateItem(i, { irbpnr_valor: parseFloat(e.target.value) || undefined })}
+                            placeholder="0.00"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">ICE (%)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.ice_porcentaje ?? ''}
+                            onChange={(e) => updateItem(i, { ice_porcentaje: parseFloat(e.target.value) || undefined })}
+                            placeholder="0"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Tasa IVA</Label>
+                          <Select
+                            value={item.iva_codigo}
+                            onValueChange={(v) => {
+                              const rate = IVA_RATES.find((r) => r.codigo === v);
+                              if (rate) {
+                                updateItem(i, { iva_codigo: v, iva_porcentaje: rate.porcentaje });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {IVA_RATES.map((r) => (
+                                <SelectItem key={r.codigo} value={r.codigo}>
+                                  {r.descripcion} (cod. {r.codigo})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Unidad</Label>
+                          <Input
+                            value={item.unidad_medida || ''}
+                            onChange={(e) => updateItem(i, { unidad_medida: e.target.value })}
+                            placeholder="Unidad"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      {/* Item subtotal */}
+                      <div className="text-right text-xs text-muted-foreground">
+                        Subtotal: ${formatCurrency(getItemSubtotal(item))}
+                        {getItemDiscount(item) > 0 && (
+                          <span className="text-destructive"> - Desc. ${formatCurrency(getItemDiscount(item))}</span>
+                        )}
+                        {item.iva_porcentaje > 0 && (
+                          <span> + IVA ${formatCurrency(getItemSubtotal(item) * item.iva_porcentaje / 100)}</span>
+                        )}
+                        {(item.ice_porcentaje || 0) > 0 && (
+                          <span> + ICE ${formatCurrency(getItemSubtotal(item) * (item.ice_porcentaje || 0) / 100)}</span>
+                        )}
+                        {(item.irbpnr_valor || 0) > 0 && (
+                          <span> + IRBPNR ${formatCurrency((item.irbpnr_valor || 0) * item.cantidad)}</span>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  {item.iva_porcentaje > 0 && (
-                    <span> + IVA ${formatCurrency(getItemSubtotal(item) * item.iva_porcentaje / 100)}</span>
-                  )}
-                  {(item.irbpnr_valor || 0) > 0 && (
-                    <span> + IRBPNR ${formatCurrency((item.irbpnr_valor || 0) * item.cantidad)}</span>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
@@ -3271,6 +3747,8 @@ function getProformaEstadoBadge(estado: string) {
   switch (estado.toUpperCase()) {
     case 'BORRADOR':
       return <Badge variant="secondary">Borrador</Badge>;
+    case 'CERRADA':
+      return <Badge className="bg-primary hover:bg-primary/90">Cerrada</Badge>;
     case 'ENVIADA':
       return <Badge className="bg-sky-600 hover:bg-sky-700">Enviada</Badge>;
     case 'ACEPTADA':
@@ -3336,6 +3814,22 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
         case 'enviar': {
           const result = await enviarProforma(id);
           toast.success(result.message || 'Proforma enviada exitosamente');
+          // Si el cliente no tiene correo, ofrecer/descargar el PDF de la proforma
+          if (result.download_available && !result.email_sent) {
+            try {
+              const blob = await downloadProformaPDF(id);
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `Proforma_${id}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+            } catch {
+              // El PDF se puede descargar manualmente desde el detalle
+            }
+          }
           break;
         }
         case 'convertir': {
@@ -3423,6 +3917,12 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
           </Card>
           <Card className="p-3">
             <div className="text-center">
+              <div className="text-lg font-bold text-primary">{stats.cerrada ?? 0}</div>
+              <p className="text-xs text-muted-foreground">Cerradas</p>
+            </div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-center">
               <div className="text-lg font-bold text-sky-600">{stats.enviada}</div>
               <p className="text-xs text-muted-foreground">Enviadas</p>
             </div>
@@ -3457,6 +3957,7 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="BORRADOR">Borrador</SelectItem>
+            <SelectItem value="CERRADA">Cerrada</SelectItem>
             <SelectItem value="ENVIADA">Enviada</SelectItem>
             <SelectItem value="ACEPTADA">Aceptada</SelectItem>
             <SelectItem value="RECHAZADA">Rechazada</SelectItem>
@@ -3512,7 +4013,7 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
                           >
                             {detailLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
                           </Button>
-                          {prof.estado.toUpperCase() === 'BORRADOR' && (
+                          {(prof.estado.toUpperCase() === 'BORRADOR' || prof.estado.toUpperCase() === 'CERRADA') && (
                             <>
                               <Button
                                 variant="ghost"
@@ -3520,12 +4021,26 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
                                 className="h-7 w-7 text-sky-600"
                                 onClick={() => handleAction('enviar', prof.id)}
                                 disabled={!!actionLoading}
-                                title="Enviar proforma"
+                                title="Enviar proforma por correo al cliente"
                               >
                                 {actionLoading === prof.id + 'enviar' ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
                                   <Send className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-emerald-600"
+                                onClick={() => handleAction('download-pdf', prof.id)}
+                                disabled={!!actionLoading}
+                                title="Descargar PDF"
+                              >
+                                {actionLoading === prof.id + 'download-pdf' ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" />
                                 )}
                               </Button>
                               <Button
@@ -3596,6 +4111,29 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
             </DialogDescription>
           </DialogHeader>
           {detailDialog.data && <ProformaDetailView prof={detailDialog.data} />}
+          {detailDialog.data && (
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    const blob = await downloadProformaPDF(detailDialog.data!.id);
+                    const url = window.URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                    setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+                  } catch {
+                    toast.error('No se pudo generar el PDF');
+                  }
+                }}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Ver PDF
+              </Button>
+              <Button onClick={() => setDetailDialog({ ...detailDialog, open: false })}>
+                Cerrar
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -3700,7 +4238,10 @@ function ProformaDetailView({ prof }: { prof: ProformaResponse }) {
           {prof.forma_pago && (
             <div>
               <span className="text-muted-foreground">Forma de Pago</span>
-              <div className="mt-1">{prof.forma_pago}</div>
+              <div className="mt-1">
+                {FORMAS_PAGO.find((f) => f.codigo === prof.forma_pago)?.descripcion || prof.forma_pago}
+                <span className="text-muted-foreground text-xs ml-1">({prof.forma_pago})</span>
+              </div>
             </div>
           )}
           {prof.cliente_direccion && (
@@ -3726,7 +4267,7 @@ function ProformaDetailView({ prof }: { prof: ProformaResponse }) {
         <Separator />
 
         {/* Totales en formato SRI */}
-        <TotalesSRI totals={totalesFromResponse(prof)} />
+        <TotalesSRI totals={totalesFromResponse(prof)} propinaOverride={prof.propina} />
 
         <Separator />
 
@@ -3797,6 +4338,7 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
   const [observaciones, setObservaciones] = useState('');
   const [fechaValidez, setFechaValidez] = useState('');
   const [formaPago, setFormaPago] = useState<string>('01');
+  const [propina, setPropina] = useState(0);
 
   // Load clients and products
   useEffect(() => {
@@ -3845,6 +4387,7 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
         observaciones: observaciones || undefined,
         forma_pago: formaPago,
         fecha_validez: fechaValidez || undefined,
+        propina: propina || undefined,
       };
 
       await createProforma(proformaData);
@@ -4019,12 +4562,12 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
             <Separator />
 
             {/* Totales en formato SRI */}
-            <TotalesSRI totals={totals} />
+            <TotalesSRI totals={totals} propinaOverride={propina} />
 
             <Separator />
 
             {/* Additional fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pf-forma-pago">Forma de Pago</Label>
                 <Select value={formaPago} onValueChange={setFormaPago}>
@@ -4047,6 +4590,14 @@ function NuevaProformaWizard({ companyId, onCreated }: { companyId: string; onCr
                   type="date"
                   value={fechaValidez}
                   onChange={(e) => setFechaValidez(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pf-propina">Propina ($)</Label>
+                <PriceInput
+                  value={propina}
+                  onChange={setPropina}
+                  placeholder="0,00"
                 />
               </div>
             </div>
@@ -4120,6 +4671,8 @@ function ProformaItemsEditor({
 }) {
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  // Índice del item expandido: al agregar un nuevo item, los anteriores se contraen
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const filteredProducts = products.filter(
     (p) =>
@@ -4140,7 +4693,9 @@ function ProformaItemsEditor({
       iva_codigo: product.iva_codigo,
       iva_porcentaje: product.iva_porcentaje,
     };
-    onChange([...items, newItem]);
+    const newItems = [...items, newItem];
+    onChange(newItems);
+    setExpandedIndex(newItems.length - 1);
     setShowSearch(false);
     setSearch('');
   }
@@ -4155,7 +4710,9 @@ function ProformaItemsEditor({
       iva_codigo: '4',
       iva_porcentaje: 15,
     };
-    onChange([...items, newItem]);
+    const newItems = [...items, newItem];
+    onChange(newItems);
+    setExpandedIndex(newItems.length - 1);
   }
 
   function updateItem(index: number, updates: Partial<ProformaDetalleCreate>) {
@@ -4228,149 +4785,197 @@ function ProformaItemsEditor({
           </div>
         )}
 
-        {/* Items List */}
+        {/* Items List: colapsados salvo el item expandido */}
         {items.length > 0 ? (
-          <div className="space-y-3">
-            {items.map((item, i) => (
-              <div key={i} className="rounded-md border p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Item {i + 1}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(i)}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Código Principal</Label>
-                    <Input
-                      value={item.codigo_principal}
-                      onChange={(e) => updateItem(i, { codigo_principal: e.target.value })}
-                      placeholder="COD001"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1 sm:col-span-2 lg:col-span-2">
-                    <Label className="text-xs">Descripción</Label>
-                    <Input
-                      value={item.descripcion}
-                      onChange={(e) => updateItem(i, { descripcion: e.target.value })}
-                      placeholder="Descripción del producto o servicio"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Cantidad</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.cantidad}
-                      onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Precio Unitario</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.precio_unitario}
-                      onChange={(e) => updateItem(i, { precio_unitario: parseFloat(e.target.value) || 0 })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tipo Descuento</Label>
-                    <Select
-                      value={item.descuento_tipo || 'dolares'}
-                      onValueChange={(v) =>
-                        updateItem(i, {
-                          descuento_tipo: v as DescuentoTipo,
-                          descuento: v === 'porcentaje' && item.descuento_valor != null
-                            ? (item.cantidad * item.precio_unitario * item.descuento_valor) / 100
-                            : item.descuento_valor ?? undefined,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dolares">Dólares ($)</SelectItem>
-                        <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Descuento {item.descuento_tipo === 'porcentaje' ? '(%)' : '($)'}</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.descuento_valor ?? item.descuento ?? ''}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value) || 0;
-                        updateItem(i, {
-                          descuento_valor: v,
-                          descuento:
-                            item.descuento_tipo === 'porcentaje'
-                              ? (item.cantidad * item.precio_unitario * v) / 100
-                              : v || undefined,
-                        });
-                      }}
-                      placeholder={item.descuento_tipo === 'porcentaje' ? '0' : '0.00'}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">IRBPNR / unidad ($)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.irbpnr_valor ?? ''}
-                      onChange={(e) => updateItem(i, { irbpnr_valor: parseFloat(e.target.value) || undefined })}
-                      placeholder="0.00"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">IVA</Label>
-                    <Select
-                      value={item.iva_codigo}
-                      onValueChange={(v) => {
-                        const rate = IVA_RATES.find((r) => r.codigo === v);
-                        updateItem(i, { iva_codigo: v, iva_porcentaje: rate?.porcentaje ?? 0 });
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {IVA_RATES.map((rate) => (
-                          <SelectItem key={rate.codigo} value={rate.codigo}>
-                            {rate.descripcion} ({rate.porcentaje}%)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  Subtotal: ${formatCurrency(getItemSubtotal(item))}
-                  {getItemDiscount(item) > 0 && (
-                    <span className="text-destructive"> - Desc. ${formatCurrency(getItemDiscount(item))}</span>
+          <div className="space-y-2">
+            {items.map((item, i) => {
+              const expanded = expandedIndex === i;
+              return (
+                <div key={i} className="rounded-md border">
+                  {/* Encabezado: clic para expandir/contraer */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedIndex(expanded ? null : i)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-accent/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {expanded ? (
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="text-xs font-medium text-muted-foreground shrink-0">Item {i + 1}</span>
+                      <span className="text-sm font-medium truncate">
+                        {item.descripcion || item.codigo_principal || 'Sin descripción'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {item.cantidad} × ${formatCurrency(item.precio_unitario)}
+                      </span>
+                      <span className="text-xs font-semibold">${formatCurrency(getItemSubtotal(item))}</span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Eliminar item"
+                        onClick={(e) => { e.stopPropagation(); removeItem(i); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeItem(i); } }}
+                        className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-destructive/10 text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                  </button>
+
+                  {expanded && (
+                    <div className="px-3 pb-3 space-y-3 border-t pt-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Código Principal</Label>
+                          <Input
+                            value={item.codigo_principal}
+                            onChange={(e) => updateItem(i, { codigo_principal: e.target.value })}
+                            placeholder="COD001"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2 lg:col-span-2">
+                          <Label className="text-xs">Descripción</Label>
+                          <Input
+                            value={item.descripcion}
+                            onChange={(e) => updateItem(i, { descripcion: e.target.value })}
+                            placeholder="Descripción del producto o servicio"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Cantidad</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.cantidad}
+                            onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Precio Unitario</Label>
+                          <PriceInput
+                            value={item.precio_unitario}
+                            onChange={(v) => updateItem(i, { precio_unitario: v })}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Tipo Descuento</Label>
+                          <Select
+                            value={item.descuento_tipo || 'dolares'}
+                            onValueChange={(v) =>
+                              updateItem(i, {
+                                descuento_tipo: v as DescuentoTipo,
+                                descuento: v === 'porcentaje' && item.descuento_valor != null
+                                  ? (item.cantidad * item.precio_unitario * item.descuento_valor) / 100
+                                  : item.descuento_valor ?? undefined,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="dolares">Dólares ($)</SelectItem>
+                              <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Descuento {item.descuento_tipo === 'porcentaje' ? '(%)' : '($)'}</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.descuento_valor ?? item.descuento ?? ''}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value) || 0;
+                              updateItem(i, {
+                                descuento_valor: v,
+                                descuento:
+                                  item.descuento_tipo === 'porcentaje'
+                                    ? (item.cantidad * item.precio_unitario * v) / 100
+                                    : v || undefined,
+                              });
+                            }}
+                            placeholder={item.descuento_tipo === 'porcentaje' ? '0' : '0.00'}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">IRBPNR / unidad ($)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.irbpnr_valor ?? ''}
+                            onChange={(e) => updateItem(i, { irbpnr_valor: parseFloat(e.target.value) || undefined })}
+                            placeholder="0.00"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">ICE (%)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.ice_porcentaje ?? ''}
+                            onChange={(e) => updateItem(i, { ice_porcentaje: parseFloat(e.target.value) || undefined })}
+                            placeholder="0"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">IVA</Label>
+                          <Select
+                            value={item.iva_codigo}
+                            onValueChange={(v) => {
+                              const rate = IVA_RATES.find((r) => r.codigo === v);
+                              updateItem(i, { iva_codigo: v, iva_porcentaje: rate?.porcentaje ?? 0 });
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {IVA_RATES.map((rate) => (
+                                <SelectItem key={rate.codigo} value={rate.codigo}>
+                                  {rate.descripcion} ({rate.porcentaje}%)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground">
+                        Subtotal: ${formatCurrency(getItemSubtotal(item))}
+                        {getItemDiscount(item) > 0 && (
+                          <span className="text-destructive"> - Desc. ${formatCurrency(getItemDiscount(item))}</span>
+                        )}
+                        {item.iva_porcentaje > 0 && (
+                          <span> + IVA ${formatCurrency(getItemSubtotal(item) * item.iva_porcentaje / 100)}</span>
+                        )}
+                        {(item.ice_porcentaje || 0) > 0 && (
+                          <span> + ICE ${formatCurrency(getItemSubtotal(item) * (item.ice_porcentaje || 0) / 100)}</span>
+                        )}
+                        {(item.irbpnr_valor || 0) > 0 && (
+                          <span> + IRBPNR ${formatCurrency((item.irbpnr_valor || 0) * item.cantidad)}</span>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  {item.iva_porcentaje > 0 && (
-                    <span> + IVA ${formatCurrency(getItemSubtotal(item) * item.iva_porcentaje / 100)}</span>
-                  )}
-                  {(item.irbpnr_valor || 0) > 0 && (
-                    <span> + IRBPNR ${formatCurrency((item.irbpnr_valor || 0) * item.cantidad)}</span>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-6">

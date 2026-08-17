@@ -79,6 +79,12 @@ class User(Base):
         nullable=False,
         comment="Contraseña hasheada con bcrypt",
     )
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Indica si el usuario debe cambiar su contraseña en el próximo inicio de sesión (contraseña temporal)",
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

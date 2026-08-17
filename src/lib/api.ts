@@ -81,7 +81,8 @@ async function apiRequest<T>(
   const response = await fetch(buildUrl(endpoint), config);
 
   if (response.status === 401) {
-    // Try refresh
+    // Try refresh (single-flight: varias peticiones 401 simultáneas comparten UN solo refresh,
+    // evitando que la rotación de refresh tokens revoque la cadena por replay)
     const refreshed = await refreshToken();
     if (refreshed) {
       headers['Authorization'] = `Bearer ${getToken()}`;
@@ -127,8 +128,8 @@ async function apiGet<T>(endpoint: string): Promise<T> {
   return apiRequest<T>('GET', endpoint);
 }
 
-async function apiPost<T>(endpoint: string, body?: unknown): Promise<T> {
-  return apiRequest<T>('POST', endpoint, body);
+async function apiPost<T>(endpoint: string, body?: unknown, options?: { skipAuth?: boolean }): Promise<T> {
+  return apiRequest<T>('POST', endpoint, body, options);
 }
 
 async function apiPut<T>(endpoint: string, body?: unknown): Promise<T> {
@@ -160,6 +161,7 @@ interface User {
   full_name: string;
   is_active: boolean;
   is_admin: boolean;
+  must_change_password: boolean;
   phone: string | null;
   language: string;
   theme: string;
@@ -203,32 +205,81 @@ async function getMe(): Promise<User> {
   return user;
 }
 
+// Refresh single-flight: si varias peticiones reciben 401 a la vez, todas esperan
+// la MISMA promesa de refresh. Sin esto, cada una refrescaba con el mismo refresh
+// token y la rotación (replay detection) revocaba toda la cadena de sesiones,
+// cerrando la sesión (visible sobre todo en el panel del administrador, que hace
+// muchas llamadas paralelas).
+let refreshPromise: Promise<boolean> | null = null;
+
 async function refreshToken(): Promise<boolean> {
   const rt = getRefreshToken();
   if (!rt) return false;
 
-  try {
-    const response = await fetch(buildUrl('/v1/auth/refresh'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: rt }),
-    });
-
-    if (!response.ok) return false;
-
-    const data = await response.json();
-    setToken(data.access_token);
-    if (data.refresh_token) {
-      setRefreshToken(data.refresh_token);
-    }
-    return true;
-  } catch {
-    return false;
+  if (refreshPromise) {
+    return refreshPromise;
   }
+
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(buildUrl('/v1/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      setToken(data.access_token);
+      if (data.refresh_token) {
+        setRefreshToken(data.refresh_token);
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      // Permitir que el siguiente ciclo de 401 pueda refrescar de nuevo
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 function logout(): void {
   clearTokens();
+}
+
+async function forgotPassword(data: {
+  email: string;
+  full_name?: string;
+  phone?: string;
+}): Promise<{ message: string }> {
+  return apiPost<{ message: string }>('/v1/auth/forgot-password', data, { skipAuth: true });
+}
+
+async function forceChangePassword(data: {
+  new_password: string;
+  confirm_new_password: string;
+}): Promise<AuthResponse> {
+  const tokenResp = await apiPost<AuthResponse>('/v1/auth/force-change-password', data);
+  setToken(tokenResp.access_token);
+  if (tokenResp.refresh_token) setRefreshToken(tokenResp.refresh_token);
+  return tokenResp;
+}
+
+async function adminResetUserPassword(
+  userId: string,
+  data: { temporary_password?: string; send_email?: boolean }
+): Promise<{ message: string; user_id: string; temporary_password: string; must_change_password: boolean }> {
+  return apiPost(`/v1/admin/users/${userId}/reset-password`, data);
+}
+
+async function updateUserProfile(data: Partial<{ full_name: string; phone: string; language: string; theme: string }>): Promise<User> {
+  const user = await apiPut<User>('/v1/auth/me', data);
+  setUserCache(user);
+  return user;
 }
 
 // Company CRUD
@@ -940,6 +991,7 @@ interface ComprobanteResponse {
   total_ice: number;
   total_descuento: number;
   total_con_impuestos: number;
+  forma_pago: string | null;
   numero_autorizacion: string | null;
   fecha_autorizacion: string | null;
   sri_mensaje: string | null;
@@ -1239,6 +1291,7 @@ interface ProformaCreate {
   forma_pago?: string;
   fecha_validez?: string;
   info_adicional?: Record<string, string>;
+  propina?: number;
 }
 
 interface ProformaDetalleResponse {
@@ -1290,6 +1343,8 @@ interface ProformaResponse {
   total_con_impuestos: number;
   forma_pago: string | null;
   observaciones: string | null;
+  propina: number;
+  info_adicional: Record<string, string> | null;
   comprobante_convertido_id: string | null;
   detalles: ProformaDetalleResponse[];
   created_at: string;
@@ -1311,6 +1366,7 @@ interface ProformaListResponse {
 interface ProformaStatsResponse {
   total: number;
   borrador: number;
+  cerrada: number;
   enviada: number;
   aceptada: number;
   rechazada: number;
@@ -1355,7 +1411,7 @@ async function getProformaStats(companyId?: string): Promise<ProformaStatsRespon
   return apiGet<ProformaStatsResponse>(`/v1/proformas/stats${qs}`);
 }
 
-async function enviarProforma(id: string): Promise<{ message: string; estado: string }> {
+async function enviarProforma(id: string): Promise<{ message: string; estado: string; email_sent?: boolean; download_available?: boolean }> {
   return apiPost(`/v1/proformas/${id}/enviar`);
 }
 
@@ -2009,7 +2065,14 @@ async function sendEmailWithTemplate(data: { template_id: string; comprobante_id
 }
 
 // ============ IMPORT/EXPORT ============
-async function importProductsExcel(companyId: string, file: File): Promise<{ success: number; errors: number; error_details: string[] }> {
+interface ImportProductsResult {
+  message: string;
+  success_count: number;
+  error_count: number;
+  errors: { row: number; error: string }[];
+}
+
+async function importProductsExcel(companyId: string, file: File): Promise<ImportProductsResult> {
   if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const formData = new FormData();
   formData.append('file', file);
@@ -2026,7 +2089,7 @@ async function importProductsExcel(companyId: string, file: File): Promise<{ suc
   return response.json();
 }
 
-async function importProductsCSV(companyId: string, file: File): Promise<{ success: number; errors: number; error_details: string[] }> {
+async function importProductsCSV(companyId: string, file: File): Promise<ImportProductsResult> {
   if (!isValidCompanyId(companyId)) throw new Error('Empresa no seleccionada.');
   const formData = new FormData();
   formData.append('file', file);
@@ -2298,7 +2361,7 @@ async function getWarehouseLocations(warehouseId: string): Promise<WarehouseLoca
 }
 
 async function createWarehouseLocation(data: WarehouseLocationCreate): Promise<WarehouseLocation> {
-  return apiPost<WarehouseLocation>('/v1/warehouses/locations', data);
+  return apiPost<WarehouseLocation>(`/v1/warehouses/${data.warehouse_id}/locations`, data);
 }
 
 async function updateWarehouseLocation(id: string, data: WarehouseLocationUpdate): Promise<WarehouseLocation> {
@@ -4879,6 +4942,10 @@ export {
   getMe,
   refreshToken,
   logout,
+  forgotPassword,
+  forceChangePassword,
+  adminResetUserPassword,
+  updateUserProfile,
   getCompanies,
   getCompany,
   createCompany,

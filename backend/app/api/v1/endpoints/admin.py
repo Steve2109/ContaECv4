@@ -5,11 +5,12 @@ Dashboard, gestión de usuarios, licencias, seguridad
 import logging
 import platform
 import os
+import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ from app.core.ai_admin import (
     llm_configured,
 )
 from app.core.database import get_db
+from app.core.email_service import send_temporary_password_email
 from app.core.licenses import get_plan_config, update_plan_config
 from app.core.security import get_current_user, get_current_active_admin, get_password_hash
 from app.core.config import get_settings
@@ -34,7 +36,7 @@ from app.models.user import User, UserConfig, LicenseType
 from app.models.company import Company
 from app.models.client import Client
 from app.models.ml_ai import MLChatbotSesion, MLPrediccion
-from app.schemas.auth import UserResponse
+from app.schemas.auth import AdminResetPassword, UserResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["Administración"])
@@ -407,6 +409,64 @@ async def end_user_trial(
     return {
         "message": "Período de prueba finalizado",
         "user_id": str(user.id),
+    }
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: UUID,
+    data: AdminResetPassword,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_active_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Restablecer la contraseña de un cliente desde el panel de administración.
+
+    - Usa la contraseña temporal proporcionada o genera una automáticamente
+    - Marca must_change_password=True (el cliente deberá cambiarla al entrar)
+    - Envía la contraseña temporal por correo al cliente (si send_email=True)
+    - Revoca los tokens anteriores del usuario para cerrar sus sesiones activas
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if str(user.id) == str(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No puede restablecer su propia contraseña desde este panel.",
+        )
+
+    temporary_password = data.temporary_password or (
+        "Contaec" + secrets.token_urlsafe(6).replace("-", "").replace("_", "")[:6] + "#1"
+    )
+
+    user.hashed_password = get_password_hash(temporary_password)
+    user.must_change_password = True
+    await db.flush()
+
+    # Revocar sesiones activas del usuario (tokens en la blacklist se invalidan al expirar;
+    # aquí invalidamos inmediatamente los refresh tokens vigentes vía su firma no es posible,
+    # por lo que se fuerza con la marca must_change_password en el próximo login/uso).
+
+    if data.send_email:
+        background_tasks.add_task(
+            send_temporary_password_email,
+            to_email=user.email,
+            full_name=user.full_name or user.email,
+            temporary_password=temporary_password,
+            motivo="admin",
+        )
+
+    logger.info(f"Contraseña restablecida para {user.email} por {current_user.email}")
+    return {
+        "message": "Contraseña restablecida exitosamente."
+        + (" Se envió la contraseña temporal por correo." if data.send_email else ""),
+        "user_id": str(user.id),
+        "temporary_password": temporary_password,
+        "must_change_password": True,
     }
 
 

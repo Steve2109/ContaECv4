@@ -2,12 +2,13 @@
 ContaEC - Schemas de Proforma
 Pydantic models for request/response validation
 """
+import json
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ============================================
@@ -74,16 +75,26 @@ class ProformaCreate(BaseModel):
     forma_pago: str | None = "01"
     fecha_validez: str | None = None  # ISO date string
     info_adicional: dict[str, str] | None = None
+    propina: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Propina (monto fijo en dólares) que se suma al total",
+    )
 
 
 class ProformaUpdate(BaseModel):
-    """Schema para actualizar una proforma (solo BORRADOR)"""
+    """Schema para actualizar una proforma (solo BORRADOR/CERRADA)"""
     client_id: str | None = None
     detalles: list[ProformaDetalleCreate] | None = None
     observaciones: str | None = None
     forma_pago: str | None = None
     fecha_validez: str | None = None
     info_adicional: dict[str, str] | None = None
+    propina: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Propina (monto fijo en dólares) que se suma al total",
+    )
 
 
 class ProformaResponse(BaseModel):
@@ -117,12 +128,35 @@ class ProformaResponse(BaseModel):
     total_con_impuestos: Decimal
     forma_pago: str | None = None
     observaciones: str | None = None
+    propina: Decimal = Decimal("0")
+    info_adicional: dict[str, str] | None = None
     comprobante_convertido_id: UUID | None = None
     detalles: list[ProformaDetalleResponse] = []
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
+
+    @field_validator("info_adicional", mode="before")
+    @classmethod
+    def _parse_info_adicional(cls, v):
+        """El modelo guarda info_adicional como JSON string; se devuelve como dict"""
+        if isinstance(v, str) and v:
+            try:
+                return json.loads(v)
+            except Exception:
+                return None
+        return v
+
+    @model_validator(mode="after")
+    def _compute_propina(self):
+        """Propina derivada de info_adicional (no hay columna propia en BD)"""
+        try:
+            if self.info_adicional and "propina" in self.info_adicional:
+                self.propina = Decimal(str(self.info_adicional["propina"]))
+        except Exception:
+            self.propina = Decimal("0")
+        return self
 
 
 class ProformaListResponse(BaseModel):
@@ -144,6 +178,7 @@ class ProformaStatsResponse(BaseModel):
     """Schema de estadísticas de proformas"""
     total: int
     borrador: int
+    cerrada: int = 0
     enviada: int
     aceptada: int
     rechazada: int

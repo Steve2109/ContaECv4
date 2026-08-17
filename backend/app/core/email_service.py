@@ -554,3 +554,188 @@ async def send_welcome_email(
     except Exception as e:
         logger.error(f"Error al enviar correo de bienvenida a {to_email}: {e}")
         return {"success": False, "message": f"Error al enviar correo: {str(e)}"}
+
+
+async def send_proforma_email(
+    to_email: str,
+    cliente_razon_social: str,
+    empresa_razon_social: str,
+    secuencial: str,
+    total: str,
+    pdf_content: Optional[bytes] = None,
+) -> dict:
+    """
+    Envía una proforma por correo al cliente usando el SMTP del SISTEMA.
+    Adjunta el PDF de la proforma si se proporciona.
+
+    Nunca lanza excepciones: si el SMTP no está configurado o falla el envío,
+    se registra en el log y se retorna success=False.
+
+    Returns:
+        dict: {"success": bool, "message": str}
+    """
+    if not settings.SMTP_ENABLED or not settings.SMTP_HOST or not settings.SMTP_USER:
+        logger.warning(
+            f"Correo de proforma NO enviado a {to_email}: SMTP del sistema no configurado."
+        )
+        return {"success": False, "message": "SMTP del sistema no configurado."}
+
+    try:
+        from email.header import Header
+
+        msg = MIMEMultipart()
+        msg['From'] = f"{settings.SMTP_FROM_NAME or 'ContaEC'} <{settings.SMTP_USER}>"
+        msg['To'] = to_email
+        msg['Subject'] = str(Header(f"Proforma #{secuencial} - {empresa_razon_social}", "utf-8"))
+
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1B5E20; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0;">Proforma #{html.escape(secuencial)}</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">{html.escape(empresa_razon_social)}</p>
+            </div>
+            <div style="background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd;">
+                <p>Estimado/a <strong>{html.escape(cliente_razon_social)}</strong>,</p>
+                <p>Adjuntamos la proforma <strong>#{html.escape(secuencial)}</strong> por un valor de
+                <strong>${html.escape(total)}</strong>.</p>
+                <p style="font-size: 13px; color: #777;">Este documento no tiene valor fiscal ante el SRI.</p>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+        if pdf_content:
+            from email.mime.application import MIMEApplication
+            part = MIMEApplication(pdf_content, _subtype="pdf")
+            part.add_header(
+                "Content-Disposition",
+                "attachment",
+                filename=f"Proforma_{secuencial}.pdf",
+            )
+            msg.attach(part)
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            partial(
+                _send_email_sync,
+                msg=msg,
+                smtp_host=settings.SMTP_HOST,
+                smtp_port=settings.SMTP_PORT,
+                smtp_user=settings.SMTP_USER,
+                smtp_password=settings.SMTP_PASSWORD,
+                smtp_ssl=settings.SMTP_SSL,
+                to_email=to_email,
+            )
+        )
+        logger.info(f"Proforma #{secuencial} enviada por correo a {to_email}")
+        return result
+    except Exception as e:
+        logger.error(f"Error al enviar proforma por correo a {to_email}: {e}")
+        return {"success": False, "message": f"Error al enviar correo: {str(e)}"}
+
+
+async def send_temporary_password_email(
+    to_email: str,
+    full_name: str = "",
+    temporary_password: str = "",
+    motivo: str = "recuperacion",
+) -> dict:
+    """
+    Envía al usuario una contraseña temporal por correo usando el SMTP del SISTEMA.
+
+    Usada en dos flujos:
+    - 'recuperacion': el usuario la solicitó desde el panel de inicio de sesión.
+    - 'admin': el administrador restableció la contraseña desde el panel admin.
+
+    Nunca lanza excepciones: si el SMTP no está configurado o falla el envío,
+    se registra en el log y se retorna success=False.
+
+    Returns:
+        dict: {"success": bool, "message": str}
+    """
+    if not settings.SMTP_ENABLED or not settings.SMTP_HOST or not settings.SMTP_USER:
+        logger.warning(
+            f"Correo de contraseña temporal NO enviado a {to_email}: "
+            "SMTP del sistema no configurado (SMTP_ENABLED/SMTP_HOST/SMTP_USER)."
+        )
+        return {"success": False, "message": "SMTP del sistema no configurado."}
+
+    try:
+        nombre = html.escape(full_name or to_email)
+        if motivo == "admin":
+            titulo = "🔑 Contraseña restablecida por el administrador"
+            texto_intro = (
+                "El administrador de ContaEC ha restablecido la contraseña de tu cuenta."
+            )
+        else:
+            titulo = "🔑 Recuperación de contraseña"
+            texto_intro = (
+                "Recibimos una solicitud para recuperar la contraseña de tu cuenta en ContaEC."
+            )
+
+        from email.header import Header
+
+        msg = MIMEMultipart()
+        msg['From'] = f"{settings.SMTP_FROM_NAME or 'ContaEC'} <{settings.SMTP_USER}>"
+        msg['To'] = to_email
+        msg['Subject'] = str(Header("🔑 Tu contraseña temporal de ContaEC", "utf-8"))
+
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1B5E20; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0; font-size: 22px;">{titulo}</h2>
+                <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9;">ContaEC</p>
+            </div>
+            <div style="background-color: #f9f9f9; padding: 24px; border: 1px solid #ddd;">
+                <p>Estimado/a <strong>{nombre}</strong>,</p>
+                <p>{texto_intro}</p>
+                <div style="background-color: #FFF8E1; border-left: 4px solid #F57F17; padding: 12px 16px; margin: 16px 0;">
+                    <p style="margin: 0; font-size: 14px;"><strong>Contraseña temporal:</strong></p>
+                    <p style="margin: 6px 0 0 0; font-size: 18px; font-family: monospace; letter-spacing: 1px; color: #1B5E20;">
+                        {html.escape(temporary_password)}
+                    </p>
+                </div>
+                <p style="font-size: 14px;">
+                    Al iniciar sesión con esta contraseña temporal, el sistema te pedirá
+                    que crees una nueva contraseña personal.
+                </p>
+                <div style="background-color: #E8F5E9; border-left: 4px solid #1B5E20; padding: 12px 16px; margin: 16px 0;">
+                    <p style="margin: 0; font-size: 14px;"><strong>Acceso:</strong> <a href="https://conta.tymtechnology.shop" style="color: #1B5E20;">https://conta.tymtechnology.shop</a></p>
+                </div>
+                <p style="font-size: 13px; color: #777;">
+                    Si no solicitaste este cambio, contacta inmediatamente a soporte:
+                    info@tymtechnology.shop | 0960068866
+                </p>
+            </div>
+            <div style="background-color: #1B5E20; color: white; padding: 14px 24px; border-radius: 0 0 8px 8px; font-size: 12px; text-align: center;">
+                <p style="margin: 0;">ContaEC - T&M Technology Ec</p>
+                <p style="margin: 3px 0 0 0; opacity: 0.8;">info@tymtechnology.shop | 0960068866</p>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            partial(
+                _send_email_sync,
+                msg=msg,
+                smtp_host=settings.SMTP_HOST,
+                smtp_port=settings.SMTP_PORT,
+                smtp_user=settings.SMTP_USER,
+                smtp_password=settings.SMTP_PASSWORD,
+                smtp_ssl=settings.SMTP_SSL,
+                to_email=to_email,
+            )
+        )
+        logger.info(f"Correo de contraseña temporal enviado a {to_email}")
+        return result
+    except Exception as e:
+        logger.error(f"Error al enviar correo de contraseña temporal a {to_email}: {e}")
+        return {"success": False, "message": f"Error al enviar correo: {str(e)}"}

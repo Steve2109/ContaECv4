@@ -40,7 +40,9 @@ import {
   Package,
   Plus,
   ArrowUpDown,
+  FileDown,
 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   getKardexMovements,
@@ -443,6 +445,15 @@ function StockTab({ companyId }: { companyId: string }) {
 function ImportExportTab({ companyId }: { companyId: string }) {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [productCount, setProductCount] = useState<number | null>(null);
+
+  // Cargar cantidad de productos para deshabilitar la exportación si no hay
+  useEffect(() => {
+    if (!companyId) return;
+    getProducts(companyId)
+      .then((prods) => setProductCount(Array.isArray(prods) ? prods.length : 0))
+      .catch(() => setProductCount(0));
+  }, [companyId]);
 
   async function handleImportExcel(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -450,10 +461,13 @@ function ImportExportTab({ companyId }: { companyId: string }) {
     setImporting(true);
     try {
       const result = await importProductsExcel(companyId, file);
-      toast.success(`Importación completada: ${result.success} productos procesados`);
-      if (result.errors > 0) {
-        toast.warning(`${result.errors} errores encontrados`);
+      toast.success(result.message || `Importación completada: ${result.success_count} productos procesados`);
+      if (result.error_count > 0) {
+        toast.warning(`${result.error_count} errores encontrados`);
       }
+      // Actualizar el contador tras importar
+      const prods = await getProducts(companyId).catch(() => []);
+      setProductCount(Array.isArray(prods) ? prods.length : 0);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al importar');
     } finally {
@@ -468,10 +482,12 @@ function ImportExportTab({ companyId }: { companyId: string }) {
     setImporting(true);
     try {
       const result = await importProductsCSV(companyId, file);
-      toast.success(`Importación completada: ${result.success} productos procesados`);
-      if (result.errors > 0) {
-        toast.warning(`${result.errors} errores encontrados`);
+      toast.success(result.message || `Importación completada: ${result.success_count} productos procesados`);
+      if (result.error_count > 0) {
+        toast.warning(`${result.error_count} errores encontrados`);
       }
+      const prods = await getProducts(companyId).catch(() => []);
+      setProductCount(Array.isArray(prods) ? prods.length : 0);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al importar CSV');
     } finally {
@@ -520,6 +536,22 @@ function ImportExportTab({ companyId }: { companyId: string }) {
     }
   }
 
+  // Descargar plantilla/formato de importación (CSV con los campos correctos)
+  function handleDownloadFormat() {
+    const headers = 'codigo_principal,descripcion,precio_unitario,iva_porcentaje,tipo,iva_codigo\n';
+    const sample = 'PROD001,Producto de ejemplo,10.50,15,B,4\n';
+    const blob = new Blob(['\ufeff' + headers + sample], { type: 'text/csv;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'formato_importacion_productos.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    toast.success('Formato de importación descargado');
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Import Section */}
@@ -556,10 +588,29 @@ function ImportExportTab({ companyId }: { companyId: string }) {
           <CardDescription>Descargue productos en diferentes formatos</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportExcel} disabled={exporting}>
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleDownloadFormat}>
+            <FileDown className="h-4 w-4" /> Descargar formato (.csv)
+          </Button>
+          <Separator />
+          {productCount !== null && productCount === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No hay productos registrados para exportar.
+            </p>
+          )}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleExportExcel}
+            disabled={exporting || (productCount !== null && productCount === 0)}
+          >
             <Download className="h-4 w-4" /> Exportar Excel (.xlsx)
           </Button>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportCSV} disabled={exporting}>
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleExportCSV}
+            disabled={exporting || (productCount !== null && productCount === 0)}
+          >
             <Download className="h-4 w-4" /> Exportar CSV (.csv)
           </Button>
           {exporting && (

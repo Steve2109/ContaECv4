@@ -1,8 +1,10 @@
 """
 ContaEC - Endpoints de Autenticación
-Registro, login, refresh token con rotación, revocación de tokens, perfil de usuario
+Registro, login, refresh token con rotación, revocación de tokens, perfil de usuario,
+recuperación de contraseña (contraseña temporal + cambio forzado)
 """
 import logging
+import secrets
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
@@ -22,11 +24,13 @@ from app.core.security import (
     oauth2_scheme,
 )
 from app.core.config import get_settings
-from app.core.email_service import send_welcome_email
+from app.core.email_service import send_welcome_email, send_temporary_password_email
 from app.core.token_blacklist import get_token_blacklist
 from app.core.rate_limiter import limiter, AUTH_LOGIN_LIMIT, AUTH_REGISTER_LIMIT, AUTH_CHANGE_PASSWORD_LIMIT, AUTH_REFRESH_LIMIT
 from app.models.user import User, UserConfig, LicenseType
 from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ForcePasswordChange,
     PasswordChange,
     RefreshTokenRequest,
     Token,
@@ -339,6 +343,106 @@ async def update_me(
 
     await db.flush()
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/forgot-password")
+@limiter.limit(AUTH_CHANGE_PASSWORD_LIMIT)
+async def forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Recuperación de contraseña desde el panel de inicio de sesión.
+
+    Valida el correo registrado más 1-2 datos personales (nombre completo y/o
+    teléfono) para evitar solicitudes de terceros. Si la validación pasa:
+    - Genera una contraseña temporal segura
+    - La envía al correo registrado
+    - Marca al usuario con must_change_password=True (se le pedirá cambiarla al entrar)
+
+    Por seguridad, la respuesta siempre es genérica (no revela si el correo existe).
+    """
+    email = data.email.lower().strip()
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalars().first()
+
+    if not user:
+        logger.info(f"Solicitud de recuperación para correo no registrado: {email}")
+        return {"message": "Si el correo está registrado, recibirás una contraseña temporal en breve."}
+
+    if not user.is_active:
+        return {"message": "Si el correo está registrado, recibirás una contraseña temporal en breve."}
+
+    # Validación: debe coincidir al menos el nombre completo o el teléfono
+    full_name_ok = bool(
+        data.full_name and user.full_name
+        and data.full_name.strip().lower() == user.full_name.strip().lower()
+    )
+    phone_ok = bool(
+        data.phone and user.phone
+        and data.phone.strip().replace(" ", "").replace("-", "") == user.phone.strip().replace(" ", "").replace("-", "")
+    )
+    if not (full_name_ok or phone_ok):
+        logger.warning(f"Recuperación rechazada para {email}: datos de validación no coinciden")
+        return {"message": "Si el correo está registrado, recibirás una contraseña temporal en breve."}
+
+    # Generar contraseña temporal segura (cumple normativa: mayúscula, minúscula, número, símbolo, 8+)
+    temporary_password = "Contaec" + secrets.token_urlsafe(6).replace("-", "").replace("_", "")[:6] + "#1"
+    user.hashed_password = get_password_hash(temporary_password)
+    user.must_change_password = True
+    await db.flush()
+
+    background_tasks.add_task(
+        send_temporary_password_email,
+        to_email=user.email,
+        full_name=user.full_name or user.email,
+        temporary_password=temporary_password,
+        motivo="recuperacion",
+    )
+
+    logger.info(f"Contraseña temporal generada para {user.email} (recuperación)")
+    return {"message": "Si el correo está registrado, recibirás una contraseña temporal en breve."}
+
+
+@router.post("/force-change-password")
+@limiter.limit(AUTH_CHANGE_PASSWORD_LIMIT)
+async def force_change_password(
+    request: Request,
+    password_data: ForcePasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Cambio de contraseña OBLIGATORIO tras iniciar sesión con una contraseña
+    temporal (recuperación o restablecimiento por el administrador).
+
+    Solo se permite si el usuario tiene must_change_password=True. Al completarlo:
+    - Se guarda la nueva contraseña
+    - Se limpia la marca de cambio obligatorio
+    - Se emiten tokens nuevos para la sesión actual
+    """
+    if not current_user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No hay una contraseña temporal pendiente de cambio.",
+        )
+
+    current_user.hashed_password = get_password_hash(password_data.new_password)
+    current_user.must_change_password = False
+    await db.flush()
+
+    access_token = create_access_token(data={"sub": str(current_user.id), "email": current_user.email})
+    refresh_token = create_refresh_token(data={"sub": str(current_user.id)})
+
+    logger.info(f"Contraseña cambiada (flujo forzado): {current_user.email}")
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.put("/change-password")

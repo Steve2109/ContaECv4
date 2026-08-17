@@ -17,7 +17,8 @@ from app.core.database import Base
 
 class ProformaEstado(str, enum.Enum):
     """Estado de la proforma en su ciclo de vida"""
-    BORRADOR = "borrador"      # Borrador - aún no enviada al cliente
+    BORRADOR = "borrador"      # Borrador - aún no finalizada
+    CERRADA = "cerrada"        # Proforma realizada/cerrada (creada desde el wizard)
     ENVIADA = "enviada"        # Enviada al cliente, pendiente respuesta
     ACEPTADA = "aceptada"      # Aceptada por el cliente
     RECHAZADA = "rechazada"    # Rechazada por el cliente
