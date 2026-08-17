@@ -12,6 +12,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
@@ -135,7 +136,7 @@ async def create_kardex_movement(
     data.referencia_id = clean_uuid_param(data.referencia_id, "referencia_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar que el producto pertenece a la empresa
     await _get_product_for_company(db, data.product_id, data.company_id)
@@ -245,12 +246,12 @@ async def list_kardex_movements(
     query = (
         select(Kardex)
         .join(Company, Kardex.company_id == Company.id)
-        .where(Company.user_id == current_user.id, Kardex.is_active == True)
+        .where(Company.user_id == effective_owner_id(current_user), Kardex.is_active == True)
     )
 
     # Filtros
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(Kardex.company_id == company_id)
 
     if product_id:
@@ -297,7 +298,7 @@ async def get_product_kardex(
     company_id = validate_uuid(company_id, "company_id")
     product_id = validate_uuid(product_id, "product_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Verificar que el producto pertenece a la empresa
     await _get_product_for_company(db, product_id, company_id)
@@ -336,7 +337,7 @@ async def get_product_saldo(
     company_id = validate_uuid(company_id, "company_id")
     product_id = validate_uuid(product_id, "product_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Verificar que el producto pertenece a la empresa
     await _get_product_for_company(db, product_id, company_id)
@@ -373,7 +374,7 @@ async def create_kardex_ajuste(
     data.referencia_id = clean_uuid_param(data.referencia_id, "referencia_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar que el producto pertenece a la empresa
     await _get_product_for_company(db, data.product_id, data.company_id)
@@ -473,7 +474,7 @@ async def get_kardex_reporte(
     """
     company_id = validate_uuid(company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Verificar que el producto pertenece a la empresa
     product = await _get_product_for_company(db, product_id, company_id)

@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -74,7 +75,7 @@ async def _get_cuenta_or_404(
         .join(Company, CuentaPorPagar.company_id == Company.id)
         .where(
             CuentaPorPagar.id == cuenta_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     cuenta = result.scalars().first()
@@ -131,11 +132,11 @@ async def list_cuentas_por_pagar(
     query = (
         select(CuentaPorPagar)
         .join(Company, CuentaPorPagar.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CuentaPorPagar.company_id == company_id)
     if supplier_id:
         query = query.where(CuentaPorPagar.supplier_id == supplier_id)
@@ -294,7 +295,7 @@ async def list_cuentas_vencidas(
         select(CuentaPorPagar)
         .join(Company, CuentaPorPagar.company_id == Company.id)
         .where(
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
             CuentaPorPagar.is_active == True,
             CuentaPorPagar.fecha_vencimiento < now,
             CuentaPorPagar.estado.in_(("pendiente", "parcial", "vencida")),
@@ -302,7 +303,7 @@ async def list_cuentas_vencidas(
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CuentaPorPagar.company_id == company_id)
     if supplier_id:
         query = query.where(CuentaPorPagar.supplier_id == supplier_id)
@@ -346,13 +347,13 @@ async def get_resumen_cuentas(
     cutoff_proximo = now + timedelta(days=dias_proximos)
 
     base_filters = [
-        Company.user_id == current_user.id,
+        Company.user_id == effective_owner_id(current_user),
         CuentaPorPagar.is_active == True,
         CuentaPorPagar.estado.in_(("pendiente", "parcial", "vencida")),
     ]
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         base_filters.append(CuentaPorPagar.company_id == company_id)
     if supplier_id:
         base_filters.append(CuentaPorPagar.supplier_id == supplier_id)
@@ -441,13 +442,13 @@ async def export_cuentas_excel(
     Aplica los mismos filtros que el listado.
     """
     company_id = clean_company_id(company_id)
-    await _get_company_for_user(db, company_id, current_user.id) if company_id else None
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user)) if company_id else None
 
     query = (
         select(CuentaPorPagar)
         .join(Company, CuentaPorPagar.company_id == Company.id)
         .join(Supplier, CuentaPorPagar.supplier_id == Supplier.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
@@ -607,13 +608,13 @@ async def export_cuentas_csv(
     """
     company_id = clean_company_id(company_id)
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = (
         select(CuentaPorPagar)
         .join(Company, CuentaPorPagar.company_id == Company.id)
         .join(Supplier, CuentaPorPagar.supplier_id == Supplier.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:

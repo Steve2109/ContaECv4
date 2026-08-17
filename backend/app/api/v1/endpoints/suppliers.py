@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
@@ -71,7 +72,7 @@ async def create_supplier(
     """
     data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar que no exista un proveedor con la misma identificación en la empresa
     result = await db.execute(
@@ -150,12 +151,12 @@ async def list_suppliers(
     query = (
         select(Supplier)
         .join(Company, Supplier.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     # Filtro de empresa
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(Supplier.company_id == company_id)
 
     # Filtro de tipo de identificación
@@ -195,7 +196,7 @@ async def get_supplier(
         )
 
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, supplier.company_id, current_user.id)
+    await _get_company_for_user(db, supplier.company_id, effective_owner_id(current_user))
 
     return SupplierResponse.model_validate(supplier)
 
@@ -222,7 +223,7 @@ async def update_supplier(
         )
 
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, supplier.company_id, current_user.id)
+    await _get_company_for_user(db, supplier.company_id, effective_owner_id(current_user))
 
     # Si se cambia la identificación, verificar que no exista otro con la misma
     if data.identificacion and data.identificacion != supplier.identificacion:
@@ -290,7 +291,7 @@ async def delete_supplier(
         )
 
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, supplier.company_id, current_user.id)
+    await _get_company_for_user(db, supplier.company_id, effective_owner_id(current_user))
 
     # Eliminación lógica
     supplier.is_active = False

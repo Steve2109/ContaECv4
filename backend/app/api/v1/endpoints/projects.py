@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -111,7 +112,7 @@ async def create_proyecto(
     """Crear un nuevo proyecto"""
     data.cliente_id = clean_uuid_param(data.cliente_id, "cliente_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate estado if provided
     if data.estado:
@@ -176,11 +177,11 @@ async def list_proyectos(
     query = (
         select(Proyecto)
         .join(Company, Proyecto.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(Proyecto.company_id == company_id)
     if estado:
         query = query.where(Proyecto.estado == estado)
@@ -202,7 +203,7 @@ async def get_proyecto_stats(
 ):
     """Obtener estadísticas generales de proyectos"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Total proyectos
     total_result = await db.execute(
@@ -313,7 +314,7 @@ async def get_proyecto(
 ):
     """Obtener un proyecto por ID con todas sus relaciones"""
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
     return ProyectoResponse.model_validate(proyecto)
 
 
@@ -327,7 +328,7 @@ async def update_proyecto(
 ):
     """Actualizar un proyecto"""
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -379,7 +380,7 @@ async def delete_proyecto(
 ):
     """Eliminar un proyecto (soft delete)"""
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     if proyecto.estado == ProyectoEstado.EN_PROGRESO.value:
         raise HTTPException(
@@ -418,7 +419,7 @@ async def list_tareas(
 ):
     """Listar tareas de un proyecto"""
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     query = (
         select(ProyectoTarea)
@@ -448,7 +449,7 @@ async def create_tarea(
     """Crear una tarea en un proyecto"""
     data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     # Validate estado if provided
     if data.estado:
@@ -605,7 +606,7 @@ async def list_recursos(
 ):
     """Listar recursos de un proyecto"""
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     query = (
         select(ProyectoRecurso)
@@ -635,7 +636,7 @@ async def create_recurso(
     """Crear un recurso en un proyecto"""
     data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     # Validate tipo_recurso
     valid_tipos = {t.value for t in TipoRecurso}
@@ -778,7 +779,7 @@ async def list_timesheets(
     """Listar timesheets de un proyecto"""
     employee_id = clean_uuid_param(employee_id, "employee_id")
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     query = (
         select(ProyectoTimesheet)
@@ -807,7 +808,7 @@ async def create_timesheet(
     data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
     project_id = validate_uuid(project_id, "project_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     # Verify company_id matches
     if data.company_id != proyecto.company_id:
@@ -951,7 +952,7 @@ async def list_costos(
 ):
     """Listar costos de un proyecto"""
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     query = (
         select(ProyectoCosto)
@@ -978,7 +979,7 @@ async def create_costo(
     """Crear un costo en un proyecto"""
     data.comprobante_id = clean_uuid_param(data.comprobante_id, "comprobante_id")
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     costo = ProyectoCosto(
         proyecto_id=project_id,
@@ -1070,7 +1071,7 @@ async def recalcular_proyecto(
     - Actualiza tarea.horas_reales = suma de timesheet horas para esa tarea
     """
     project_id = validate_uuid(project_id, "project_id")
-    proyecto = await _get_proyecto_for_user(db, project_id, current_user.id)
+    proyecto = await _get_proyecto_for_user(db, project_id, effective_owner_id(current_user))
 
     # 1. Sum timesheets costo_total
     ts_cost_result = await db.execute(

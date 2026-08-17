@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.encryption import decrypt_field
@@ -248,7 +249,7 @@ async def create_comprobante(
     data.comprobante_modificado_id = clean_uuid_param(data.comprobante_modificado_id, "comprobante_modificado_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
     # 1. Validar empresa
-    company = await _get_company_for_user(db, data.company_id, current_user.id)
+    company = await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # 1b. Validar límite de comprobantes mensuales
     from app.core.utils import get_license_limits
@@ -476,7 +477,7 @@ async def list_comprobantes(
     query = (
         select(Comprobante)
         .join(Company, Comprobante.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
         .where(Comprobante.is_active == True)
         .order_by(Comprobante.fecha_emision.desc())
     )
@@ -484,7 +485,7 @@ async def list_comprobantes(
     # Aplicar filtros opcionales
     if company_id:
         # Verificar que la empresa pertenezca al usuario
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(Comprobante.company_id == company_id)
     
     if tipo_comprobante:
@@ -518,12 +519,12 @@ async def get_comprobante_stats(
     base_query = (
         select(Comprobante)
         .join(Company, Comprobante.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
         .where(Comprobante.is_active == True)
     )
     
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         base_query = base_query.where(Comprobante.company_id == company_id)
     
     # Obtener todos los comprobantes para calcular estadísticas
@@ -590,7 +591,7 @@ async def get_comprobante(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     return ComprobanteResponse.model_validate(comprobante)
 
@@ -630,7 +631,7 @@ async def firmar_comprobante(
         )
     
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Validar estado
     if comprobante.estado != ComprobanteEstado.BORRADOR:
@@ -953,7 +954,7 @@ async def enviar_comprobante_sri(
         )
     
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Validar estado
     if comprobante.estado != ComprobanteEstado.FIRMADO:
@@ -1060,7 +1061,7 @@ async def consultar_comprobante_sri(
         )
     
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Validar estado (se puede consultar si está ENVIADO o FIRMADO)
     if comprobante.estado not in (ComprobanteEstado.ENVIADO, ComprobanteEstado.FIRMADO):
@@ -1160,7 +1161,7 @@ async def recuperar_comprobante_sri(
         )
     
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Validar estado (solo FIRMADO o ENVIADO)
     if comprobante.estado not in (ComprobanteEstado.FIRMADO, ComprobanteEstado.ENVIADO):
@@ -1331,7 +1332,7 @@ async def get_comprobante_xml(
         )
     
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Si tiene XML firmado, retornarlo
     if comprobante.xml_content:
@@ -1390,7 +1391,7 @@ async def delete_comprobante(
         )
     
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Solo se pueden eliminar comprobantes en borrador
     if comprobante.estado != ComprobanteEstado.BORRADOR:
@@ -1441,7 +1442,7 @@ async def enviar_comprobante_email(
         )
 
     # Verificar empresa del usuario
-    company = await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    company = await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
 
     # Solo para comprobantes AUTORIZADOS
     if comprobante.estado != ComprobanteEstado.AUTORIZADO:
@@ -1651,7 +1652,7 @@ async def procesar_comprobante(
         )
 
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
 
     # Validar estado: debe ser FIRMADO
     if comprobante.estado != ComprobanteEstado.FIRMADO:
@@ -1823,7 +1824,7 @@ async def download_ride_pdf(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    company = await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    company = await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Obtener detalles del comprobante
     result_det = await db.execute(
@@ -2015,7 +2016,7 @@ async def validar_comprobante(
         )
     
     # Verificar empresa del usuario
-    company = await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    company = await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Validar estado
     if comprobante.estado != ComprobanteEstado.BORRADOR:
@@ -2201,7 +2202,7 @@ async def corregir_comprobante(
         )
     
     # Verificar empresa del usuario
-    await _get_company_for_user(db, comprobante.company_id, current_user.id)
+    await _get_company_for_user(db, comprobante.company_id, effective_owner_id(current_user))
     
     # Validar estado: RECHAZADO (corrección SRI) o BORRADOR (edición con errores de validación)
     if comprobante.estado not in (ComprobanteEstado.RECHAZADO, ComprobanteEstado.BORRADOR):

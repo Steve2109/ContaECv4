@@ -103,6 +103,13 @@ async def _ensure_new_columns(conn) -> None:
     statements = [
         # Usuarios: contraseña temporal pendiente de cambio (recuperación de contraseña)
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE",
+        # Usuarios: sub-cuentas (cuentas creadas por otro usuario con acceso limitado)
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS parent_user_id UUID",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_subaccount BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_modules TEXT",
+        # Cargas familiares: porcentaje y tipo de discapacidad
+        "ALTER TABLE cargas_familiares ADD COLUMN IF NOT EXISTS porcentaje_discapacidad INTEGER",
+        "ALTER TABLE cargas_familiares ADD COLUMN IF NOT EXISTS tipo_discapacidad VARCHAR(50)",
     ]
     for stmt in statements:
         await conn.execute(text(stmt))

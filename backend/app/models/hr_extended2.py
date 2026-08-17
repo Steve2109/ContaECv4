@@ -132,6 +132,15 @@ class CargaFamiliar(Base):
         nullable=False,
         comment="Indica si la carga familiar tiene discapacidad",
     )
+    porcentaje_discapacidad: Mapped[int | None] = mapped_column(
+        nullable=True,
+        comment="Porcentaje de discapacidad (0-100)",
+    )
+    tipo_discapacidad: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Tipo de discapacidad: auditiva, visual, mental, fisica, etc.",
+    )
     es_estudiante: Mapped[bool] = mapped_column(
         Boolean,
         default=False,

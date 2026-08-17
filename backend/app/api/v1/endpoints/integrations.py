@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -97,7 +98,7 @@ async def get_integration_stats(
 ):
     """Obtener estadisticas generales de integraciones"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Bank stats
     total_cuentas = await db.execute(
@@ -217,7 +218,7 @@ async def create_cuenta_bancaria(
 ):
     """Crear una cuenta bancaria"""
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate tipo_cuenta
     valid_tipos = {t.value for t in BancoTipoCuenta}
@@ -277,11 +278,11 @@ async def list_cuentas_bancarias(
                 selectinload(CuentaBancaria.movimientos),
             )
             .join(Company, CuentaBancaria.company_id == Company.id)
-            .where(Company.user_id == current_user.id)
+            .where(Company.user_id == effective_owner_id(current_user))
         )
 
         if company_id:
-            await _get_company_for_user(db, company_id, current_user.id)
+            await _get_company_for_user(db, company_id, effective_owner_id(current_user))
             query = query.where(CuentaBancaria.company_id == company_id)
         if is_active is not None:
             query = query.where(CuentaBancaria.is_active == is_active)
@@ -315,7 +316,7 @@ async def get_cuenta_bancaria(
     cuenta = result.scalars().first()
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta bancaria no encontrada.")
-    await _get_company_for_user(db, cuenta.company_id, current_user.id)
+    await _get_company_for_user(db, cuenta.company_id, effective_owner_id(current_user))
     return CuentaBancariaResponse.model_validate(cuenta)
 
 
@@ -335,7 +336,7 @@ async def update_cuenta_bancaria(
     cuenta = result.scalars().first()
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta bancaria no encontrada.")
-    await _get_company_for_user(db, cuenta.company_id, current_user.id)
+    await _get_company_for_user(db, cuenta.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -372,7 +373,7 @@ async def delete_cuenta_bancaria(
     cuenta = result.scalars().first()
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta bancaria no encontrada.")
-    await _get_company_for_user(db, cuenta.company_id, current_user.id)
+    await _get_company_for_user(db, cuenta.company_id, effective_owner_id(current_user))
 
     cuenta.is_active = False
     await db.flush()
@@ -405,7 +406,7 @@ async def create_extracto(
     """Crear/importar un extracto bancario"""
     data.cuenta_bancaria_id = clean_uuid_param(data.cuenta_bancaria_id, "cuenta_bancaria_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verify cuenta bancaria ownership
     cuenta_result = await db.execute(
@@ -463,11 +464,11 @@ async def list_extractos(
     query = (
         select(ExtractoBancario)
         .join(Company, ExtractoBancario.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(ExtractoBancario.company_id == company_id)
     if cuenta_bancaria_id:
         query = query.where(ExtractoBancario.cuenta_bancaria_id == cuenta_bancaria_id)
@@ -509,7 +510,7 @@ async def get_extracto(
     extracto = result.scalars().first()
     if not extracto:
         raise HTTPException(status_code=404, detail="Extracto no encontrado.")
-    await _get_company_for_user(db, extracto.company_id, current_user.id)
+    await _get_company_for_user(db, extracto.company_id, effective_owner_id(current_user))
 
     resp = ExtractoBancarioResponse.model_validate(extracto)
     cuenta_result = await db.execute(
@@ -537,7 +538,7 @@ async def delete_extracto(
     extracto = result.scalars().first()
     if not extracto:
         raise HTTPException(status_code=404, detail="Extracto no encontrado.")
-    await _get_company_for_user(db, extracto.company_id, current_user.id)
+    await _get_company_for_user(db, extracto.company_id, effective_owner_id(current_user))
 
     await db.delete(extracto)
     await db.flush()
@@ -571,7 +572,7 @@ async def create_movimiento(
     data.cuenta_bancaria_id = clean_uuid_param(data.cuenta_bancaria_id, "cuenta_bancaria_id")
     data.extracto_id = clean_uuid_param(data.extracto_id, "extracto_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verify cuenta bancaria ownership
     cuenta_result = await db.execute(
@@ -639,7 +640,7 @@ async def list_movimientos(
     query = (
         select(MovimientoBancario)
         .join(Company, MovimientoBancario.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if extracto_id:
@@ -674,7 +675,7 @@ async def update_movimiento(
     movimiento = result.scalars().first()
     if not movimiento:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
-    await _get_company_for_user(db, movimiento.company_id, current_user.id)
+    await _get_company_for_user(db, movimiento.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -743,7 +744,7 @@ async def delete_movimiento(
     movimiento = result.scalars().first()
     if not movimiento:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
-    await _get_company_for_user(db, movimiento.company_id, current_user.id)
+    await _get_company_for_user(db, movimiento.company_id, effective_owner_id(current_user))
 
     await db.delete(movimiento)
     await db.flush()
@@ -809,7 +810,7 @@ async def import_bank_csv(
     saldo, referencia) y crea el extracto con sus movimientos.
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     cuenta_result = await db.execute(
         select(CuentaBancaria).where(CuentaBancaria.id == cuenta_bancaria_id)
@@ -1017,7 +1018,7 @@ async def create_ecommerce_connector(
     """Crear un conector e-commerce"""
     data.company_id = validate_uuid(data.company_id, "company_id")
     try:
-        await _get_company_for_user(db, data.company_id, current_user.id)
+        await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
     except HTTPException:
         raise
 
@@ -1089,11 +1090,11 @@ async def list_ecommerce_connectors(
             select(EcommerceConnector)
             .options(selectinload(EcommerceConnector.sincronizaciones))
             .join(Company, EcommerceConnector.company_id == Company.id)
-            .where(Company.user_id == current_user.id)
+            .where(Company.user_id == effective_owner_id(current_user))
         )
 
         if company_id:
-            await _get_company_for_user(db, company_id, current_user.id)
+            await _get_company_for_user(db, company_id, effective_owner_id(current_user))
             query = query.where(EcommerceConnector.company_id == company_id)
         if plataforma:
             query = query.where(EcommerceConnector.plataforma == plataforma)
@@ -1129,7 +1130,7 @@ async def get_ecommerce_connector(
     connector = result.scalars().first()
     if not connector:
         raise HTTPException(status_code=404, detail="Conector no encontrado.")
-    await _get_company_for_user(db, connector.company_id, current_user.id)
+    await _get_company_for_user(db, connector.company_id, effective_owner_id(current_user))
     return EcommerceConnectorResponse.model_validate(connector)
 
 
@@ -1149,7 +1150,7 @@ async def update_ecommerce_connector(
     connector = result.scalars().first()
     if not connector:
         raise HTTPException(status_code=404, detail="Conector no encontrado.")
-    await _get_company_for_user(db, connector.company_id, current_user.id)
+    await _get_company_for_user(db, connector.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -1186,7 +1187,7 @@ async def delete_ecommerce_connector(
     connector = result.scalars().first()
     if not connector:
         raise HTTPException(status_code=404, detail="Conector no encontrado.")
-    await _get_company_for_user(db, connector.company_id, current_user.id)
+    await _get_company_for_user(db, connector.company_id, effective_owner_id(current_user))
 
     connector.is_active = False
     connector.estado = ConnectorEstado.DESACTIVADO.value
@@ -1225,7 +1226,7 @@ async def test_ecommerce_connection(
     connector = result.scalars().first()
     if not connector:
         raise HTTPException(status_code=404, detail="Conector no encontrado.")
-    await _get_company_for_user(db, connector.company_id, current_user.id)
+    await _get_company_for_user(db, connector.company_id, effective_owner_id(current_user))
 
     # In production, this would make actual API calls to the platform
     # For now, simulate a connection test
@@ -1288,7 +1289,7 @@ async def sync_ecommerce(
     connector = result.scalars().first()
     if not connector:
         raise HTTPException(status_code=404, detail="Conector no encontrado.")
-    await _get_company_for_user(db, connector.company_id, current_user.id)
+    await _get_company_for_user(db, connector.company_id, effective_owner_id(current_user))
 
     if connector.estado not in [ConnectorEstado.CONECTADO.value, ConnectorEstado.SINCRONIZANDO.value]:
         raise HTTPException(
@@ -1362,13 +1363,13 @@ async def list_sync_logs(
     query = (
         select(EcommerceSyncLog)
         .join(Company, EcommerceSyncLog.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if connector_id:
         query = query.where(EcommerceSyncLog.connector_id == connector_id)
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(EcommerceSyncLog.company_id == company_id)
     if tipo_sync:
         query = query.where(EcommerceSyncLog.tipo_sync == tipo_sync)

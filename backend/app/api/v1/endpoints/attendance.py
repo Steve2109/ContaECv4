@@ -12,6 +12,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
@@ -56,7 +57,7 @@ async def registrar_asistencia(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == data.employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
             Employee.is_active == True,
         )
     )
@@ -110,7 +111,7 @@ async def registrar_salida(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Asistencia.id == asistencia_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     asistencia = result.scalars().first()
@@ -173,7 +174,7 @@ async def importar_asistencia_biometrico(
     """
     company_id = validate_uuid(company_id, "company_id")
     # Verificar empresa
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 
@@ -318,7 +319,7 @@ async def get_resumen_asistencia(
     """
     employee_id = clean_uuid_param(employee_id, "employee_id")
     company_id = validate_uuid(company_id, "company_id")
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 
@@ -399,7 +400,7 @@ async def listar_faltas(
     - Lista de empleados con días de falta
     """
     company_id = validate_uuid(company_id, "company_id")
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 
@@ -493,7 +494,7 @@ async def asignar_turno(
     # Verificar empleado y turno
     employee = await db.get(Employee, employee_id)
     if not employee or employee.company_id != (
-        await _get_company_for_user(db, employee.company_id, current_user.id)
+        await _get_company_for_user(db, employee.company_id, effective_owner_id(current_user))
     ).id:
         raise HTTPException(404, "Empleado no encontrado")
 
@@ -534,7 +535,7 @@ async def get_turnos_semanal(
     """
     employee_id = clean_uuid_param(employee_id, "employee_id")
     company_id = validate_uuid(company_id, "company_id")
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 

@@ -12,6 +12,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -137,11 +138,11 @@ async def list_warehouses(
         query = (
             select(Warehouse)
             .join(Company, Warehouse.company_id == Company.id)
-            .where(Company.user_id == current_user.id)
+            .where(Company.user_id == effective_owner_id(current_user))
         )
 
         if company_id:
-            await _get_company_for_user(db, company_id, current_user.id)
+            await _get_company_for_user(db, company_id, effective_owner_id(current_user))
             query = query.where(Warehouse.company_id == company_id)
         if is_active is not None:
             query = query.where(Warehouse.is_active == is_active)
@@ -170,7 +171,7 @@ async def create_warehouse(
 ):
     """Crear un nuevo almacén"""
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar que el código sea único por empresa
     existing = await db.execute(
@@ -236,7 +237,7 @@ async def get_warehouse(
     warehouse = result.scalars().first()
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado.")
-    await _get_company_for_user(db, warehouse.company_id, current_user.id)
+    await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
     return WarehouseResponse.model_validate(warehouse)
 
 
@@ -256,7 +257,7 @@ async def update_warehouse(
     warehouse = result.scalars().first()
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado.")
-    await _get_company_for_user(db, warehouse.company_id, current_user.id)
+    await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
 
     # Si se actualiza el código, verificar unicidad
     if data.codigo and data.codigo != warehouse.codigo:
@@ -319,7 +320,7 @@ async def deactivate_warehouse(
     warehouse = result.scalars().first()
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado.")
-    await _get_company_for_user(db, warehouse.company_id, current_user.id)
+    await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
 
     # Verificar que no sea el almacén principal
     if warehouse.is_principal:
@@ -363,7 +364,7 @@ async def list_warehouse_locations(
     warehouse = result.scalars().first()
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado.")
-    await _get_company_for_user(db, warehouse.company_id, current_user.id)
+    await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
 
     query = select(WarehouseLocation).where(WarehouseLocation.warehouse_id == warehouse_id)
     if is_active is not None:
@@ -399,7 +400,7 @@ async def create_warehouse_location(
     warehouse = result.scalars().first()
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado.")
-    await _get_company_for_user(db, warehouse.company_id, current_user.id)
+    await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
 
     # Generar códigos de ubicación
     codigo_ubicacion = _build_codigo_ubicacion(
@@ -472,7 +473,7 @@ async def update_warehouse_location(
     )
     warehouse = wh_result.scalars().first()
     if warehouse:
-        await _get_company_for_user(db, warehouse.company_id, current_user.id)
+        await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -558,7 +559,7 @@ async def deactivate_warehouse_location(
     )
     warehouse = wh_result.scalars().first()
     if warehouse:
-        await _get_company_for_user(db, warehouse.company_id, current_user.id)
+        await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
 
     location.is_active = False
     await db.flush()
@@ -591,7 +592,7 @@ async def get_warehouse_stock(
     warehouse = result.scalars().first()
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado.")
-    await _get_company_for_user(db, warehouse.company_id, current_user.id)
+    await _get_company_for_user(db, warehouse.company_id, effective_owner_id(current_user))
 
     # Obtener último kardex por producto para este almacén
     # Subconsulta: último movimiento por producto en este almacén
@@ -665,7 +666,7 @@ async def create_transfer(
     data.warehouse_origen_id = clean_uuid_param(data.warehouse_origen_id, "warehouse_origen_id")
     data.warehouse_destino_id = clean_uuid_param(data.warehouse_destino_id, "warehouse_destino_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar almacén de origen
     origen_result = await db.execute(
@@ -758,11 +759,11 @@ async def list_transfers(
     query = (
         select(WarehouseTransfer)
         .join(Company, WarehouseTransfer.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(WarehouseTransfer.company_id == company_id)
     if estado:
         query = query.where(WarehouseTransfer.estado == estado)
@@ -793,7 +794,7 @@ async def get_transfer(
     transfer = result.scalars().first()
     if not transfer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transferencia no encontrada.")
-    await _get_company_for_user(db, transfer.company_id, current_user.id)
+    await _get_company_for_user(db, transfer.company_id, effective_owner_id(current_user))
     return WarehouseTransferResponse.model_validate(transfer)
 
 
@@ -812,7 +813,7 @@ async def send_transfer(
     transfer = result.scalars().first()
     if not transfer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transferencia no encontrada.")
-    await _get_company_for_user(db, transfer.company_id, current_user.id)
+    await _get_company_for_user(db, transfer.company_id, effective_owner_id(current_user))
 
     if transfer.estado != TransferEstado.PENDIENTE.value:
         raise HTTPException(
@@ -852,7 +853,7 @@ async def receive_transfer(
     transfer = result.scalars().first()
     if not transfer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transferencia no encontrada.")
-    await _get_company_for_user(db, transfer.company_id, current_user.id)
+    await _get_company_for_user(db, transfer.company_id, effective_owner_id(current_user))
 
     if transfer.estado != TransferEstado.EN_TRANSITO.value:
         raise HTTPException(
@@ -998,7 +999,7 @@ async def cancel_transfer(
     transfer = result.scalars().first()
     if not transfer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transferencia no encontrada.")
-    await _get_company_for_user(db, transfer.company_id, current_user.id)
+    await _get_company_for_user(db, transfer.company_id, effective_owner_id(current_user))
 
     if transfer.estado != TransferEstado.PENDIENTE.value:
         raise HTTPException(
@@ -1040,7 +1041,7 @@ async def get_kardex_detallado(
     product_id = clean_uuid_param(product_id, "product_id")
     warehouse_id = clean_uuid_param(warehouse_id, "warehouse_id")
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = (
         select(Kardex)

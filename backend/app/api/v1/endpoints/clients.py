@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.security import get_current_user
 from app.core.validation import validate_uuid
 from app.models.client import Client, TipoIdentificacion
@@ -111,7 +112,7 @@ async def create_client(
     data.company_id = validate_uuid(data.company_id, "company_id")
     
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
     
     # No permitir crear clientes Consumidor Final manualmente
     if data.tipo_identificacion == TipoIdentificacion.CONSUMIDOR_FINAL.value:
@@ -184,12 +185,12 @@ async def list_clients(
         query = (
             select(Client)
             .join(Company, Client.company_id == Company.id)
-            .where(Company.user_id == current_user.id)
+            .where(Company.user_id == effective_owner_id(current_user))
         )
 
         # 3. Filtro de empresa
         if company_id:
-            await _get_company_for_user(db, company_id, current_user.id)
+            await _get_company_for_user(db, company_id, effective_owner_id(current_user))
             query = query.where(Client.company_id == company_id)
 
             # Asegurar que exista Consumidor Final para la empresa (non-blocking)
@@ -266,7 +267,7 @@ async def get_client(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, client.company_id, current_user.id)
+    await _get_company_for_user(db, client.company_id, effective_owner_id(current_user))
     
     return ClientResponse.model_validate(client)
 
@@ -292,7 +293,7 @@ async def update_client(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, client.company_id, current_user.id)
+    await _get_company_for_user(db, client.company_id, effective_owner_id(current_user))
     
     # No permitir modificar el tipo de identificación del Consumidor Final
     if client.is_default_consumer and data.tipo_identificacion:
@@ -354,7 +355,7 @@ async def delete_client(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, client.company_id, current_user.id)
+    await _get_company_for_user(db, client.company_id, effective_owner_id(current_user))
     
     # No permitir eliminar Consumidor Final
     if client.is_default_consumer:

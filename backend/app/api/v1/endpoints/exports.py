@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.models.client import Client
@@ -95,7 +96,7 @@ async def export_products_excel(
 ):
     """Exportar productos a archivo Excel (.xlsx)."""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(Product).where(Product.company_id == company_id)
     if is_active is not None:
@@ -180,7 +181,7 @@ async def export_products_csv(
 ):
     """Exportar productos a archivo CSV."""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(Product).where(Product.company_id == company_id)
     if is_active is not None:
@@ -233,7 +234,7 @@ async def export_clients_excel(
 ):
     """Exportar clientes a archivo Excel (.xlsx)."""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(Client).where(Client.company_id == company_id)
     if is_active is not None:
@@ -324,7 +325,7 @@ async def export_comprobantes_excel(
 ):
     """Exportar comprobantes a archivo Excel (.xlsx)."""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(Comprobante).where(Comprobante.company_id == company_id)
     if tipo_comprobante:
@@ -425,7 +426,7 @@ async def export_comprobantes_pdf(
     Para RIDEs individuales usar /comprobantes/{id}/ride.
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(Comprobante).where(Comprobante.company_id == company_id)
     if tipo_comprobante:
@@ -438,7 +439,7 @@ async def export_comprobantes_pdf(
     comprobantes = result.scalars().all()
 
     # Obtener datos de la empresa
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     try:
         from reportlab.lib import colors
@@ -554,7 +555,7 @@ async def export_kardex_excel(
     """Exportar movimientos de kardex a archivo Excel (.xlsx)."""
     product_id = clean_uuid_param(product_id, "product_id")
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(Kardex).where(
         Kardex.company_id == company_id,
@@ -655,7 +656,7 @@ async def export_comprobantes_xml_zip(
     Incluye todos los XML firmados/autorizados de los comprobantes filtrados.
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(Comprobante).where(
         Comprobante.company_id == company_id,

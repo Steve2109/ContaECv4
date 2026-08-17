@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.ir_calculation import (
     calcular_retencion_mensual,
@@ -61,7 +62,7 @@ async def generar_rdep_xml(
     employee_id = clean_uuid_param(employee_id, "employee_id")
     company_id = validate_uuid(company_id, "company_id")
     # Verificar empresa
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 
@@ -92,7 +93,7 @@ async def obtener_rdep_data(
     - Lista de empleados con ingresos, deducciones y retenciones anuales
     """
     company_id = validate_uuid(company_id, "company_id")
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 
@@ -158,7 +159,7 @@ async def generar_anexos_iess(
     - Lista de empleados con aportes personales y patronales
     """
     company_id = validate_uuid(company_id, "company_id")
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 
@@ -230,7 +231,7 @@ async def generar_sut_decimos(
     if tipo_decimo not in ["tercero", "cuarto"]:
         raise HTTPException(400, "tipo_decimo debe ser 'tercero' o 'cuarto'")
 
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 
@@ -299,7 +300,7 @@ async def reporte_ir_retenciones(
     """
     employee_id = clean_uuid_param(employee_id, "employee_id")
     company_id = validate_uuid(company_id, "company_id")
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
     if not company:
         raise HTTPException(404, "Empresa no encontrada")
 

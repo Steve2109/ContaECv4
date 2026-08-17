@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
@@ -70,7 +71,7 @@ async def create_product(
     """
     data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validar límite de productos según licencia
     from app.core.utils import get_license_limits
@@ -162,12 +163,12 @@ async def list_products(
         query = (
             select(Product)
             .join(Company, Product.company_id == Company.id)
-            .where(Company.user_id == current_user.id)
+            .where(Company.user_id == effective_owner_id(current_user))
         )
 
         # Filtro de empresa
         if company_id:
-            await _get_company_for_user(db, company_id, current_user.id)
+            await _get_company_for_user(db, company_id, effective_owner_id(current_user))
             query = query.where(Product.company_id == company_id)
 
         # Filtro de tipo (B=Bien, S=Servicio)
@@ -215,7 +216,7 @@ async def get_product(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, product.company_id, current_user.id)
+    await _get_company_for_user(db, product.company_id, effective_owner_id(current_user))
     
     return ProductResponse.model_validate(product)
 
@@ -241,7 +242,7 @@ async def update_product(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, product.company_id, current_user.id)
+    await _get_company_for_user(db, product.company_id, effective_owner_id(current_user))
     
     # Si se cambia el código principal, verificar que no exista otro con el mismo código
     if data.codigo_principal and data.codigo_principal != product.codigo_principal:
@@ -296,7 +297,7 @@ async def delete_product(
         )
     
     # Verificar que la empresa pertenezca al usuario
-    await _get_company_for_user(db, product.company_id, current_user.id)
+    await _get_company_for_user(db, product.company_id, effective_owner_id(current_user))
     
     # Eliminación lógica
     product.is_active = False

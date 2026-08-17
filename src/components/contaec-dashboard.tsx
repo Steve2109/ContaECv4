@@ -89,6 +89,7 @@ import {
   Scale,
   RefreshCw,
   Sparkles,
+  Landmark,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
@@ -128,6 +129,8 @@ import {
   getSRIDocumentTypes,
   getSRITipoIdentificacion,
   getInvoiceStats,
+  calcularIR,
+  type IRCalculation,
   type User as UserType,
   type LicenseStatus as LicenseStatusType,
   type LicenseOptions as LicenseOptionsType,
@@ -151,7 +154,13 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // Los administradores deben aterrizar en el resumen del panel admin (no en 'dashboard',
   // que no existe en su navegación y provocaba una ventana en blanco al iniciar sesión).
-  const [activeNav, setActiveNav] = useState<NavItem>(user.is_admin ? 'admin-overview' : 'dashboard');
+  // Las sub-cuentas sin módulo 'dashboard' aterrizan en Empresas.
+  const initialNav: NavItem = user.is_admin
+    ? 'admin-overview'
+    : (user.is_subaccount && Array.isArray(user.allowed_modules) && user.allowed_modules.length > 0 && !user.allowed_modules.includes('dashboard')
+        ? 'companies'
+        : 'dashboard');
+  const [activeNav, setActiveNav] = useState<NavItem>(initialNav);
   const [licenseData, setLicense] = useState<LicenseStatusType | null>(null);
   const [companies, setCompanies] = useState<CompanyType[]>([]);
   const selectedCompanyId = companies.length > 0 ? companies[0].id : undefined;
@@ -409,8 +418,36 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   // Se usa trial_active (basado en fechas) y no is_trial (flag permanente) para que el
   // acceso premium se restrinja automáticamente cuando la prueba expire.
   const isTrialActive = !!(license?.trial_active || licenseData?.trial_active);
+
+  // Módulo de cada item del menú para restringir sub-cuentas
+  const NAV_MODULE: Partial<Record<NavItem, string>> = {
+    dashboard: 'dashboard',
+    sri: 'sri',
+    invoices: 'facturacion',
+    proformas: 'facturacion',
+    products: 'inventario',
+    inventory: 'inventario',
+    warehouses: 'inventario',
+    pos: 'pos',
+    hr: 'rh',
+    suppliers: 'proveedores',
+    purchases: 'compras',
+    budgets: 'contabilidad',
+    crm: 'crm',
+    projects: 'proyectos',
+    integrations: 'integraciones',
+    mlai: 'ml_ai',
+    accounting: 'contabilidad',
+    settings: 'configuracion',
+  };
+
   const filteredNavItems: { id: NavItem; label: string; icon: React.ReactNode; locked?: boolean; requiredTier?: string }[] = userNavItems
     .filter(item => {
+      // Sub-cuentas: ocultar módulos no autorizados por el dueño de la cuenta
+      if (user.is_subaccount && Array.isArray(user.allowed_modules) && user.allowed_modules.length > 0) {
+        const mod = NAV_MODULE[item.id];
+        if (mod && !user.allowed_modules.includes(mod)) return false;
+      }
       if (!item.locked) return true;
       if (!item.requiredTier) return true;
 
@@ -1855,6 +1892,7 @@ function SRIView({
           <TabsTrigger value="iva">{t('sri.iva_tab')}</TabsTrigger>
           <TabsTrigger value="docs">{t('sri.docs_tab')}</TabsTrigger>
           <TabsTrigger value="ident">{t('sri.ident_tab')}</TabsTrigger>
+          <TabsTrigger value="ir"><Landmark className="h-3.5 w-3.5 mr-1" />IR</TabsTrigger>
         </TabsList>
 
         <TabsContent value="iva">
@@ -1957,7 +1995,154 @@ function SRIView({
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="ir">
+          <IRCalculator />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// Tabla de IR Ecuador (fracción básica exenta + tasas progresivas)
+const TABLA_IR_EC = [
+  { desde: 0, hasta: 11722, exencion: 0, porcentaje: 0 },
+  { desde: 11722, hasta: 14930, exencion: 0, porcentaje: 5 },
+  { desde: 14930, hasta: 19385, exencion: 160.40, porcentaje: 10 },
+  { desde: 19385, hasta: 25638, exencion: 606.45, porcentaje: 12 },
+  { desde: 25638, hasta: 33739, exencion: 1357.81, porcentaje: 15 },
+  { desde: 33739, hasta: 44737, exencion: 2573.32, porcentaje: 20 },
+  { desde: 44737, hasta: 59537, exencion: 4773.30, porcentaje: 25 },
+  { desde: 59537, hasta: 79388, exencion: 8473.30, porcentaje: 30 },
+  { desde: 79388, hasta: 105517, exencion: 14424.60, porcentaje: 35 },
+  { desde: 105517, hasta: Infinity, exencion: 23558.15, porcentaje: 37 },
+];
+
+function IRCalculator() {
+  const [ingresosGravados, setIngresosGravados] = useState('');
+  const [result, setResult] = useState<IRCalculation | null>(null);
+  const [calculating, setCalculating] = useState(false);
+
+  async function handleCalculate() {
+    if (!ingresosGravados) { toast.error('Ingrese los ingresos gravados'); return; }
+    setCalculating(true);
+    try {
+      const data = await calcularIR({
+        ingreso_gravable: parseFloat(ingresosGravados),
+        periodo: String(new Date().getFullYear()),
+      });
+      setResult(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al calcular IR');
+    } finally {
+      setCalculating(false);
+    }
+  }
+
+  const fmt = (v: number | undefined | null) =>
+    v === undefined || v === null || Number.isNaN(Number(v))
+      ? '$0.00'
+      : `$${Number(v).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Cálculo de Impuesto a la Renta</CardTitle>
+          <CardDescription>Simulador de IR progresivo según la tabla vigente del SRI</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="space-y-0">
+              <Label className="sr-only">Ingresos Gravados</Label>
+              <Input type="number" value={ingresosGravados} onChange={(e) => setIngresosGravados(e.target.value)} className="w-48" placeholder="Ingresos gravados ($)" />
+            </div>
+            <Button onClick={handleCalculate} disabled={calculating}>
+              {calculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Calcular IR
+            </Button>
+          </div>
+
+          {result && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{fmt(parseFloat(ingresosGravados))}</div>
+                  <p className="text-xs text-muted-foreground">Ingresos Gravados</p>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{fmt(result.base_imponible)}</div>
+                  <p className="text-xs text-muted-foreground">Base Imponible</p>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{fmt(result.fraccion_basica)}</div>
+                  <p className="text-xs text-muted-foreground">Fracción Básica</p>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{fmt(result.exceso)}</div>
+                  <p className="text-xs text-muted-foreground">Exceso</p>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{Number(result.tasa)}%</div>
+                  <p className="text-xs text-muted-foreground">Tasa Aplicada</p>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{fmt(result.impuesto_fraccion)}</div>
+                  <p className="text-xs text-muted-foreground">Imp. Fracción Básica</p>
+                </div>
+              </Card>
+              <Card className="p-4 border-2 border-primary">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{fmt(result.impuesto)}</div>
+                  <p className="text-xs text-muted-foreground">Total Impuesto a Pagar</p>
+                </div>
+              </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Tabla de Impuesto a la Renta (Referencia)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <ScrollArea className="max-h-72">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fracción Básica</TableHead>
+                    <TableHead>Fracción Excedente</TableHead>
+                    <TableHead className="text-right">Imp. Fracción Básica</TableHead>
+                    <TableHead className="text-right">% Excedente</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {TABLA_IR_EC.map((row, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">${row.desde.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm">{row.hasta === Infinity ? 'En adelante' : `$${row.hasta.toLocaleString()}`}</TableCell>
+                      <TableCell className="text-right text-sm">{fmt(row.exencion)}</TableCell>
+                      <TableCell className="text-right text-sm font-medium">{row.porcentaje}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

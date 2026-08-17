@@ -162,12 +162,18 @@ interface User {
   is_active: boolean;
   is_admin: boolean;
   must_change_password: boolean;
+  is_subaccount: boolean;
+  parent_user_id: string | null;
+  allowed_modules: string[];
   phone: string | null;
   language: string;
   theme: string;
   license_type: string;
   license_start_date: string | null;
   license_end_date: string | null;
+  is_trial?: boolean;
+  trial_start_date?: string | null;
+  trial_end_date?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -4728,21 +4734,29 @@ async function moveCRMOpportunityStage(id: string, data: { stage_id: string }): 
 interface CargaFamiliar {
   id: string;
   employee_id: string;
-  nombre: string;
+  nombres: string;
+  apellidos: string;
   parentesco: string;
   fecha_nacimiento?: string;
-  genero?: string;
+  identificacion?: string;
   discapacidad: boolean;
+  porcentaje_discapacidad?: number | null;
+  tipo_discapacidad?: string | null;
+  es_estudiante: boolean;
   created_at: string;
 }
 
 interface CargaFamiliarCreate {
   employee_id: string;
-  nombre: string;
+  nombres: string;
+  apellidos: string;
   parentesco: string;
   fecha_nacimiento?: string;
-  genero?: string;
+  identificacion?: string;
   discapacidad?: boolean;
+  porcentaje_discapacidad?: number;
+  tipo_discapacidad?: string;
+  es_estudiante?: boolean;
 }
 
 interface AsistenciaRecord {
@@ -4795,12 +4809,13 @@ interface UtilidadRecord {
 }
 
 interface IRCalculation {
-  ingresos_gravados: number;
   base_imponible: number;
-  exencion_fraccion_basica: number;
-  impuesto_fraccion_excedente: number;
-  impuesto_causado: number;
-  total_impuesto: number;
+  impuesto: number;
+  fraccion_basica: number;
+  exceso: number;
+  tasa: number;
+  impuesto_fraccion: number;
+  fecha: string;
 }
 
 async function createCargaFamiliar(data: CargaFamiliarCreate): Promise<CargaFamiliar> {
@@ -4831,7 +4846,7 @@ async function getAsistencia(companyId: string): Promise<AsistenciaRecord[]> {
   return apiGet<AsistenciaRecord[]>(`/v1/payroll/asistencia?company_id=${companyId}`);
 }
 
-async function calcularLiquidacion(data: { company_id: string; employee_id: string; fecha_salida: string; motivo: string }): Promise<Liquidacion> {
+async function calcularLiquidacion(data: { company_id: string; employee_id: string; tipo: string; fecha_fin: string }): Promise<Liquidacion> {
   return apiPost<Liquidacion>('/v1/payroll/liquidacion', data);
 }
 
@@ -4843,7 +4858,7 @@ async function aprobarLiquidacion(id: string): Promise<Liquidacion> {
   return apiPut<Liquidacion>(`/v1/payroll/liquidacion/${id}/approve`, {});
 }
 
-async function calcularUtilidades(data: { company_id: string; periodo_anio: number }): Promise<UtilidadRecord[]> {
+async function calcularUtilidades(data: { company_id: string; anio: number; total_utilidades: number; porcentaje_trabajadores?: number }): Promise<UtilidadRecord[]> {
   return apiPost<UtilidadRecord[]>('/v1/payroll/utilidades', data);
 }
 
@@ -4851,8 +4866,55 @@ async function getUtilidades(companyId: string): Promise<UtilidadRecord[]> {
   return apiGet<UtilidadRecord[]>(`/v1/payroll/utilidades?company_id=${companyId}`);
 }
 
-async function calcularIR(data: { ingresos_gravados: number }): Promise<IRCalculation> {
+async function calcularIR(data: { ingreso_gravable: number; periodo: string }): Promise<IRCalculation> {
   return apiPost<IRCalculation>('/v1/payroll/calcular-ir', data);
+}
+
+// ============= Sub-Cuentas (cuentas de empleados con acceso limitado) =============
+interface SubAccount {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  parent_user_id: string;
+  allowed_modules: string[];
+  must_change_password: boolean;
+  created_at: string;
+}
+
+const SUBACCOUNT_MODULES: { key: string; label: string }[] = [
+  { key: 'dashboard', label: 'Panel principal' },
+  { key: 'facturacion', label: 'Facturación y comprobantes' },
+  { key: 'clientes', label: 'Clientes' },
+  { key: 'proveedores', label: 'Proveedores' },
+  { key: 'inventario', label: 'Inventario y almacenes' },
+  { key: 'compras', label: 'Compras y cuentas por pagar' },
+  { key: 'contabilidad', label: 'Contabilidad y presupuestos' },
+  { key: 'proyectos', label: 'Proyectos' },
+  { key: 'crm', label: 'CRM' },
+  { key: 'rh', label: 'Recursos Humanos' },
+  { key: 'integraciones', label: 'Integraciones y ecommerce' },
+  { key: 'pos', label: 'Punto de venta (POS)' },
+  { key: 'bi', label: 'Business Intelligence' },
+  { key: 'ml_ai', label: 'ML / IA' },
+  { key: 'sri', label: 'Catálogos SRI' },
+  { key: 'configuracion', label: 'Configuración' },
+];
+
+async function getSubAccounts(): Promise<SubAccount[]> {
+  return apiGet<SubAccount[]>('/v1/sub-accounts');
+}
+
+async function createSubAccount(data: { email: string; full_name: string; password: string; allowed_modules: string[] }): Promise<SubAccount> {
+  return apiPost<SubAccount>('/v1/sub-accounts', data);
+}
+
+async function updateSubAccount(id: string, data: { full_name?: string; allowed_modules?: string[]; is_active?: boolean; password?: string }): Promise<SubAccount> {
+  return apiPut<SubAccount>(`/v1/sub-accounts/${id}`, data);
+}
+
+async function deleteSubAccount(id: string): Promise<void> {
+  return apiDelete(`/v1/sub-accounts/${id}`);
 }
 
 // ============= Business Intelligence (BI) =============
@@ -5201,6 +5263,12 @@ export {
   calcularUtilidades,
   getUtilidades,
   calcularIR,
+  getSubAccounts,
+  createSubAccount,
+  updateSubAccount,
+  deleteSubAccount,
+  SUBACCOUNT_MODULES,
+  type SubAccount,
   getComparativoPresupuestario,
   getPresupuestoComparativo,
   getPresupuestoStats,

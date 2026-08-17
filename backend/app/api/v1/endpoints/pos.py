@@ -16,6 +16,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -107,7 +108,7 @@ async def open_cash_session(
     data.warehouse_id = clean_uuid_param(data.warehouse_id, "warehouse_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
     try:
-        await _get_company_for_user(db, data.company_id, current_user.id)
+        await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
         # Verificar que no haya otra sesión abierta para la misma caja
         existing = await db.execute(
@@ -182,11 +183,11 @@ async def list_cash_sessions(
     query = (
         select(POSCashSession)
         .join(Company, POSCashSession.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(POSCashSession.company_id == company_id)
     if estado:
         query = query.where(POSCashSession.estado == estado)
@@ -212,7 +213,7 @@ async def get_cash_session(
     session = result.scalars().first()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sesión de caja no encontrada.")
-    await _get_company_for_user(db, session.company_id, current_user.id)
+    await _get_company_for_user(db, session.company_id, effective_owner_id(current_user))
     return POSCashSessionResponse.model_validate(session)
 
 
@@ -232,7 +233,7 @@ async def close_cash_session(
     session = result.scalars().first()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sesión de caja no encontrada.")
-    await _get_company_for_user(db, session.company_id, current_user.id)
+    await _get_company_for_user(db, session.company_id, effective_owner_id(current_user))
 
     if session.estado != CajaEstado.ABIERTA.value:
         raise HTTPException(
@@ -293,7 +294,7 @@ async def create_partial_arqueo(
     session = result.scalars().first()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sesión de caja no encontrada.")
-    await _get_company_for_user(db, session.company_id, current_user.id)
+    await _get_company_for_user(db, session.company_id, effective_owner_id(current_user))
 
     if session.estado != CajaEstado.ABIERTA.value:
         raise HTTPException(
@@ -346,7 +347,7 @@ async def get_cash_session_resumen(
     session = result.scalars().first()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sesión de caja no encontrada.")
-    await _get_company_for_user(db, session.company_id, current_user.id)
+    await _get_company_for_user(db, session.company_id, effective_owner_id(current_user))
 
     # Contar tickets
     tickets_count = await db.execute(
@@ -402,7 +403,7 @@ async def create_ticket(
     """
     data.cash_session_id = clean_uuid_param(data.cash_session_id, "cash_session_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar que la sesión de caja esté abierta
     session_result = await db.execute(
@@ -608,11 +609,11 @@ async def list_tickets(
     query = (
         select(POSTicket)
         .join(Company, POSTicket.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(POSTicket.company_id == company_id)
     if session_id:
         query = query.where(POSTicket.cash_session_id == session_id)
@@ -640,7 +641,7 @@ async def get_ticket(
     ticket = result.scalars().first()
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado.")
-    await _get_company_for_user(db, ticket.company_id, current_user.id)
+    await _get_company_for_user(db, ticket.company_id, effective_owner_id(current_user))
     return POSTicketResponse.model_validate(ticket)
 
 
@@ -662,7 +663,7 @@ async def void_ticket(
     ticket = result.scalars().first()
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado.")
-    await _get_company_for_user(db, ticket.company_id, current_user.id)
+    await _get_company_for_user(db, ticket.company_id, effective_owner_id(current_user))
 
     if ticket.estado != TicketEstado.PAGADO.value:
         raise HTTPException(
@@ -769,7 +770,7 @@ async def get_printable_ticket(
     ticket = result.scalars().first()
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado.")
-    await _get_company_for_user(db, ticket.company_id, current_user.id)
+    await _get_company_for_user(db, ticket.company_id, effective_owner_id(current_user))
 
     # Obtener datos de la empresa
     company_result = await db.execute(
@@ -848,7 +849,7 @@ async def get_ticket_pdf(
     ticket = result.scalars().first()
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado.")
-    await _get_company_for_user(db, ticket.company_id, current_user.id)
+    await _get_company_for_user(db, ticket.company_id, effective_owner_id(current_user))
 
     # Obtener datos de la empresa
     company_result = await db.execute(
@@ -1026,7 +1027,7 @@ async def cerrar_arqueo(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arqueo no encontrado.")
 
     # Verificar acceso a la empresa
-    await _get_company_for_user(db, arqueo.company_id, current_user.id)
+    await _get_company_for_user(db, arqueo.company_id, effective_owner_id(current_user))
 
     # Obtener sesion de caja para contexto
     session_result = await db.execute(
@@ -1133,11 +1134,11 @@ async def get_arqueos_resumen(
         select(POSArqueo)
         .join(POSCashSession, POSArqueo.cash_session_id == POSCashSession.id)
         .join(Company, POSArqueo.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(POSArqueo.company_id == company_id)
     if fecha_desde:
         query = query.where(POSArqueo.created_at >= fecha_desde)
@@ -1231,7 +1232,7 @@ async def get_arqueo_reporte(
     arqueo = result.scalars().first()
     if not arqueo:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arqueo no encontrado.")
-    await _get_company_for_user(db, arqueo.company_id, current_user.id)
+    await _get_company_for_user(db, arqueo.company_id, effective_owner_id(current_user))
 
     # Obtener sesion de caja
     session_result = await db.execute(
@@ -1318,7 +1319,7 @@ async def get_arqueo_pdf(
     arqueo = result.scalars().first()
     if not arqueo:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arqueo no encontrado.")
-    await _get_company_for_user(db, arqueo.company_id, current_user.id)
+    await _get_company_for_user(db, arqueo.company_id, effective_owner_id(current_user))
 
     # Obtener sesion y empresa
     session_result = await db.execute(
@@ -1522,7 +1523,7 @@ async def search_product_by_barcode(
 ):
     """Buscar producto por código de barras para POS"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     result = await db.execute(
         select(Product).where(

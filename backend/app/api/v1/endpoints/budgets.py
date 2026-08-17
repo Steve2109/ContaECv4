@@ -11,6 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
@@ -212,7 +213,7 @@ async def create_presupuesto(
 ):
     """Crear un nuevo presupuesto anual con cuentas"""
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate cuenta_tipo values
     valid_tipos = {TipoCuenta.INGRESO.value, TipoCuenta.EGRESO.value}
@@ -312,11 +313,11 @@ async def list_presupuestos(
     query = (
         select(PresupuestoAnual)
         .join(Company, PresupuestoAnual.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(PresupuestoAnual.company_id == company_id)
     if anio is not None:
         query = query.where(PresupuestoAnual.anio == anio)
@@ -340,7 +341,7 @@ async def get_presupuesto_stats(
 ):
     """Obtener estadísticas generales de presupuestos"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Total presupuestos
     total_result = await db.execute(
@@ -417,7 +418,7 @@ async def get_comparativo_general(
 ):
     """Comparativo presupuestado vs ejecutado para un año y empresa"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Get presupuesto for the year
     result = await db.execute(
@@ -502,7 +503,7 @@ async def get_alertas_summary(
 ):
     """Obtener resumen de alertas presupuestarias"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Count by tipo
     tipo_counts = {}
@@ -558,11 +559,11 @@ async def list_alertas(
     query = (
         select(PresupuestoAlerta)
         .join(Company, PresupuestoAlerta.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(PresupuestoAlerta.company_id == company_id)
     if tipo:
         query = query.where(PresupuestoAlerta.tipo_alerta == tipo)
@@ -595,7 +596,7 @@ async def get_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
     return PresupuestoAnualResponse.model_validate(presupuesto)
 
 
@@ -616,7 +617,7 @@ async def get_comparativo_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     # Build comparativo
     cuentas_comparativo = []
@@ -684,7 +685,7 @@ async def update_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.BORRADOR.value:
         raise HTTPException(
@@ -730,7 +731,7 @@ async def delete_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.BORRADOR.value:
         raise HTTPException(
@@ -778,7 +779,7 @@ async def approve_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.BORRADOR.value:
         raise HTTPException(
@@ -821,7 +822,7 @@ async def close_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.APROBADO.value:
         raise HTTPException(
@@ -869,7 +870,7 @@ async def add_cuenta_to_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.BORRADOR.value:
         raise HTTPException(
@@ -966,7 +967,7 @@ async def update_cuenta(
         select(PresupuestoAnual).where(PresupuestoAnual.id == cuenta.presupuesto_id)
     )
     presupuesto = presup_result.scalars().first()
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.BORRADOR.value:
         raise HTTPException(
@@ -1041,7 +1042,7 @@ async def delete_cuenta(
         select(PresupuestoAnual).where(PresupuestoAnual.id == cuenta.presupuesto_id)
     )
     presupuesto = presup_result.scalars().first()
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.BORRADOR.value:
         raise HTTPException(
@@ -1099,7 +1100,7 @@ async def register_ejecucion_mensual(
         select(PresupuestoAnual).where(PresupuestoAnual.id == cuenta.presupuesto_id)
     )
     presupuesto = presup_result.scalars().first()
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.APROBADO.value:
         raise HTTPException(
@@ -1198,7 +1199,7 @@ async def get_ejecucion_for_cuenta(
         select(PresupuestoAnual).where(PresupuestoAnual.id == cuenta.presupuesto_id)
     )
     presupuesto = presup_result.scalars().first()
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     ejec_result = await db.execute(
         select(PresupuestoEjecucionMensual)
@@ -1239,7 +1240,7 @@ async def update_ejecucion(
         select(PresupuestoAnual).where(PresupuestoAnual.id == cuenta.presupuesto_id)
     )
     presupuesto = presup_result.scalars().first()
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     if presupuesto.estado != PresupuestoEstado.APROBADO.value:
         raise HTTPException(
@@ -1307,7 +1308,7 @@ async def mark_alerta_read(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alerta no encontrada.",
         )
-    await _get_company_for_user(db, alerta.company_id, current_user.id)
+    await _get_company_for_user(db, alerta.company_id, effective_owner_id(current_user))
 
     alerta.is_leida = True
     await db.flush()
@@ -1332,7 +1333,7 @@ async def mark_alerta_resolved(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alerta no encontrada.",
         )
-    await _get_company_for_user(db, alerta.company_id, current_user.id)
+    await _get_company_for_user(db, alerta.company_id, effective_owner_id(current_user))
 
     alerta.is_leida = True
     alerta.is_resuelta = True
@@ -1363,7 +1364,7 @@ async def recalcular_presupuesto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     # Recalculate each cuenta
     for cuenta in presupuesto.cuentas:
@@ -1462,7 +1463,7 @@ async def get_budget_alertas_realtime(
     - OVER: ejecutado > 100% of presupuesto (sobregiro)
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     presupuesto_query = select(PresupuestoAnual).where(
         PresupuestoAnual.company_id == company_id,
@@ -1549,7 +1550,7 @@ async def get_budget_ejecucion_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Presupuesto no encontrado.",
         )
-    await _get_company_for_user(db, presupuesto.company_id, current_user.id)
+    await _get_company_for_user(db, presupuesto.company_id, effective_owner_id(current_user))
 
     cuenta = None
     for c in presupuesto.cuentas:
@@ -1657,7 +1658,7 @@ async def export_budget_to_excel(
             detail="La exportacion a Excel requiere el paquete 'openpyxl'. Instalelo con: pip install openpyxl",
         )
 
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     result = await db.execute(
         select(PresupuestoAnual).where(

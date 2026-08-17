@@ -44,6 +44,10 @@ import {
   RefreshCw,
   Building2,
   Trash2,
+  Users,
+  Plus,
+  Pencil,
+  Power,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
@@ -85,6 +89,12 @@ import {
   createBackup,
   downloadBackup,
   restoreBackup,
+  getSubAccounts,
+  createSubAccount,
+  updateSubAccount,
+  deleteSubAccount,
+  SUBACCOUNT_MODULES,
+  type SubAccount,
   type UserConfig,
   type Company,
   type CompanyConfig,
@@ -321,6 +331,10 @@ function RegularUserSettings() {
             <Database className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Respaldos</span>
           </TabsTrigger>
+          <TabsTrigger value="subaccounts" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Sub-cuentas</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -346,7 +360,247 @@ function RegularUserSettings() {
         <TabsContent value="backups">
           <BackupsTab config={config} selectedCompanyId={selectedCompanyId} />
         </TabsContent>
+
+        <TabsContent value="subaccounts">
+          <SubAccountsTab />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ─── Sub-Cuentas Tab ────────────────────────────────────────────
+function SubAccountsTab() {
+  const [subs, setSubs] = useState<SubAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<SubAccount | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    email: '', full_name: '', password: '', confirm_password: '',
+    allowed_modules: [] as string[],
+  });
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getSubAccounts();
+      setSubs(data);
+    } catch {
+      toast.error('Error al cargar sub-cuentas');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  function toggleModule(key: string) {
+    setForm((f) => ({
+      ...f,
+      allowed_modules: f.allowed_modules.includes(key)
+        ? f.allowed_modules.filter((m) => m !== key)
+        : [...f.allowed_modules, key],
+    }));
+  }
+
+  async function handleCreate() {
+    if (!form.email || !form.full_name || !form.password) {
+      toast.error('Complete correo, nombre y contraseña temporal');
+      return;
+    }
+    if (form.password.length < 8) {
+      toast.error('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+    if (form.password !== form.confirm_password) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+    setSaving(true);
+    try {
+      await createSubAccount({
+        email: form.email,
+        full_name: form.full_name,
+        password: form.password,
+        allowed_modules: form.allowed_modules,
+      });
+      toast.success('Sub-cuenta creada. La contraseña temporal fue enviada por correo.');
+      setShowCreate(false);
+      setForm({ email: '', full_name: '', password: '', confirm_password: '', allowed_modules: [] });
+      loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al crear sub-cuenta');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveModules() {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await updateSubAccount(editing.id, { allowed_modules: form.allowed_modules });
+      toast.success('Módulos actualizados');
+      setEditing(null);
+      loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleToggleActive(sub: SubAccount) {
+    try {
+      await updateSubAccount(sub.id, { is_active: !sub.is_active });
+      toast.success(sub.is_active ? 'Sub-cuenta desactivada' : 'Sub-cuenta activada');
+      loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar estado');
+    }
+  }
+
+  async function handleResetPassword(sub: SubAccount) {
+    const newPass = window.prompt(`Nueva contraseña temporal para ${sub.email} (mínimo 8 caracteres):`);
+    if (!newPass) return;
+    if (newPass.length < 8) { toast.error('La contraseña debe tener al menos 8 caracteres'); return; }
+    try {
+      await updateSubAccount(sub.id, { password: newPass });
+      toast.success('Contraseña restablecida y enviada por correo');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al restablecer contraseña');
+    }
+  }
+
+  const MODULE_LABELS = Object.fromEntries(SUBACCOUNT_MODULES.map((m) => [m.key, m.label]));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-base font-medium">Sub-cuentas de empleados</h3>
+          <p className="text-sm text-muted-foreground">
+            Cree cuentas para sus empleados y seleccione los módulos a los que pueden acceder.
+            Cada cuenta recibe una contraseña temporal por correo.
+          </p>
+        </div>
+        <Button onClick={() => { setEditing(null); setForm({ email: '', full_name: '', password: '', confirm_password: '', allowed_modules: [] }); setShowCreate(true); }}>
+          <Plus className="mr-2 h-4 w-4" /> Nueva Sub-cuenta
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : subs.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <Users className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+            <h3 className="text-sm font-medium">Sin sub-cuentas</h3>
+            <p className="text-sm text-muted-foreground mt-1">Cree la primera cuenta para un empleado</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <ScrollArea className="max-h-[420px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Correo</TableHead>
+                    <TableHead>Módulos</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {subs.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.full_name}</TableCell>
+                      <TableCell className="text-sm">{s.email}</TableCell>
+                      <TableCell className="text-sm max-w-[240px]">
+                        {s.allowed_modules.length === 0 ? (
+                          <span className="text-muted-foreground">Acceso total</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {s.allowed_modules.slice(0, 4).map((m) => (
+                              <Badge key={m} variant="secondary" className="text-[10px]">{MODULE_LABELS[m] || m}</Badge>
+                            ))}
+                            {s.allowed_modules.length > 4 && <Badge variant="outline" className="text-[10px]">+{s.allowed_modules.length - 4}</Badge>}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={s.is_active ? 'default' : 'secondary'} className={s.is_active ? 'bg-emerald-600 text-xs' : 'text-xs'}>
+                          {s.is_active ? 'Activa' : 'Inactiva'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => { setEditing(s); setForm({ email: s.email, full_name: s.full_name, password: '', confirm_password: '', allowed_modules: [...s.allowed_modules] }); }}>
+                            <Pencil className="h-3.5 w-3.5 mr-1" /> Módulos
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleResetPassword(s)}>
+                            <KeyRound className="h-3.5 w-3.5 mr-1" /> Contraseña
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleActive(s)}>
+                            <Power className={`h-3.5 w-3.5 ${s.is_active ? 'text-muted-foreground' : 'text-emerald-600'}`} />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={showCreate || !!editing} onOpenChange={(o) => { if (!o) { setShowCreate(false); setEditing(null); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Editar módulos de la sub-cuenta' : 'Nueva Sub-cuenta'}</DialogTitle>
+            <DialogDescription>
+              {editing
+                ? `Seleccione los módulos a los que ${editing.full_name} puede acceder. Dejar vacío = acceso total.`
+                : 'La contraseña temporal se enviará por correo al empleado.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!editing && (
+              <>
+                <div className="space-y-2"><Label>Nombre completo *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Nombre del empleado" /></div>
+                <div className="space-y-2"><Label>Correo electrónico *</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="empleado@empresa.com" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Contraseña temporal *</Label><Input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo 8 caracteres" /></div>
+                  <div className="space-y-2"><Label>Confirmar contraseña *</Label><Input type="text" value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} placeholder="Repita la contraseña" /></div>
+                </div>
+              </>
+            )}
+            <div className="space-y-2">
+              <Label>Módulos permitidos</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 rounded-md border p-3 max-h-56 overflow-y-auto">
+                {SUBACCOUNT_MODULES.map((m) => (
+                  <label key={m.key} className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input type="checkbox" checked={form.allowed_modules.includes(m.key)} onChange={() => toggleModule(m.key)} className="rounded" />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Sin módulos seleccionados = acceso total</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setShowCreate(false); setEditing(null); }}>Cancelar</Button>
+              <Button onClick={editing ? handleSaveModules : handleCreate} disabled={saving}>
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {editing ? 'Guardar módulos' : 'Crear sub-cuenta'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

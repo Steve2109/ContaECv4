@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
 from app.core.xml_generator import generate_clave_acceso
@@ -175,7 +176,7 @@ async def create_proforma(
     data.client_id = clean_uuid_param(data.client_id, "client_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
     try:
-        company = await _get_company_for_user(db, data.company_id, current_user.id)
+        company = await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
         # Client info
         cliente_tipo_identificacion = "07"
@@ -358,13 +359,13 @@ async def list_proformas(
     query = (
         select(Proforma)
         .join(Company, Proforma.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
         .where(Proforma.is_active == True)
         .order_by(Proforma.fecha_emision.desc())
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(Proforma.company_id == company_id)
 
     if estado:
@@ -389,12 +390,12 @@ async def get_proforma_stats(
     base_query = (
         select(Proforma)
         .join(Company, Proforma.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
         .where(Proforma.is_active == True)
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         base_query = base_query.where(Proforma.company_id == company_id)
 
     result = await db.execute(base_query)
@@ -453,7 +454,7 @@ async def get_proforma(
             detail="Proforma no encontrada.",
         )
 
-    await _get_company_for_user(db, proforma.company_id, current_user.id)
+    await _get_company_for_user(db, proforma.company_id, effective_owner_id(current_user))
 
     return ProformaResponse.model_validate(proforma)
 
@@ -485,7 +486,7 @@ async def update_proforma(
             detail="Proforma no encontrada.",
         )
 
-    await _get_company_for_user(db, proforma.company_id, current_user.id)
+    await _get_company_for_user(db, proforma.company_id, effective_owner_id(current_user))
 
     if proforma.estado not in (ProformaEstado.BORRADOR, ProformaEstado.CERRADA):
         raise HTTPException(
@@ -643,7 +644,7 @@ async def delete_proforma(
             detail="Proforma no encontrada.",
         )
 
-    await _get_company_for_user(db, proforma.company_id, current_user.id)
+    await _get_company_for_user(db, proforma.company_id, effective_owner_id(current_user))
 
     if proforma.estado not in (ProformaEstado.BORRADOR, ProformaEstado.CERRADA):
         raise HTTPException(
@@ -828,7 +829,7 @@ async def download_proforma_pdf(
     if not proforma:
         raise HTTPException(status_code=404, detail="Proforma no encontrada.")
 
-    company = await _get_company_for_user(db, proforma.company_id, current_user.id)
+    company = await _get_company_for_user(db, proforma.company_id, effective_owner_id(current_user))
     pdf_bytes = _generar_pdf_proforma(proforma, company)
 
     filename = f"Proforma_{proforma.secuencial}.pdf"
@@ -868,7 +869,7 @@ async def enviar_proforma(
             detail="Proforma no encontrada.",
         )
 
-    company = await _get_company_for_user(db, proforma.company_id, current_user.id)
+    company = await _get_company_for_user(db, proforma.company_id, effective_owner_id(current_user))
 
     if proforma.estado not in (ProformaEstado.BORRADOR, ProformaEstado.CERRADA):
         raise HTTPException(
@@ -936,7 +937,7 @@ async def convertir_proforma(
             detail="Proforma no encontrada.",
         )
 
-    company = await _get_company_for_user(db, proforma.company_id, current_user.id)
+    company = await _get_company_for_user(db, proforma.company_id, effective_owner_id(current_user))
 
     if proforma.estado not in (ProformaEstado.ENVIADA, ProformaEstado.ACEPTADA):
         raise HTTPException(

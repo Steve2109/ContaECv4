@@ -18,6 +18,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
@@ -144,7 +145,7 @@ async def create_company(
     # Contar empresas existentes del usuario
     result = await db.execute(
         select(func.count(Company.id)).where(
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
             Company.is_active == True
         )
     )
@@ -160,7 +161,7 @@ async def create_company(
     # Verificar que el RUC no exista ya para este usuario
     result = await db.execute(
         select(Company).where(
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
             Company.ruc == company_data.ruc
         )
     )
@@ -197,7 +198,7 @@ async def list_companies(
 ):
     """Listar todas las empresas del usuario actual"""
     result = await db.execute(
-        select(Company).where(Company.user_id == current_user.id)
+        select(Company).where(Company.user_id == effective_owner_id(current_user))
     )
     companies = result.scalars().all()
     return [CompanyResponse.model_validate(c) for c in companies]
@@ -213,7 +214,7 @@ async def get_company(
     result = await db.execute(
         select(Company).where(
             Company.id == company_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     company = result.scalars().first()
@@ -233,7 +234,7 @@ async def update_company(
     result = await db.execute(
         select(Company).where(
             Company.id == company_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     company = result.scalars().first()
@@ -258,7 +259,7 @@ async def delete_company(
     result = await db.execute(
         select(Company).where(
             Company.id == company_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     company = result.scalars().first()
@@ -539,7 +540,7 @@ async def create_establishment(
     result = await db.execute(
         select(Company).where(
             Company.id == company_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     if not result.scalars().first():
@@ -565,7 +566,7 @@ async def list_establishments(
     result = await db.execute(
         select(Company).where(
             Company.id == company_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     if not result.scalars().first():
@@ -591,7 +592,7 @@ async def list_clients(
     result = await db.execute(
         select(Company).where(
             Company.id == company_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     if not result.scalars().first():

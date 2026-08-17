@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -105,7 +106,7 @@ async def get_ml_stats(
 ):
     """Obtener estadísticas generales de ML/IA"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Predicciones
     total_pred = await db.execute(
@@ -234,7 +235,7 @@ async def create_prediction(
 ):
     """Crear una predicción ML (ejecuta el algoritmo de predicción)"""
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     try:
         prediccion = await prediccion_ventas(
@@ -289,11 +290,11 @@ async def list_predictions(
     query = (
         select(MLPrediccion)
         .join(Company, MLPrediccion.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(MLPrediccion.company_id == company_id)
     if tipo:
         query = query.where(MLPrediccion.tipo == tipo)
@@ -321,7 +322,7 @@ async def get_prediction(
     prediccion = result.scalars().first()
     if not prediccion:
         raise HTTPException(status_code=404, detail="Predicción no encontrada.")
-    await _get_company_for_user(db, prediccion.company_id, current_user.id)
+    await _get_company_for_user(db, prediccion.company_id, effective_owner_id(current_user))
     return PrediccionResponse.model_validate(prediccion)
 
 
@@ -340,7 +341,7 @@ async def delete_prediction(
     prediccion = result.scalars().first()
     if not prediccion:
         raise HTTPException(status_code=404, detail="Predicción no encontrada.")
-    await _get_company_for_user(db, prediccion.company_id, current_user.id)
+    await _get_company_for_user(db, prediccion.company_id, effective_owner_id(current_user))
 
     await db.delete(prediccion)
     await db.flush()
@@ -372,7 +373,7 @@ async def scan_fraud(
 ):
     """Ejecutar escaneo de fraude para una empresa"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     try:
         alertas = await detectar_fraude(db=db, company_id=company_id)
@@ -416,11 +417,11 @@ async def list_fraud_alerts(
     query = (
         select(MLAlertaFraude)
         .join(Company, MLAlertaFraude.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(MLAlertaFraude.company_id == company_id)
     if severidad:
         query = query.where(MLAlertaFraude.severidad == severidad)
@@ -450,7 +451,7 @@ async def get_fraud_alert(
     alerta = result.scalars().first()
     if not alerta:
         raise HTTPException(status_code=404, detail="Alerta de fraude no encontrada.")
-    await _get_company_for_user(db, alerta.company_id, current_user.id)
+    await _get_company_for_user(db, alerta.company_id, effective_owner_id(current_user))
     return AlertaFraudeResponse.model_validate(alerta)
 
 
@@ -470,7 +471,7 @@ async def update_fraud_alert(
     alerta = result.scalars().first()
     if not alerta:
         raise HTTPException(status_code=404, detail="Alerta de fraude no encontrada.")
-    await _get_company_for_user(db, alerta.company_id, current_user.id)
+    await _get_company_for_user(db, alerta.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -515,7 +516,7 @@ async def create_chatbot_session(
     """Crear una sesión de chatbot"""
     data.company_id = validate_uuid(data.company_id, "company_id")
     try:
-        await _get_company_for_user(db, data.company_id, current_user.id)
+        await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
     except HTTPException:
         raise
 
@@ -564,11 +565,11 @@ async def list_chatbot_sessions(
     query = (
         select(MLChatbotSesion)
         .join(Company, MLChatbotSesion.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(MLChatbotSesion.company_id == company_id)
     if estado:
         query = query.where(MLChatbotSesion.estado == estado)
@@ -597,7 +598,7 @@ async def chat_with_bot(
     if not sesion:
         raise HTTPException(status_code=404, detail="Sesión de chatbot no encontrada.")
 
-    await _get_company_for_user(db, sesion.company_id, current_user.id)
+    await _get_company_for_user(db, sesion.company_id, effective_owner_id(current_user))
 
     if sesion.estado == ChatbotEstado.CERRADA.value:
         raise HTTPException(
@@ -664,7 +665,7 @@ async def get_session_messages(
     sesion = result.scalars().first()
     if not sesion:
         raise HTTPException(status_code=404, detail="Sesión de chatbot no encontrada.")
-    await _get_company_for_user(db, sesion.company_id, current_user.id)
+    await _get_company_for_user(db, sesion.company_id, effective_owner_id(current_user))
 
     msg_result = await db.execute(
         select(MLChatbotMensaje)
@@ -692,7 +693,7 @@ async def close_chatbot_session(
     sesion = result.scalars().first()
     if not sesion:
         raise HTTPException(status_code=404, detail="Sesión de chatbot no encontrada.")
-    await _get_company_for_user(db, sesion.company_id, current_user.id)
+    await _get_company_for_user(db, sesion.company_id, effective_owner_id(current_user))
 
     sesion.estado = ChatbotEstado.CERRADA.value
     await db.flush()
@@ -724,7 +725,7 @@ async def generate_recommendations(
 ):
     """Generar recomendaciones ML para una empresa"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     try:
         recomendaciones = await generar_recomendaciones(
@@ -773,11 +774,11 @@ async def list_recommendations(
     query = (
         select(MLRecomendacion)
         .join(Company, MLRecomendacion.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(MLRecomendacion.company_id == company_id)
     if tipo:
         query = query.where(MLRecomendacion.tipo == tipo)
@@ -807,7 +808,7 @@ async def update_recommendation(
     rec = result.scalars().first()
     if not rec:
         raise HTTPException(status_code=404, detail="Recomendación no encontrada.")
-    await _get_company_for_user(db, rec.company_id, current_user.id)
+    await _get_company_for_user(db, rec.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -850,7 +851,7 @@ async def delete_recommendation(
     rec = result.scalars().first()
     if not rec:
         raise HTTPException(status_code=404, detail="Recomendación no encontrada.")
-    await _get_company_for_user(db, rec.company_id, current_user.id)
+    await _get_company_for_user(db, rec.company_id, effective_owner_id(current_user))
 
     await db.delete(rec)
     await db.flush()
@@ -884,7 +885,7 @@ async def list_category_rules(
 ):
     """Listar reglas de categorización"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     query = select(MLCategoriaRegla).where(
         MLCategoriaRegla.company_id == company_id,
@@ -910,7 +911,7 @@ async def create_category_rule(
     """Crear una regla de categorización"""
     data.company_id = validate_uuid(data.company_id, "company_id")
     try:
-        await _get_company_for_user(db, data.company_id, current_user.id)
+        await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
     except HTTPException:
         raise
 
@@ -974,7 +975,7 @@ async def update_category_rule(
     regla = result.scalars().first()
     if not regla:
         raise HTTPException(status_code=404, detail="Regla de categorización no encontrada.")
-    await _get_company_for_user(db, regla.company_id, current_user.id)
+    await _get_company_for_user(db, regla.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -1028,7 +1029,7 @@ async def delete_category_rule(
     regla = result.scalars().first()
     if not regla:
         raise HTTPException(status_code=404, detail="Regla de categorización no encontrada.")
-    await _get_company_for_user(db, regla.company_id, current_user.id)
+    await _get_company_for_user(db, regla.company_id, effective_owner_id(current_user))
 
     await db.delete(regla)
     await db.flush()
@@ -1054,7 +1055,7 @@ async def categorize_description(
     db: AsyncSession = Depends(get_db),
 ):
     """Categorizar una descripción usando las reglas configuradas"""
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     result = await categorizar(
         db=db,

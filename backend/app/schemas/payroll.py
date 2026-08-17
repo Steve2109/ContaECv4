@@ -171,7 +171,7 @@ class RolPagoFullResponse(RolPagoResponse):
 
 class DecimoResponse(BaseModel):
     """Esquema de respuesta para cálculo de décimos"""
-    employee_id: str = Field(..., description="ID del empleado")
+    employee_id: UUID = Field(..., description="ID del empleado")
     cedula: str = Field(..., description="Cédula del empleado")
     nombre_completo: str = Field(..., description="Nombre completo")
     sueldo_mensual: Decimal = Field(..., description="Sueldo mensual")
@@ -181,7 +181,7 @@ class DecimoResponse(BaseModel):
 
 class VacacionesBalanceResponse(BaseModel):
     """Esquema de respuesta para balance de vacaciones"""
-    employee_id: str = Field(..., description="ID del empleado")
+    employee_id: UUID = Field(..., description="ID del empleado")
     cedula: str = Field(..., description="Cédula")
     nombre_completo: str = Field(..., description="Nombre completo")
     fecha_ingreso: datetime = Field(..., description="Fecha de ingreso")
@@ -193,7 +193,7 @@ class VacacionesBalanceResponse(BaseModel):
 
 class FondosReservaResponse(BaseModel):
     """Esquema de respuesta para fondo de reserva"""
-    employee_id: str = Field(..., description="ID del empleado")
+    employee_id: UUID = Field(..., description="ID del empleado")
     cedula: str = Field(..., description="Cédula")
     nombre_completo: str = Field(..., description="Nombre completo")
     fecha_ingreso: datetime = Field(..., description="Fecha de ingreso")
@@ -204,7 +204,7 @@ class FondosReservaResponse(BaseModel):
 
 class IESSReportResponse(BaseModel):
     """Esquema de respuesta para reporte IESS"""
-    company_id: str = Field(..., description="ID de la empresa")
+    company_id: UUID = Field(..., description="ID de la empresa")
     periodo_mes: int = Field(..., description="Mes del período")
     periodo_anio: int = Field(..., description="Año del período")
     total_empleados: int = Field(..., description="Total de empleados afiliados")
@@ -219,7 +219,7 @@ class IESSReportResponse(BaseModel):
 
 class RDEPReportResponse(BaseModel):
     """Esquema de respuesta para reporte RDEP"""
-    company_id: str = Field(..., description="ID de la empresa")
+    company_id: UUID = Field(..., description="ID de la empresa")
     periodo_mes: int = Field(..., description="Mes del período")
     periodo_anio: int = Field(..., description="Año del período")
     total_empleados: int = Field(..., description="Total de empleados")

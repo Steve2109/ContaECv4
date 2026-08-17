@@ -97,6 +97,24 @@ class User(Base):
         nullable=False,
         comment="Indica si el usuario es administrador",
     )
+    # Sub-cuentas: cuentas creadas por otro usuario (owner) con acceso limitado
+    parent_user_id: Mapped[str | None] = mapped_column(
+        PG_UUID(),
+        nullable=True,
+        index=True,
+        comment="ID del usuario que creó esta sub-cuenta (None si es cuenta principal)",
+    )
+    is_subaccount: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Indica si esta cuenta es una sub-cuenta con acceso limitado",
+    )
+    allowed_modules: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="JSON con los módulos permitidos para la sub-cuenta (ej: [\"facturacion\", \"clientes\"])",
+    )
     phone: Mapped[str | None] = mapped_column(
         String(20),
         nullable=True,

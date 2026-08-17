@@ -12,8 +12,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.hr_constants import (
     CENACES_RATE,
@@ -221,7 +223,7 @@ async def generate_payroll(
     """
     data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar que no exista un rol activo para el mismo período
     existing = await db.execute(
@@ -291,6 +293,15 @@ async def generate_payroll(
 
     await db.flush()
 
+    # Re-fetch con detalles cargados de forma eager (evita MissingGreenlet
+    # por lazy-load de la relación `detalles` en sesión async).
+    result = await db.execute(
+        select(RolPago)
+        .options(selectinload(RolPago.detalles))
+        .where(RolPago.id == rol_pago.id)
+    )
+    rol_pago = result.scalars().first()
+
     logger.info(
         f"Rol de pago generado: empresa={data.company_id}, "
         f"período={data.periodo_mes}/{data.periodo_anio}, "
@@ -319,11 +330,11 @@ async def list_payroll(
     query = (
         select(RolPago)
         .join(Company, RolPago.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(RolPago.company_id == company_id)
 
     if estado:
@@ -349,14 +360,15 @@ async def get_payroll(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Obtener un rol de pago con todos sus detalles"""
     rol_id = validate_uuid(rol_id, "rol_id")
+    """Obtener un rol de pago con todos sus detalles"""
     result = await db.execute(
         select(RolPago)
+        .options(selectinload(RolPago.detalles))
         .join(Company, RolPago.company_id == Company.id)
         .where(
             RolPago.id == rol_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     rol = result.scalars().first()
@@ -386,7 +398,7 @@ async def approve_payroll(
         .join(Company, RolPago.company_id == Company.id)
         .where(
             RolPago.id == rol_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     rol = result.scalars().first()
@@ -429,7 +441,7 @@ async def pay_payroll(
         .join(Company, RolPago.company_id == Company.id)
         .where(
             RolPago.id == rol_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     rol = result.scalars().first()
@@ -485,7 +497,7 @@ async def get_employee_payroll_history(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -530,7 +542,7 @@ async def calculate_decimo_tercero(
     """
     data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     query = select(Employee).where(
         Employee.company_id == data.company_id,
@@ -588,7 +600,7 @@ async def calculate_decimo_cuarto(
     """
     data.employee_id = clean_uuid_param(data.employee_id, "employee_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     query = select(Employee).where(
         Employee.company_id == data.company_id,
@@ -650,7 +662,7 @@ async def calculate_vacation_balance(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -701,7 +713,7 @@ async def calculate_fondos_reserva(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -744,19 +756,18 @@ async def generate_iess_report(
     desglosados por empleado.
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
-    # Buscar el rol de pago del período
+    # Calcular aportes directamente desde los empleados activos de la empresa
+    # (no depende de que exista un rol de pago generado para el período).
     result = await db.execute(
-        select(RolPago).where(
-            RolPago.company_id == company_id,
-            RolPago.periodo_mes == periodo_mes,
-            RolPago.periodo_anio == periodo_anio,
-            RolPago.estado != EstadoRol.ANULADO,
-            RolPago.is_active == True,
+        select(Employee).where(
+            Employee.company_id == company_id,
+            Employee.estado == EstadoEmpleado.ACTIVO,
+            Employee.is_active == True,
         )
     )
-    rol = result.scalars().first()
+    employees = result.scalars().all()
 
     total_aporte_personal = Decimal("0.00")
     total_aporte_patronal = Decimal("0.00")
@@ -765,30 +776,33 @@ async def generate_iess_report(
     total_cenaces = Decimal("0.00")
     detalle = []
 
-    if rol:
-        for d in rol.detalles:
-            emp_result = await db.execute(
-                select(Employee).where(Employee.id == d.employee_id)
-            )
-            emp = emp_result.scalars().first()
+    for emp in employees:
+        base = emp.sueldo_mensual
+        if not emp.iess_afiliado:
+            continue
+        aporte_personal = (base * IESS_PERSONAL_RATE / Decimal("100")).quantize(Decimal("0.01"))
+        aporte_patronal = (base * IESS_PATRONAL_RATE / Decimal("100")).quantize(Decimal("0.01"))
+        iee_riesgos = (base * IESS_RIESGOS_RATE / Decimal("100")).quantize(Decimal("0.01"))
+        secap = (base * SECAP_RATE / Decimal("100")).quantize(Decimal("0.01"))
+        cenaces = (base * CENACES_RATE / Decimal("100")).quantize(Decimal("0.01"))
 
-            total_aporte_personal += d.iess_personal_945
-            total_aporte_patronal += d.iess_patronal_1115
-            total_iee += d.iee_0005
-            total_secap += d.secap_002
-            total_cenaces += d.cenaces_001
+        total_aporte_personal += aporte_personal
+        total_aporte_patronal += aporte_patronal
+        total_iee += iee_riesgos
+        total_secap += secap
+        total_cenaces += cenaces
 
-            detalle.append({
-                "employee_id": d.employee_id,
-                "cedula": emp.cedula if emp else "",
-                "nombre_completo": emp.nombre_completo if emp else "",
-                "base_imponible": float(d.total_ingresos),
-                "aporte_personal": float(d.iess_personal_945),
-                "aporte_patronal": float(d.iess_patronal_1115),
-                "iee_riesgos": float(d.iee_0005),
-                "secap": float(d.secap_002),
-                "cenaces": float(d.cenaces_001),
-            })
+        detalle.append({
+            "employee_id": str(emp.id),
+            "cedula": emp.cedula,
+            "nombre_completo": emp.nombre_completo,
+            "base_imponible": float(base),
+            "aporte_personal": float(aporte_personal),
+            "aporte_patronal": float(aporte_patronal),
+            "iee_riesgos": float(iee_riesgos),
+            "secap": float(secap),
+            "cenaces": float(cenaces),
+        })
 
     total_general = total_aporte_personal + total_aporte_patronal + total_iee + total_secap + total_cenaces
 
@@ -826,7 +840,7 @@ async def generate_rdep_report(
     desglosados por empleado.
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     result = await db.execute(
         select(RolPago).where(
@@ -900,7 +914,7 @@ async def export_payroll_excel(
     incluyendo ingresos, descuentos, aportes y líquido por empleado.
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     result = await db.execute(
         select(RolPago).where(
@@ -1046,7 +1060,7 @@ async def create_carga_familiar(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == data.employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -1064,6 +1078,8 @@ async def create_carga_familiar(
         fecha_nacimiento=data.fecha_nacimiento,
         identificacion=data.identificacion,
         discapacidad=data.discapacidad,
+        porcentaje_discapacidad=data.porcentaje_discapacidad,
+        tipo_discapacidad=data.tipo_discapacidad,
         es_estudiante=data.es_estudiante,
     )
     db.add(carga)
@@ -1088,7 +1104,7 @@ async def list_cargas_familiares(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -1123,7 +1139,7 @@ async def delete_carga_familiar(
         .join(Company, Employee.company_id == Company.id)
         .where(
             CargaFamiliar.id == carga_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     carga = result.scalars().first()
@@ -1163,7 +1179,7 @@ async def create_evaluacion(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == data.employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -1214,7 +1230,7 @@ async def list_evaluaciones(
         select(EvaluacionDesempeno)
         .join(Employee, EvaluacionDesempeno.employee_id == Employee.id)
         .join(Company, Employee.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if employee_id:
@@ -1249,7 +1265,7 @@ async def update_evaluacion(
         .join(Company, Employee.company_id == Company.id)
         .where(
             EvaluacionDesempeno.id == evaluacion_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     evaluacion = result.scalars().first()
@@ -1293,7 +1309,7 @@ async def create_asistencia(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == data.employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -1303,11 +1319,25 @@ async def create_asistencia(
             detail="Empleado no encontrado.",
         )
 
+    # Combinar fecha + hora (el frontend envía hora como "HH:MM")
+    def _combine_fecha_hora(fecha: datetime, hora: str | None) -> datetime | None:
+        if not hora:
+            return None
+        try:
+            h, m = hora.strip().split(":")[:2]
+            return fecha.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
+        except (ValueError, TypeError):
+            return None
+
+    fecha = data.fecha
+    if fecha.tzinfo is None:
+        fecha = fecha.replace(tzinfo=timezone.utc)
+
     asistencia = Asistencia(
         employee_id=data.employee_id,
-        fecha=data.fecha,
-        hora_entrada=data.hora_entrada,
-        hora_salida=data.hora_salida,
+        fecha=fecha,
+        hora_entrada=_combine_fecha_hora(fecha, data.hora_entrada),
+        hora_salida=_combine_fecha_hora(fecha, data.hora_salida),
         horas_trabajadas=data.horas_trabajadas,
         horas_extras=data.horas_extras,
         tipo=data.tipo,
@@ -1325,6 +1355,7 @@ async def create_asistencia(
 
 @router.get("/asistencia", response_model=list[AsistenciaResponse])
 async def list_asistencia(
+    company_id: str | None = None,
     employee_id: str | None = None,
     fecha_desde: datetime | None = None,
     fecha_hasta: datetime | None = None,
@@ -1336,16 +1367,20 @@ async def list_asistencia(
     """
     Listar registros de asistencia.
 
-    Filtrado opcional por empleado y rango de fechas.
+    Filtrado opcional por empresa, empleado y rango de fechas.
     """
+    company_id = clean_company_id(company_id)
     employee_id = clean_uuid_param(employee_id, "employee_id")
     query = (
         select(Asistencia)
         .join(Employee, Asistencia.employee_id == Employee.id)
         .join(Company, Employee.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
+    if company_id:
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
+        query = query.where(Employee.company_id == company_id)
     if employee_id:
         query = query.where(Asistencia.employee_id == employee_id)
     if fecha_desde:
@@ -1382,7 +1417,7 @@ async def get_asistencia_resumen(
         select(Asistencia)
         .join(Employee, Asistencia.employee_id == Employee.id)
         .join(Company, Employee.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if employee_id:
@@ -1467,7 +1502,7 @@ async def import_asistencia(
         .join(Company, Employee.company_id == Company.id)
         .where(
             Employee.id == employee_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -1527,7 +1562,7 @@ async def calculate_liquidacion(
         .where(
             Employee.id == data.employee_id,
             Employee.company_id == data.company_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     employee = result.scalars().first()
@@ -1657,11 +1692,11 @@ async def list_liquidaciones(
     query = (
         select(LiquidacionLaboral)
         .join(Company, LiquidacionLaboral.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(LiquidacionLaboral.company_id == company_id)
 
     if employee_id:
@@ -1694,7 +1729,7 @@ async def approve_liquidacion(
         .join(Company, LiquidacionLaboral.company_id == Company.id)
         .where(
             LiquidacionLaboral.id == liquidacion_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     liquidacion = result.scalars().first()
@@ -1737,7 +1772,7 @@ async def pay_liquidacion(
         .join(Company, LiquidacionLaboral.company_id == Company.id)
         .where(
             LiquidacionLaboral.id == liquidacion_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     liquidacion = result.scalars().first()
@@ -1789,7 +1824,7 @@ async def calculate_utilidades(
     Se calcula en base a días trabajados y sueldo acumulado.
     """
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar que no exista ya una distribución para el año
     existing = await db.execute(
@@ -1914,11 +1949,11 @@ async def list_utilidades(
     query = (
         select(UtilidadesParticipacion)
         .join(Company, UtilidadesParticipacion.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(UtilidadesParticipacion.company_id == company_id)
 
     if anio:
@@ -1951,7 +1986,7 @@ async def approve_utilidades(
         .join(Company, UtilidadesParticipacion.company_id == Company.id)
         .where(
             UtilidadesParticipacion.id == utilidad_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     utilidad = result.scalars().first()
@@ -1988,7 +2023,7 @@ async def get_utilidades_detalle(
         .join(Company, UtilidadesParticipacion.company_id == Company.id)
         .where(
             UtilidadesParticipacion.id == utilidad_id,
-            Company.user_id == current_user.id,
+            Company.user_id == effective_owner_id(current_user),
         )
     )
     utilidad = result.scalars().first()
@@ -2090,7 +2125,7 @@ async def export_bank_payment(
     importado directamente por el banco.
     """
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Parsear período
     try:
@@ -2214,7 +2249,7 @@ async def export_rol_pago_pdf(
         SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak,
     )
 
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Obtener roles de pago
     result = await db.execute(
@@ -2357,7 +2392,7 @@ async def export_iess_batch_pdf(
         SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
     )
 
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     result = await db.execute(
         select(RolPago).where(
@@ -2471,7 +2506,7 @@ async def export_rdep_pdf(
         SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak,
     )
 
-    company = await _get_company_for_user(db, company_id, current_user.id)
+    company = await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     result = await db.execute(
         select(RolPago).where(

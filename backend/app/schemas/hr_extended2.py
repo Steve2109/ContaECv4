@@ -19,16 +19,27 @@ class CargaFamiliarCreate(BaseModel):
     employee_id: str = Field(..., description="ID del empleado")
     nombres: str = Field(..., min_length=1, max_length=200, description="Nombres de la carga familiar")
     apellidos: str = Field(..., min_length=1, max_length=200, description="Apellidos de la carga familiar")
-    parentesco: str = Field(..., description="Parentesco: hijo, conyuge, otro")
+    parentesco: str = Field(..., description="Parentesco: hijo, conyuge, padre, madre, hermano, otro")
     fecha_nacimiento: datetime | None = Field(None, description="Fecha de nacimiento")
     identificacion: str | None = Field(None, max_length=20, description="Número de identificación")
     discapacidad: bool = Field(default=False, description="Tiene discapacidad")
+    porcentaje_discapacidad: int | None = Field(
+        None,
+        ge=0,
+        le=100,
+        description="Porcentaje de discapacidad (0-100)",
+    )
+    tipo_discapacidad: str | None = Field(
+        None,
+        max_length=50,
+        description="Tipo de discapacidad: auditiva, visual, mental, fisica, etc.",
+    )
     es_estudiante: bool = Field(default=False, description="Es estudiante")
 
     @field_validator("parentesco")
     @classmethod
     def validate_parentesco(cls, v: str) -> str:
-        validos = ["hijo", "conyuge", "otro"]
+        validos = ["hijo", "conyuge", "padre", "madre", "hermano", "otro"]
         if v not in validos:
             raise ValueError(f"Parentesco inválido. Válidos: {', '.join(validos)}")
         return v
@@ -64,6 +75,8 @@ class CargaFamiliarResponse(BaseModel):
     fecha_nacimiento: datetime | None = Field(None, description="Fecha de nacimiento")
     identificacion: str | None = Field(None, description="Identificación")
     discapacidad: bool = Field(..., description="Tiene discapacidad")
+    porcentaje_discapacidad: int | None = Field(None, description="Porcentaje de discapacidad")
+    tipo_discapacidad: str | None = Field(None, description="Tipo de discapacidad")
     es_estudiante: bool = Field(..., description="Es estudiante")
     is_active: bool = Field(..., description="Activo en el sistema")
     created_at: datetime = Field(..., description="Fecha de creación")
@@ -151,8 +164,9 @@ class AsistenciaCreate(BaseModel):
     """Esquema para registrar asistencia"""
     employee_id: str = Field(..., description="ID del empleado")
     fecha: datetime = Field(..., description="Fecha de la asistencia")
-    hora_entrada: datetime | None = Field(None, description="Hora de entrada")
-    hora_salida: datetime | None = Field(None, description="Hora de salida")
+    hora_entrada: str | None = Field(None, description="Hora de entrada (HH:MM)")
+    hora_salida: str | None = Field(None, description="Hora de salida (HH:MM)")
+    company_id: str | None = Field(None, description="ID de la empresa (opcional, para contexto)")
     horas_trabajadas: Decimal = Field(default=Decimal("0.00"), decimal_places=2, description="Horas trabajadas")
     horas_extras: Decimal = Field(default=Decimal("0.00"), decimal_places=2, description="Horas extras")
     tipo: str = Field(default="normal", description="Tipo: normal, descanso, festivo, vacacion, permiso, enfermedad")
@@ -203,7 +217,7 @@ class AsistenciaResponse(BaseModel):
 
 class AsistenciaResumenResponse(BaseModel):
     """Esquema de respuesta para resumen mensual de asistencia"""
-    employee_id: str = Field(..., description="ID del empleado")
+    employee_id: UUID = Field(..., description="ID del empleado")
     anio: int = Field(..., description="Año")
     mes: int = Field(..., description="Mes")
     dias_trabajados: int = Field(..., description="Días trabajados")

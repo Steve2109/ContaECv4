@@ -11,6 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -93,7 +94,7 @@ async def create_orden_compra(
     """Crear una nueva orden de compra"""
     data.supplier_id = clean_uuid_param(data.supplier_id, "supplier_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar proveedor
     supplier_result = await db.execute(
@@ -180,11 +181,11 @@ async def list_ordenes_compra(
     query = (
         select(OrdenCompra)
         .join(Company, OrdenCompra.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(OrdenCompra.company_id == company_id)
     if supplier_id:
         query = query.where(OrdenCompra.supplier_id == supplier_id)
@@ -214,7 +215,7 @@ async def get_orden_compra(
     orden = result.scalars().first()
     if not orden:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden de compra no encontrada.")
-    await _get_company_for_user(db, orden.company_id, current_user.id)
+    await _get_company_for_user(db, orden.company_id, effective_owner_id(current_user))
     return OrdenCompraResponse.model_validate(orden)
 
 
@@ -234,7 +235,7 @@ async def update_orden_compra(
     orden = result.scalars().first()
     if not orden:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden de compra no encontrada.")
-    await _get_company_for_user(db, orden.company_id, current_user.id)
+    await _get_company_for_user(db, orden.company_id, effective_owner_id(current_user))
 
     if orden.estado != "borrador":
         raise HTTPException(
@@ -273,7 +274,7 @@ async def delete_orden_compra(
     orden = result.scalars().first()
     if not orden:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden de compra no encontrada.")
-    await _get_company_for_user(db, orden.company_id, current_user.id)
+    await _get_company_for_user(db, orden.company_id, effective_owner_id(current_user))
 
     orden.is_active = False
     orden.estado = "anulada"
@@ -304,7 +305,7 @@ async def create_recepcion_mercaderia(
     data.supplier_id = clean_uuid_param(data.supplier_id, "supplier_id")
     data.orden_compra_id = clean_uuid_param(data.orden_compra_id, "orden_compra_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar proveedor
     supplier_result = await db.execute(
@@ -393,11 +394,11 @@ async def list_recepciones(
     query = (
         select(RecepcionMercaderia)
         .join(Company, RecepcionMercaderia.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(RecepcionMercaderia.company_id == company_id)
     if supplier_id:
         query = query.where(RecepcionMercaderia.supplier_id == supplier_id)
@@ -427,7 +428,7 @@ async def get_recepcion(
     recepcion = result.scalars().first()
     if not recepcion:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recepción no encontrada.")
-    await _get_company_for_user(db, recepcion.company_id, current_user.id)
+    await _get_company_for_user(db, recepcion.company_id, effective_owner_id(current_user))
     return RecepcionMercaderiaResponse.model_validate(recepcion)
 
 
@@ -447,7 +448,7 @@ async def update_recepcion(
     recepcion = result.scalars().first()
     if not recepcion:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recepción no encontrada.")
-    await _get_company_for_user(db, recepcion.company_id, current_user.id)
+    await _get_company_for_user(db, recepcion.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -480,7 +481,7 @@ async def delete_recepcion(
     recepcion = result.scalars().first()
     if not recepcion:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recepción no encontrada.")
-    await _get_company_for_user(db, recepcion.company_id, current_user.id)
+    await _get_company_for_user(db, recepcion.company_id, effective_owner_id(current_user))
 
     recepcion.is_active = False
     await db.flush()
@@ -511,7 +512,7 @@ async def create_cuenta_por_pagar(
     data.comprobante_id = clean_uuid_param(data.comprobante_id, "comprobante_id")
     data.orden_compra_id = clean_uuid_param(data.orden_compra_id, "orden_compra_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar proveedor
     supplier_result = await db.execute(
@@ -571,11 +572,11 @@ async def list_cuentas_por_pagar(
     query = (
         select(CuentaPorPagar)
         .join(Company, CuentaPorPagar.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CuentaPorPagar.company_id == company_id)
     if supplier_id:
         query = query.where(CuentaPorPagar.supplier_id == supplier_id)
@@ -605,7 +606,7 @@ async def get_cuenta_por_pagar(
     cuenta = result.scalars().first()
     if not cuenta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cuenta por pagar no encontrada.")
-    await _get_company_for_user(db, cuenta.company_id, current_user.id)
+    await _get_company_for_user(db, cuenta.company_id, effective_owner_id(current_user))
     return CuentaPorPagarResponse.model_validate(cuenta)
 
 
@@ -625,7 +626,7 @@ async def update_cuenta_por_pagar(
     cuenta = result.scalars().first()
     if not cuenta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cuenta por pagar no encontrada.")
-    await _get_company_for_user(db, cuenta.company_id, current_user.id)
+    await _get_company_for_user(db, cuenta.company_id, effective_owner_id(current_user))
 
     # Si se registra un pago
     if data.monto_pagado is not None and data.monto_pagado > 0:
@@ -673,7 +674,7 @@ async def delete_cuenta_por_pagar(
     cuenta = result.scalars().first()
     if not cuenta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cuenta por pagar no encontrada.")
-    await _get_company_for_user(db, cuenta.company_id, current_user.id)
+    await _get_company_for_user(db, cuenta.company_id, effective_owner_id(current_user))
 
     cuenta.is_active = False
     cuenta.estado = "anulada"
@@ -704,7 +705,7 @@ async def create_retencion_compra(
     data.supplier_id = clean_uuid_param(data.supplier_id, "supplier_id")
     data.cuenta_por_pagar_id = clean_uuid_param(data.cuenta_por_pagar_id, "cuenta_por_pagar_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Verificar proveedor
     supplier_result = await db.execute(
@@ -779,11 +780,11 @@ async def list_retenciones(
     query = (
         select(RetencionCompra)
         .join(Company, RetencionCompra.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(RetencionCompra.company_id == company_id)
     if supplier_id:
         query = query.where(RetencionCompra.supplier_id == supplier_id)
@@ -813,7 +814,7 @@ async def get_retencion(
     retencion = result.scalars().first()
     if not retencion:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Retención no encontrada.")
-    await _get_company_for_user(db, retencion.company_id, current_user.id)
+    await _get_company_for_user(db, retencion.company_id, effective_owner_id(current_user))
     return RetencionCompraResponse.model_validate(retencion)
 
 
@@ -833,7 +834,7 @@ async def update_retencion(
     retencion = result.scalars().first()
     if not retencion:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Retención no encontrada.")
-    await _get_company_for_user(db, retencion.company_id, current_user.id)
+    await _get_company_for_user(db, retencion.company_id, effective_owner_id(current_user))
 
     if retencion.estado != "borrador":
         raise HTTPException(
@@ -872,7 +873,7 @@ async def delete_retencion(
     retencion = result.scalars().first()
     if not retencion:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Retención no encontrada.")
-    await _get_company_for_user(db, retencion.company_id, current_user.id)
+    await _get_company_for_user(db, retencion.company_id, effective_owner_id(current_user))
 
     retencion.is_active = False
     await db.flush()

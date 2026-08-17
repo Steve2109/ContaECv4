@@ -670,6 +670,12 @@ async def send_temporary_password_email(
             texto_intro = (
                 "El administrador de ContaEC ha restablecido la contraseña de tu cuenta."
             )
+        elif motivo == "subcuenta":
+            titulo = "👤 Tu cuenta en ContaEC ha sido creada"
+            texto_intro = (
+                "Se creó una cuenta de trabajo para ti en ContaEC con acceso limitado "
+                "a los módulos que tu empleador autorizó."
+            )
         else:
             titulo = "🔑 Recuperación de contraseña"
             texto_intro = (

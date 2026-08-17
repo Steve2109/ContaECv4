@@ -2,6 +2,7 @@
 ContaEC - Esquemas de autenticación
 Pydantic schemas para login, registro, tokens y actualización de usuario
 """
+import json
 from uuid import UUID
 import re
 from datetime import datetime
@@ -180,7 +181,36 @@ class UserResponse(BaseModel):
         False,
         description="Indica si el usuario debe cambiar su contraseña en el próximo inicio de sesión",
     )
+    is_subaccount: bool = Field(
+        False,
+        description="Indica si la cuenta es una sub-cuenta con acceso limitado",
+    )
+    parent_user_id: UUID | None = Field(
+        None,
+        description="ID del usuario que creó la sub-cuenta",
+    )
+    allowed_modules: list[str] = Field(
+        default_factory=list,
+        description="Módulos permitidos de la sub-cuenta (vacío = todos)",
+    )
     phone: str | None = Field(None, description="Número de teléfono")
+
+    @field_validator("allowed_modules", mode="before")
+    @classmethod
+    def parse_allowed_modules(cls, v):
+        """Convierte el JSON string almacenado en BD a lista"""
+        if v is None or v == "":
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                return parsed if isinstance(parsed, list) else []
+            except (json.JSONDecodeError, TypeError):
+                # Fallback: lista separada por comas
+                return [m.strip() for m in v.split(",") if m.strip()]
+        return []
     language: str = Field("es_EC", description="Idioma preferido")
     theme: str = Field("light", description="Tema de la interfaz")
     license_type: str = Field("monthly", description="Tipo de licencia")

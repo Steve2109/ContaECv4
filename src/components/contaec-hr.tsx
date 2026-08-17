@@ -44,7 +44,6 @@ import {
   Clock,
   Calculator,
   TrendingUp,
-  Landmark,
   CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -70,14 +69,12 @@ import {
   aprobarLiquidacion,
   calcularUtilidades,
   getUtilidades,
-  calcularIR,
   type Employee,
   type RolPago,
   type CargaFamiliar,
   type AsistenciaRecord,
   type Liquidacion,
   type UtilidadRecord,
-  type IRCalculation,
   type User,
   type Company,
 } from '@/lib/api';
@@ -146,7 +143,6 @@ export function ContaECHR({ user: _user, companies }: ContaECHRProps) {
           <TabsTrigger value="asistencia" className="gap-1.5"><Clock className="h-3.5 w-3.5" /><span className="hidden sm:inline">Asistencia</span></TabsTrigger>
           <TabsTrigger value="liquidaciones" className="gap-1.5"><Calculator className="h-3.5 w-3.5" /><span className="hidden sm:inline">Liquidaciones</span></TabsTrigger>
           <TabsTrigger value="utilidades" className="gap-1.5"><TrendingUp className="h-3.5 w-3.5" /><span className="hidden sm:inline">Utilidades</span></TabsTrigger>
-          <TabsTrigger value="ir" className="gap-1.5"><Landmark className="h-3.5 w-3.5" /><span className="hidden sm:inline">IR</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="empleados"><EmpleadosTab companyId={selectedCompanyId} /></TabsContent>
@@ -157,7 +153,6 @@ export function ContaECHR({ user: _user, companies }: ContaECHRProps) {
         <TabsContent value="asistencia"><AsistenciaTab companyId={selectedCompanyId} /></TabsContent>
         <TabsContent value="liquidaciones"><LiquidacionesTab companyId={selectedCompanyId} /></TabsContent>
         <TabsContent value="utilidades"><UtilidadesTab companyId={selectedCompanyId} /></TabsContent>
-        <TabsContent value="ir"><IRTab companyId={selectedCompanyId} /></TabsContent>
       </Tabs>
     </div>
   );
@@ -651,7 +646,10 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ nombre: '', parentesco: 'hijo', fecha_nacimiento: '', genero: '', discapacidad: false });
+  const [form, setForm] = useState({
+    nombres: '', apellidos: '', parentesco: 'hijo', fecha_nacimiento: '',
+    genero: '', discapacidad: false, porcentaje_discapacidad: '', tipo_discapacidad: '',
+  });
 
   const loadEmployees = useCallback(async () => {
     if (!companyId) return;
@@ -683,20 +681,22 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
   useEffect(() => { loadCargas(); }, [loadCargas]);
 
   async function handleAdd() {
-    if (!form.nombre) { toast.error('Complete el nombre'); return; }
+    if (!form.nombres || !form.apellidos) { toast.error('Complete nombres y apellidos'); return; }
     setSaving(true);
     try {
       await createCargaFamiliar({
         employee_id: selectedEmployee,
-        nombre: form.nombre,
+        nombres: form.nombres,
+        apellidos: form.apellidos,
         parentesco: form.parentesco,
         fecha_nacimiento: form.fecha_nacimiento || undefined,
-        genero: form.genero || undefined,
         discapacidad: form.discapacidad,
+        porcentaje_discapacidad: form.discapacidad && form.porcentaje_discapacidad ? Number(form.porcentaje_discapacidad) : undefined,
+        tipo_discapacidad: form.discapacidad && form.tipo_discapacidad ? form.tipo_discapacidad : undefined,
       });
       toast.success('Carga familiar agregada');
       setShowAdd(false);
-      setForm({ nombre: '', parentesco: 'hijo', fecha_nacimiento: '', genero: '', discapacidad: false });
+      setForm({ nombres: '', apellidos: '', parentesco: 'hijo', fecha_nacimiento: '', genero: '', discapacidad: false, porcentaje_discapacidad: '', tipo_discapacidad: '' });
       loadCargas();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al agregar');
@@ -719,9 +719,23 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
   const PARENTESCOS = [
     { key: 'hijo', label: 'Hijo/a' },
     { key: 'conyuge', label: 'Cónyuge' },
-    { key: 'padre', label: 'Padre/Madre' },
+    { key: 'padre', label: 'Padre' },
+    { key: 'madre', label: 'Madre' },
     { key: 'hermano', label: 'Hermano/a' },
     { key: 'otro', label: 'Otro' },
+  ];
+
+  const TIPOS_DISCAPACIDAD = [
+    { key: 'fisica', label: 'Física' },
+    { key: 'auditiva', label: 'Auditiva' },
+    { key: 'visual', label: 'Visual' },
+    { key: 'intelectual', label: 'Intelectual' },
+    { key: 'mental', label: 'Mental / Psicosocial' },
+    { key: 'paraplejica', label: 'Paraplejía' },
+    { key: 'motora', label: 'Motora' },
+    { key: 'lenguaje', label: 'Lenguaje' },
+    { key: 'multiple', label: 'Múltiple' },
+    { key: 'otra', label: 'Otra' },
   ];
 
   if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -750,7 +764,7 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Parentesco</TableHead>
                     <TableHead>Fecha Nacimiento</TableHead>
-                    <TableHead>Género</TableHead>
+                    <TableHead>Tipo Discapacidad</TableHead>
                     <TableHead>Discapacidad</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -758,11 +772,11 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
                 <TableBody>
                   {cargas.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.nombre}</TableCell>
+                      <TableCell className="font-medium">{c.apellidos} {c.nombres}</TableCell>
                       <TableCell><Badge variant="outline">{PARENTESCOS.find((p) => p.key === c.parentesco)?.label || c.parentesco}</Badge></TableCell>
-                      <TableCell className="text-sm">{c.fecha_nacimiento || '-'}</TableCell>
-                      <TableCell className="text-sm">{c.genero === 'M' ? 'Masculino' : c.genero === 'F' ? 'Femenino' : '-'}</TableCell>
-                      <TableCell>{c.discapacidad ? <Badge className="bg-amber-500 text-white text-xs">Sí</Badge> : <Badge variant="secondary" className="text-xs">No</Badge>}</TableCell>
+                      <TableCell className="text-sm">{c.fecha_nacimiento ? String(c.fecha_nacimiento).slice(0, 10) : '-'}</TableCell>
+                      <TableCell className="text-sm">{c.tipo_discapacidad ? TIPOS_DISCAPACIDAD.find((t) => t.key === c.tipo_discapacidad)?.label || c.tipo_discapacidad : '-'}</TableCell>
+                      <TableCell>{c.discapacidad ? <Badge className="bg-amber-500 text-white text-xs">{c.porcentaje_discapacidad ? `${c.porcentaje_discapacidad}%` : 'Sí'}</Badge> : <Badge variant="secondary" className="text-xs">No</Badge>}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(c.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -792,15 +806,24 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
             <DialogDescription>Registre una carga familiar para el empleado</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2"><Label>Nombre *</Label><Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Nombre completo" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Parentesco</Label><Select value={form.parentesco} onValueChange={(v) => setForm({ ...form, parentesco: v })}><SelectTrigger /><SelectContent>{PARENTESCOS.map((p) => (<SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>))}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Nombres *</Label><Input value={form.nombres} onChange={(e) => setForm({ ...form, nombres: e.target.value })} placeholder="Nombres" /></div>
+              <div className="space-y-2"><Label>Apellidos *</Label><Input value={form.apellidos} onChange={(e) => setForm({ ...form, apellidos: e.target.value })} placeholder="Apellidos" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Parentesco</Label><Select value={form.parentesco} onValueChange={(v) => setForm({ ...form, parentesco: v })}><SelectTrigger><SelectValue placeholder="Seleccione parentesco" /></SelectTrigger><SelectContent>{PARENTESCOS.map((p) => (<SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>))}</SelectContent></Select></div>
               <div className="space-y-2"><Label>Género</Label><Select value={form.genero} onValueChange={(v) => setForm({ ...form, genero: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent><SelectItem value="M">Masculino</SelectItem><SelectItem value="F">Femenino</SelectItem></SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Fecha Nacimiento</Label><Input type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} /></div>
               <div className="space-y-2 flex items-end"><label className="flex items-center gap-2"><input type="checkbox" checked={form.discapacidad} onChange={(e) => setForm({ ...form, discapacidad: e.target.checked })} className="rounded" /><Label>Discapacidad</Label></label></div>
             </div>
+            {form.discapacidad && (
+              <div className="grid grid-cols-2 gap-4 rounded-md border p-3 bg-muted/30">
+                <div className="space-y-2"><Label>% de Discapacidad</Label><Input type="number" min="0" max="100" value={form.porcentaje_discapacidad} onChange={(e) => setForm({ ...form, porcentaje_discapacidad: e.target.value })} placeholder="0-100" /></div>
+                <div className="space-y-2"><Label>Tipo de Discapacidad</Label><Select value={form.tipo_discapacidad} onValueChange={(v) => setForm({ ...form, tipo_discapacidad: v })}><SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger><SelectContent>{TIPOS_DISCAPACIDAD.map((t) => (<SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>))}</SelectContent></Select></div>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowAdd(false)}>Cancelar</Button>
               <Button onClick={handleAdd} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Agregar</Button>
@@ -936,7 +959,7 @@ function AsistenciaTab({ companyId }: { companyId: string }) {
             <div className="space-y-2"><Label>Empleado *</Label><Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}><SelectTrigger><SelectValue placeholder="Seleccionar empleado" /></SelectTrigger><SelectContent>{employees.map((e) => (<SelectItem key={e.id} value={e.id}>{e.apellidos} {e.nombres}</SelectItem>))}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Fecha *</Label><Input type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Tipo</Label><Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger /><SelectContent>{TIPOS_ASISTENCIA.map((t) => (<SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>))}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Tipo</Label><Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger><SelectContent>{TIPOS_ASISTENCIA.map((t) => (<SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>))}</SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Hora Entrada</Label><Input type="time" value={form.hora_entrada} onChange={(e) => setForm({ ...form, hora_entrada: e.target.value })} /></div>
@@ -963,7 +986,7 @@ function LiquidacionesTab({ companyId }: { companyId: string }) {
   const [showCalculate, setShowCalculate] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [approving, setApproving] = useState<string | null>(null);
-  const [form, setForm] = useState({ employee_ids: [] as string[], fecha_salida: '', motivo: 'renuncia' });
+  const [form, setForm] = useState({ employee_ids: [] as string[], fecha_salida: '', motivo: 'renuncia_voluntaria' });
 
   const loadData = useCallback(async () => {
     if (!companyId) return;
@@ -995,8 +1018,8 @@ function LiquidacionesTab({ companyId }: { companyId: string }) {
           await calcularLiquidacion({
             company_id: companyId,
             employee_id: empId,
-            fecha_salida: form.fecha_salida,
-            motivo: form.motivo,
+            tipo: form.motivo,
+            fecha_fin: form.fecha_salida,
           });
           successCount++;
         } catch {
@@ -1006,7 +1029,7 @@ function LiquidacionesTab({ companyId }: { companyId: string }) {
       if (successCount > 0) toast.success(`${successCount} liquidacion(es) calculadas`);
       if (errorCount > 0) toast.error(`${errorCount} liquidacion(es) con error`);
       setShowCalculate(false);
-      setForm({ employee_ids: [], fecha_salida: '', motivo: 'renuncia' });
+      setForm({ employee_ids: [], fecha_salida: '', motivo: 'renuncia_voluntaria' });
       loadData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al calcular liquidación');
@@ -1029,11 +1052,10 @@ function LiquidacionesTab({ companyId }: { companyId: string }) {
   }
 
   const MOTIVOS = [
-    { key: 'renuncia', label: 'Renuncia' },
+    { key: 'renuncia_voluntaria', label: 'Renuncia voluntaria' },
     { key: 'despido', label: 'Despido' },
-    { key: 'desahucio', label: 'Desahucio' },
-    { key: 'mutuo_acuerdo', label: 'Mutuo Acuerdo' },
-    { key: 'fin_contrato', label: 'Fin de Contrato' },
+    { key: 'finiquito', label: 'Finiquito' },
+    { key: 'liquidacion', label: 'Liquidación' },
   ];
 
   if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -1154,6 +1176,7 @@ function UtilidadesTab({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
   const [anio, setAnio] = useState(String(new Date().getFullYear()));
+  const [totalUtilidades, setTotalUtilidades] = useState('');
 
   const loadData = useCallback(async () => {
     if (!companyId) return;
@@ -1171,9 +1194,17 @@ function UtilidadesTab({ companyId }: { companyId: string }) {
   useEffect(() => { loadData(); }, [loadData]);
 
   async function handleCalculate() {
+    if (!totalUtilidades || Number(totalUtilidades) <= 0) {
+      toast.error('Ingrese el total de utilidades de la empresa');
+      return;
+    }
     setCalculating(true);
     try {
-      const data = await calcularUtilidades({ company_id: companyId, periodo_anio: Number(anio) });
+      const data = await calcularUtilidades({
+        company_id: companyId,
+        anio: Number(anio),
+        total_utilidades: Number(totalUtilidades),
+      });
       setUtilidades(data);
       toast.success('Utilidades calculadas');
     } catch (err) {
@@ -1195,6 +1226,7 @@ function UtilidadesTab({ companyId }: { companyId: string }) {
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
             <Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-28" placeholder="Año" />
+            <Input type="number" min="0" step="0.01" value={totalUtilidades} onChange={(e) => setTotalUtilidades(e.target.value)} className="w-44" placeholder="Total utilidades ($)" />
             <Button onClick={handleCalculate} disabled={calculating}>
               {calculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Calcular Utilidades
@@ -1242,138 +1274,6 @@ function UtilidadesTab({ companyId }: { companyId: string }) {
           </CardContent>
         </Card>
       )}
-    </div>
-  );
-}
-
-// ─── IR Tab (Impuesto a la Renta) ────────────────────────────
-
-function IRTab({ companyId: _companyId }: { companyId: string }) {
-  const [ingresosGravados, setIngresosGravados] = useState('');
-  const [result, setResult] = useState<IRCalculation | null>(null);
-  const [calculating, setCalculating] = useState(false);
-
-  async function handleCalculate() {
-    if (!ingresosGravados) { toast.error('Ingrese los ingresos gravados'); return; }
-    setCalculating(true);
-    try {
-      const data = await calcularIR({ ingresos_gravados: parseFloat(ingresosGravados) });
-      setResult(data);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al calcular IR');
-    } finally {
-      setCalculating(false);
-    }
-  }
-
-  // Tabla de IR Ecuador 2024 (fracción básica)
-  const TABLA_IR = [
-    { desde: 0, hasta: 11722, exencion: 0, porcentaje: 0 },
-    { desde: 11722, hasta: 14930, exencion: 0, porcentaje: 5 },
-    { desde: 14930, hasta: 19385, exencion: 160.40, porcentaje: 10 },
-    { desde: 19385, hasta: 25638, exencion: 606.45, porcentaje: 12 },
-    { desde: 25638, hasta: 33739, exencion: 1357.81, porcentaje: 15 },
-    { desde: 33739, hasta: 44737, exencion: 2573.32, porcentaje: 20 },
-    { desde: 44737, hasta: 59537, exencion: 4773.30, porcentaje: 25 },
-    { desde: 59537, hasta: 79388, exencion: 8473.30, porcentaje: 30 },
-    { desde: 79388, hasta: 105517, exencion: 14424.60, porcentaje: 35 },
-    { desde: 105517, hasta: Infinity, exencion: 23558.15, porcentaje: 37 },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Cálculo de Impuesto a la Renta</CardTitle>
-          <CardDescription>Simulador de IR progresivo según tabla vigente del SRI</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="space-y-0">
-              <Label className="sr-only">Ingresos Gravados</Label>
-              <Input type="number" value={ingresosGravados} onChange={(e) => setIngresosGravados(e.target.value)} className="w-48" placeholder="Ingresos gravados ($)" />
-            </div>
-            <Button onClick={handleCalculate} disabled={calculating}>
-              {calculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Calcular IR
-            </Button>
-          </div>
-
-          {result && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
-              <Card className="p-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold">${formatCurrency(result.ingresos_gravados)}</div>
-                  <p className="text-xs text-muted-foreground">Ingresos Gravados</p>
-                </div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold">${formatCurrency(result.base_imponible)}</div>
-                  <p className="text-xs text-muted-foreground">Base Imponible</p>
-                </div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold">${formatCurrency(result.exencion_fraccion_basica)}</div>
-                  <p className="text-xs text-muted-foreground">Exención Fracción Básica</p>
-                </div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold">${formatCurrency(result.impuesto_fraccion_excedente)}</div>
-                  <p className="text-xs text-muted-foreground">Imp. Fracción Excedente</p>
-                </div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold">${formatCurrency(result.impuesto_causado)}</div>
-                  <p className="text-xs text-muted-foreground">Impuesto Causado</p>
-                </div>
-              </Card>
-              <Card className="p-4 border-2 border-primary">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">${formatCurrency(result.total_impuesto)}</div>
-                  <p className="text-xs text-muted-foreground">Total Impuesto a Pagar</p>
-                </div>
-              </Card>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Tabla de IR Referencial */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Tabla de Impuesto a la Renta (Referencia)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <ScrollArea className="max-h-72">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fracción Básica</TableHead>
-                  <TableHead>Fracción Excedente</TableHead>
-                  <TableHead className="text-right">Imp. Fracción Básica</TableHead>
-                  <TableHead className="text-right">% Excedente</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {TABLA_IR.map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-sm">${row.desde.toLocaleString()}</TableCell>
-                    <TableCell className="text-sm">{row.hasta === Infinity ? 'En adelante' : `$${row.hasta.toLocaleString()}`}</TableCell>
-                    <TableCell className="text-right text-sm">${formatCurrency(row.exencion)}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">{row.porcentaje}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

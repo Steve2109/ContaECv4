@@ -12,6 +12,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
+from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
@@ -107,7 +108,7 @@ async def get_crm_stats(
 ):
     """Obtener estadísticas generales del CRM"""
     company_id = validate_uuid(company_id, "company_id")
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Total leads
     total_leads_result = await db.execute(
@@ -218,7 +219,7 @@ async def create_pipeline(
 ):
     """Crear un nuevo pipeline de ventas"""
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     pipeline = CRMPipeline(
         company_id=data.company_id,
@@ -258,11 +259,11 @@ async def list_pipelines(
     query = (
         select(CRMPipeline)
         .join(Company, CRMPipeline.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CRMPipeline.company_id == company_id)
 
     query = query.order_by(CRMPipeline.order, CRMPipeline.created_at).offset(skip).limit(limit)
@@ -289,7 +290,7 @@ async def get_pipeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pipeline no encontrado.",
         )
-    await _get_company_for_user(db, pipeline.company_id, current_user.id)
+    await _get_company_for_user(db, pipeline.company_id, effective_owner_id(current_user))
     return PipelineWithStages.model_validate(pipeline)
 
 
@@ -312,7 +313,7 @@ async def update_pipeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pipeline no encontrado.",
         )
-    await _get_company_for_user(db, pipeline.company_id, current_user.id)
+    await _get_company_for_user(db, pipeline.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -352,7 +353,7 @@ async def delete_pipeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pipeline no encontrado.",
         )
-    await _get_company_for_user(db, pipeline.company_id, current_user.id)
+    await _get_company_for_user(db, pipeline.company_id, effective_owner_id(current_user))
 
     await db.delete(pipeline)
     await db.flush()
@@ -392,7 +393,7 @@ async def list_stages(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pipeline no encontrado.",
         )
-    await _get_company_for_user(db, pipeline.company_id, current_user.id)
+    await _get_company_for_user(db, pipeline.company_id, effective_owner_id(current_user))
 
     query = (
         select(CRMPipelineStage)
@@ -424,7 +425,7 @@ async def create_stage(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pipeline no encontrado.",
         )
-    await _get_company_for_user(db, pipeline.company_id, current_user.id)
+    await _get_company_for_user(db, pipeline.company_id, effective_owner_id(current_user))
 
     stage = CRMPipelineStage(
         pipeline_id=pipeline_id,
@@ -476,7 +477,7 @@ async def update_stage(
         select(CRMPipeline).where(CRMPipeline.id == stage.pipeline_id)
     )
     pipeline = pipeline_result.scalars().first()
-    await _get_company_for_user(db, pipeline.company_id, current_user.id)
+    await _get_company_for_user(db, pipeline.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -521,7 +522,7 @@ async def delete_stage(
         select(CRMPipeline).where(CRMPipeline.id == stage.pipeline_id)
     )
     pipeline = pipeline_result.scalars().first()
-    await _get_company_for_user(db, pipeline.company_id, current_user.id)
+    await _get_company_for_user(db, pipeline.company_id, effective_owner_id(current_user))
 
     await db.delete(stage)
     await db.flush()
@@ -554,7 +555,7 @@ async def create_lead(
     """Crear un nuevo lead"""
     data.client_id = clean_uuid_param(data.client_id, "client_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate source if provided
     if data.source:
@@ -622,11 +623,11 @@ async def list_leads(
     query = (
         select(CRMLead)
         .join(Company, CRMLead.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CRMLead.company_id == company_id)
     if status:
         query = query.where(CRMLead.status == status)
@@ -657,7 +658,7 @@ async def get_lead(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Lead no encontrado.",
         )
-    await _get_company_for_user(db, lead.company_id, current_user.id)
+    await _get_company_for_user(db, lead.company_id, effective_owner_id(current_user))
     return CRMLeadResponse.model_validate(lead)
 
 
@@ -680,7 +681,7 @@ async def update_lead(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Lead no encontrado.",
         )
-    await _get_company_for_user(db, lead.company_id, current_user.id)
+    await _get_company_for_user(db, lead.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -739,7 +740,7 @@ async def delete_lead(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Lead no encontrado.",
         )
-    await _get_company_for_user(db, lead.company_id, current_user.id)
+    await _get_company_for_user(db, lead.company_id, effective_owner_id(current_user))
 
     await db.delete(lead)
     await db.flush()
@@ -780,7 +781,7 @@ async def convert_lead_to_opportunity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Lead no encontrado.",
         )
-    await _get_company_for_user(db, lead.company_id, current_user.id)
+    await _get_company_for_user(db, lead.company_id, effective_owner_id(current_user))
 
     if lead.converted_to_opportunity:
         raise HTTPException(
@@ -869,7 +870,7 @@ async def create_opportunity(
     data.lead_id = clean_uuid_param(data.lead_id, "lead_id")
     data.client_id = clean_uuid_param(data.client_id, "client_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate pipeline_id
     pipeline_result = await db.execute(
@@ -953,11 +954,11 @@ async def list_opportunities(
     query = (
         select(CRMOpportunity)
         .join(Company, CRMOpportunity.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CRMOpportunity.company_id == company_id)
     if status:
         query = query.where(CRMOpportunity.status == status)
@@ -988,7 +989,7 @@ async def get_opportunity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Oportunidad no encontrada.",
         )
-    await _get_company_for_user(db, opportunity.company_id, current_user.id)
+    await _get_company_for_user(db, opportunity.company_id, effective_owner_id(current_user))
 
     # Build enriched response
     opp_data = CRMOpportunityResponse.model_validate(opportunity)
@@ -1055,7 +1056,7 @@ async def update_opportunity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Oportunidad no encontrada.",
         )
-    await _get_company_for_user(db, opportunity.company_id, current_user.id)
+    await _get_company_for_user(db, opportunity.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -1121,7 +1122,7 @@ async def delete_opportunity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Oportunidad no encontrada.",
         )
-    await _get_company_for_user(db, opportunity.company_id, current_user.id)
+    await _get_company_for_user(db, opportunity.company_id, effective_owner_id(current_user))
 
     await db.delete(opportunity)
     await db.flush()
@@ -1164,7 +1165,7 @@ async def move_opportunity_stage(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Oportunidad no encontrada.",
         )
-    await _get_company_for_user(db, opportunity.company_id, current_user.id)
+    await _get_company_for_user(db, opportunity.company_id, effective_owner_id(current_user))
 
     # Validate stage belongs to pipeline
     stage_result = await db.execute(
@@ -1218,7 +1219,7 @@ async def create_activity(
     data.opportunity_id = clean_uuid_param(data.opportunity_id, "opportunity_id")
     data.lead_id = clean_uuid_param(data.lead_id, "lead_id")
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate type
     valid_types = {t.value for t in ActivityType}
@@ -1286,11 +1287,11 @@ async def list_activities(
     query = (
         select(CRMActivity)
         .join(Company, CRMActivity.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CRMActivity.company_id == company_id)
     if opportunity_id:
         query = query.where(CRMActivity.opportunity_id == opportunity_id)
@@ -1325,7 +1326,7 @@ async def get_activity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Actividad no encontrada.",
         )
-    await _get_company_for_user(db, activity.company_id, current_user.id)
+    await _get_company_for_user(db, activity.company_id, effective_owner_id(current_user))
     return CRMActivityResponse.model_validate(activity)
 
 
@@ -1348,7 +1349,7 @@ async def update_activity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Actividad no encontrada.",
         )
-    await _get_company_for_user(db, activity.company_id, current_user.id)
+    await _get_company_for_user(db, activity.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -1415,7 +1416,7 @@ async def delete_activity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Actividad no encontrada.",
         )
-    await _get_company_for_user(db, activity.company_id, current_user.id)
+    await _get_company_for_user(db, activity.company_id, effective_owner_id(current_user))
 
     await db.delete(activity)
     await db.flush()
@@ -1447,7 +1448,7 @@ async def create_segment(
 ):
     """Crear un nuevo segmento de contactos"""
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate type if provided
     if data.type:
@@ -1506,11 +1507,11 @@ async def list_segments(
     query = (
         select(CRMContactSegment)
         .join(Company, CRMContactSegment.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CRMContactSegment.company_id == company_id)
     if type:
         query = query.where(CRMContactSegment.type == type)
@@ -1541,7 +1542,7 @@ async def get_segment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Segmento no encontrado.",
         )
-    await _get_company_for_user(db, segment.company_id, current_user.id)
+    await _get_company_for_user(db, segment.company_id, effective_owner_id(current_user))
     return CRMContactSegmentResponse.model_validate(segment)
 
 
@@ -1564,7 +1565,7 @@ async def update_segment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Segmento no encontrado.",
         )
-    await _get_company_for_user(db, segment.company_id, current_user.id)
+    await _get_company_for_user(db, segment.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -1620,7 +1621,7 @@ async def delete_segment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Segmento no encontrado.",
         )
-    await _get_company_for_user(db, segment.company_id, current_user.id)
+    await _get_company_for_user(db, segment.company_id, effective_owner_id(current_user))
 
     await db.delete(segment)
     await db.flush()
@@ -1664,7 +1665,7 @@ async def add_clients_to_segment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Segmento no encontrado.",
         )
-    await _get_company_for_user(db, segment.company_id, current_user.id)
+    await _get_company_for_user(db, segment.company_id, effective_owner_id(current_user))
 
     # Get existing member client_ids
     existing_result = await db.execute(
@@ -1718,7 +1719,7 @@ async def create_automation(
 ):
     """Crear una nueva automatización"""
     data.company_id = validate_uuid(data.company_id, "company_id")
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validate trigger_type
     valid_triggers = {t.value for t in AutomationTriggerType}
@@ -1772,11 +1773,11 @@ async def list_automations(
     query = (
         select(CRMAutomation)
         .join(Company, CRMAutomation.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(CRMAutomation.company_id == company_id)
     if trigger_type:
         query = query.where(CRMAutomation.trigger_type == trigger_type)
@@ -1807,7 +1808,7 @@ async def get_automation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Automatización no encontrada.",
         )
-    await _get_company_for_user(db, automation.company_id, current_user.id)
+    await _get_company_for_user(db, automation.company_id, effective_owner_id(current_user))
     return CRMAutomationResponse.model_validate(automation)
 
 
@@ -1830,7 +1831,7 @@ async def update_automation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Automatización no encontrada.",
         )
-    await _get_company_for_user(db, automation.company_id, current_user.id)
+    await _get_company_for_user(db, automation.company_id, effective_owner_id(current_user))
 
     update_data = data.model_dump(exclude_unset=True)
 
@@ -1886,7 +1887,7 @@ async def delete_automation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Automatización no encontrada.",
         )
-    await _get_company_for_user(db, automation.company_id, current_user.id)
+    await _get_company_for_user(db, automation.company_id, effective_owner_id(current_user))
 
     await db.delete(automation)
     await db.flush()
@@ -1927,7 +1928,7 @@ async def trigger_automation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Automatización no encontrada.",
         )
-    await _get_company_for_user(db, automation.company_id, current_user.id)
+    await _get_company_for_user(db, automation.company_id, effective_owner_id(current_user))
 
     if not automation.is_active:
         raise HTTPException(

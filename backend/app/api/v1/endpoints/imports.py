@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.client import Client, TipoIdentificacion
@@ -177,7 +178,7 @@ async def import_products_excel(
         )
 
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Leer archivo Excel
     try:
@@ -336,7 +337,7 @@ async def import_products_csv(
         )
 
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Leer archivo CSV
     try:
@@ -488,7 +489,7 @@ async def import_clients_excel(
             detail="El archivo debe ser de tipo Excel (.xlsx o .xls)",
         )
 
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     try:
         import openpyxl
@@ -621,7 +622,7 @@ async def import_clients_csv(
             detail="El archivo debe ser de tipo CSV (.csv)",
         )
 
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     try:
         import json

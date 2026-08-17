@@ -9,6 +9,7 @@ from sqlalchemy import func, select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.permissions import effective_owner_id
 from app.core.validation import clean_company_id, validate_uuid
 from app.core.security import get_current_user
 from app.models.company import Company
@@ -106,7 +107,7 @@ async def create_employee(
     """
     data.company_id = validate_uuid(data.company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, data.company_id, current_user.id)
+    await _get_company_for_user(db, data.company_id, effective_owner_id(current_user))
 
     # Validar límite de empleados según licencia
     from app.core.utils import get_license_limits
@@ -208,12 +209,12 @@ async def list_employees(
     query = (
         select(Employee)
         .join(Company, Employee.company_id == Company.id)
-        .where(Company.user_id == current_user.id)
+        .where(Company.user_id == effective_owner_id(current_user))
     )
 
     # Filtro de empresa
     if company_id:
-        await _get_company_for_user(db, company_id, current_user.id)
+        await _get_company_for_user(db, company_id, effective_owner_id(current_user))
         query = query.where(Employee.company_id == company_id)
 
     # Filtro de estado
@@ -250,7 +251,7 @@ async def list_departments(
     """
     company_id = validate_uuid(company_id, "company_id")
     # Verificar que la empresa pertenece al usuario
-    await _get_company_for_user(db, company_id, current_user.id)
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
 
     # Consultar departamentos con conteo de empleados
     result = await db.execute(
