@@ -209,6 +209,21 @@ class POSTicketCreate(BaseModel):
         max_length=2,
         description="Tipo de identificación (default: 07=consumidor final)",
     )
+    cliente_direccion: str | None = Field(
+        None,
+        max_length=300,
+        description="Dirección del cliente",
+    )
+    cliente_telefono: str | None = Field(
+        None,
+        max_length=30,
+        description="Teléfono del cliente",
+    )
+    cliente_email: str | None = Field(
+        None,
+        max_length=255,
+        description="Correo electrónico del cliente",
+    )
     detalles: list[POSTicketDetalleCreate] = Field(
         ...,
         min_length=1,
@@ -244,6 +259,26 @@ class POSTicketCreate(BaseModel):
         max_length=4,
         description="Últimos 4 dígitos de la tarjeta",
     )
+    tarjeta_tipo: str | None = Field(
+        None,
+        max_length=20,
+        description="Tipo de tarjeta: debito o credito",
+    )
+    tarjeta_marca: str | None = Field(
+        None,
+        max_length=30,
+        description="Marca de la tarjeta: visa, mastercard, amex, diners, discover, otra",
+    )
+    tarjeta_banco: str | None = Field(
+        None,
+        max_length=100,
+        description="Banco emisor de la tarjeta",
+    )
+    tarjeta_titular: str | None = Field(
+        None,
+        max_length=200,
+        description="Nombre del titular de la tarjeta",
+    )
     referencia_pago: str | None = Field(
         None,
         max_length=100,
@@ -271,6 +306,9 @@ class POSTicketResponse(BaseModel):
     cliente_nombre: str = Field(..., description="Nombre del cliente")
     cliente_identificacion: str = Field(..., description="Identificación del cliente")
     cliente_tipo_identificacion: str = Field(..., description="Tipo de identificación")
+    cliente_direccion: str | None = Field(None, description="Dirección del cliente")
+    cliente_telefono: str | None = Field(None, description="Teléfono del cliente")
+    cliente_email: str | None = Field(None, description="Correo electrónico del cliente")
     subtotal_sin_impuestos: Decimal = Field(..., description="Subtotal sin impuestos")
     total_iva: Decimal = Field(..., description="Total IVA")
     total_descuento: Decimal = Field(..., description="Total descuentos")
@@ -282,6 +320,10 @@ class POSTicketResponse(BaseModel):
     cambio: Decimal = Field(..., description="Cambio devuelto")
     propina: Decimal = Field(..., description="Propina")
     numero_tarjeta: str | None = Field(None, description="Últimos 4 dígitos tarjeta")
+    tarjeta_tipo: str | None = Field(None, description="Tipo de tarjeta (debito/credito)")
+    tarjeta_marca: str | None = Field(None, description="Marca de la tarjeta")
+    tarjeta_banco: str | None = Field(None, description="Banco emisor")
+    tarjeta_titular: str | None = Field(None, description="Titular de la tarjeta")
     referencia_pago: str | None = Field(None, description="Referencia de pago")
     observaciones: str | None = Field(None, description="Observaciones")
     user_id: UUID = Field(..., description="ID del cajero")
@@ -492,9 +534,20 @@ class POSTicketPrintResponse(BaseModel):
     total_descuento: Decimal = Field(..., description="Total descuentos")
     total_con_impuestos: Decimal = Field(..., description="Total con impuestos")
     monto_efectivo: Decimal = Field(..., description="Efectivo recibido")
+    monto_tarjeta: Decimal = Field(..., description="Monto con tarjeta")
+    monto_credito: Decimal = Field(..., description="Monto a crédito")
+    monto_otro: Decimal = Field(..., description="Monto otro")
     cambio: Decimal = Field(..., description="Cambio")
     propina: Decimal = Field(..., description="Propina")
     tipo_venta: str = Field(..., description="Tipo de venta")
+    cliente_direccion: str | None = Field(None, description="Dirección del cliente")
+    cliente_telefono: str | None = Field(None, description="Teléfono del cliente")
+    cliente_email: str | None = Field(None, description="Correo del cliente")
+    numero_tarjeta: str | None = Field(None, description="Últimos 4 dígitos de la tarjeta")
+    tarjeta_tipo: str | None = Field(None, description="Tipo de tarjeta (debito/credito)")
+    tarjeta_marca: str | None = Field(None, description="Marca de la tarjeta")
+    tarjeta_banco: str | None = Field(None, description="Banco emisor")
+    tarjeta_titular: str | None = Field(None, description="Titular de la tarjeta")
     empresa_nombre: str | None = Field(None, description="Nombre de la empresa")
     empresa_ruc: str | None = Field(None, description="RUC de la empresa")
     empresa_direccion: str | None = Field(None, description="Dirección de la empresa")

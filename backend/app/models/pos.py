@@ -313,6 +313,42 @@ class POSTicket(Base):
         nullable=False,
         comment="Tipo de identificación (07=consumidor final)",
     )
+    cliente_direccion: Mapped[str | None] = mapped_column(
+        String(300),
+        nullable=True,
+        comment="Dirección del cliente",
+    )
+    cliente_telefono: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        comment="Teléfono del cliente",
+    )
+    cliente_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Correo electrónico del cliente",
+    )
+    # Información del pago con tarjeta
+    tarjeta_tipo: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="Tipo de tarjeta: debito o credito",
+    )
+    tarjeta_marca: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        comment="Marca de la tarjeta: visa, mastercard, amex, diners, discover, otra",
+    )
+    tarjeta_banco: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Banco emisor de la tarjeta",
+    )
+    tarjeta_titular: Mapped[str | None] = mapped_column(
+        String(200),
+        nullable=True,
+        comment="Nombre del titular de la tarjeta",
+    )
     # Totales
     subtotal_sin_impuestos: Mapped[Decimal] = mapped_column(
         Numeric(14, 2),

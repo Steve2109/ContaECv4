@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -17,9 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_action
 from app.core.permissions import effective_owner_id
-from app.core.database import get_db
+from app.core.database import async_session_factory, get_db
 from app.core.validation import clean_company_id, clean_uuid_param, validate_uuid
 from app.core.security import get_current_user
+from app.core.utils import ensure_consumidor_final
+from app.models.client import Client
 from app.models.company import Company
 from app.models.kardex import Kardex, KardexTipoMovimiento
 from app.models.pos import (
@@ -91,6 +93,194 @@ async def _get_next_number(db: AsyncSession, company_id: str, prefix: str, table
     )
     count = result.scalar() or 0
     return f"{prefix}-{str(count + 1).zfill(6)}"
+
+
+# ==========================================
+# Facturación electrónica automática (POS → SRI)
+# ==========================================
+
+def _map_forma_pago(tipo_venta: str, tarjeta_tipo: str | None) -> str:
+    """
+    Mapea el tipo de venta del POS al código de forma de pago del SRI (Tabla 23).
+
+    - efectivo -> 01 (Sin utilización del sistema financiero)
+    - tarjeta débito -> 16 (Tarjeta de débito)
+    - tarjeta crédito -> 18 (Tarjeta de crédito)
+    - mixto / crédito / otro -> 01 (efectivo como principal)
+    """
+    if tipo_venta == "tarjeta":
+        return "16" if tarjeta_tipo == "debito" else "18"
+    return "01"
+
+
+async def _get_or_create_pos_client(
+    db: AsyncSession,
+    company_id: str,
+    data,
+) -> Client:
+    """
+    Obtiene (o crea) el cliente del comprobante a partir de los datos del ticket POS.
+
+    - Consumidor final (07): usa el cliente automático de la empresa.
+    - Otro tipo: busca por identificación; si no existe, lo crea con los datos del ticket.
+    """
+    tipo_id = (data.cliente_tipo_identificacion or "07").strip()
+    if tipo_id == "07":
+        return await ensure_consumidor_final(db, company_id)
+
+    identificacion = (data.cliente_identificacion or "").strip()
+    if not identificacion:
+        return await ensure_consumidor_final(db, company_id)
+
+    result = await db.execute(
+        select(Client).where(
+            Client.company_id == company_id,
+            Client.identificacion == identificacion,
+            Client.is_active == True,  # noqa: E712
+        ).limit(1)
+    )
+    client = result.scalars().first()
+    if client:
+        return client
+
+    client = Client(
+        company_id=company_id,
+        tipo_identificacion=tipo_id,
+        identificacion=identificacion,
+        razon_social=(data.cliente_nombre or "CLIENTE").strip()[:255],
+        direccion=data.cliente_direccion,
+        email=data.cliente_email,
+        telefono=data.cliente_telefono,
+    )
+    db.add(client)
+    await db.flush()
+    return client
+
+
+async def _crear_factura_desde_ticket(
+    db: AsyncSession,
+    ticket,
+    data: POSTicketCreate,
+    current_user: User,
+):
+    """
+    Genera una factura electrónica (tipo 01) a partir de un ticket POS.
+
+    Devuelve el comprobante creado (estado BORRADOR) o None si no se solicitó.
+    La validación, firma y envío al SRI se ejecutan en segundo plano.
+    """
+    if not data.crear_comprobante:
+        return None
+
+    # Imports diferidos para evitar ciclos de importación
+    from app.schemas.comprobante import ComprobanteCreate, ComprobanteDetalleCreate
+    from app.api.v1.endpoints.comprobantes import create_comprobante as crear_comprobante
+
+    client = await _get_or_create_pos_client(db, data.company_id, data)
+
+    detalles = []
+    for det in data.detalles:
+        descuento_pct = det.descuento or Decimal("0")
+        detalles.append(
+            ComprobanteDetalleCreate(
+                product_id=det.product_id,
+                codigo_principal=det.codigo_principal,
+                descripcion=det.descripcion,
+                cantidad=det.cantidad,
+                unidad_medida=det.unidad_medida or "Unidad",
+                precio_unitario=det.precio_unitario,
+                descuento=Decimal("0"),
+                descuento_tipo="porcentaje",
+                descuento_valor=descuento_pct if descuento_pct > 0 else None,
+                iva_codigo=det.iva_codigo,
+                iva_porcentaje=det.iva_porcentaje,
+            )
+        )
+
+    info_adicional = {}
+    if data.cliente_direccion:
+        info_adicional["direccion"] = data.cliente_direccion
+    if data.cliente_telefono:
+        info_adicional["telefono"] = data.cliente_telefono
+    if data.cliente_email:
+        info_adicional["email"] = data.cliente_email
+    if data.observaciones:
+        info_adicional["observaciones"] = data.observaciones
+    if data.numero_tarjeta:
+        info_adicional["tarjeta"] = f"****{data.numero_tarjeta}"
+        if data.tarjeta_marca:
+            info_adicional["marca_tarjeta"] = data.tarjeta_marca
+        if data.tarjeta_banco:
+            info_adicional["banco"] = data.tarjeta_banco
+
+    comp_data = ComprobanteCreate(
+        company_id=data.company_id,
+        client_id=str(client.id),
+        tipo_comprobante="01",
+        forma_pago=_map_forma_pago(data.tipo_venta, data.tarjeta_tipo),
+        detalles=detalles,
+        info_adicional=info_adicional or None,
+    )
+
+    comprobante = await crear_comprobante(comp_data, current_user, db)
+    ticket.comprobante_id = str(comprobante.id)
+    return comprobante
+
+
+async def _procesar_factura_pos(comprobante_id: str, user_id: str) -> None:
+    """
+    Ejecuta en segundo plano el pipeline SRI de la factura generada desde el POS:
+    validar -> firmar -> enviar/consultar autorización.
+
+    Usa una sesión propia de base de datos y el usuario efectivo (para la firma
+    digital en caso de sub-cuentas). Nunca lanza excepciones hacia el cliente.
+    """
+    from app.api.v1.endpoints.comprobantes import (
+        firmar_comprobante,
+        procesar_comprobante,
+        validar_comprobante,
+    )
+
+    try:
+        async with async_session_factory() as db:
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalars().first()
+            if not user:
+                logger.warning(f"POS: usuario {user_id} no encontrado al procesar factura {comprobante_id}")
+                return
+
+            # 1. Validar (pre-validación SRI)
+            try:
+                validacion = await validar_comprobante(comprobante_id, user, db)
+                if not validacion.get("valid"):
+                    logger.warning(
+                        f"POS: factura {comprobante_id} no pasó la validación SRI: "
+                        f"{validacion.get('errors')}"
+                    )
+                    return
+            except HTTPException as e:
+                logger.warning(f"POS: error validando factura {comprobante_id}: {e.detail}")
+                return
+
+            # 2. Firmar con la firma electrónica del usuario
+            try:
+                await firmar_comprobante(comprobante_id, user, db)
+            except HTTPException as e:
+                logger.warning(
+                    f"POS: no se pudo firmar la factura {comprobante_id} "
+                    f"(configure la firma electrónica en Configuración): {e.detail}"
+                )
+                return
+
+            # 3. Enviar al SRI y consultar autorización
+            try:
+                await procesar_comprobante(comprobante_id, user, db)
+            except HTTPException as e:
+                logger.warning(f"POS: error al procesar factura {comprobante_id} en el SRI: {e.detail}")
+
+            logger.info(f"POS: factura {comprobante_id} procesada en segundo plano")
+    except Exception as e:
+        logger.error(f"POS: error inesperado procesando factura {comprobante_id}: {e}")
 
 
 # ==========================================
@@ -394,6 +584,7 @@ async def get_cash_session_resumen(
 async def create_ticket(
     data: POSTicketCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -440,12 +631,17 @@ async def create_ticket(
 
     detalles = []
     for det in data.detalles:
-        precio_total_sin_impuestos = det.cantidad * det.precio_unitario - det.descuento
-        iva_valor = precio_total_sin_impuestos * det.iva_porcentaje / Decimal("100")
+        # El descuento del POS se maneja como PORCENTAJE de la línea
+        descuento_pct = det.descuento or Decimal("0")
+        descuento_monto = (
+            det.cantidad * det.precio_unitario * descuento_pct / Decimal("100")
+        ).quantize(Decimal("0.01"))
+        precio_total_sin_impuestos = (det.cantidad * det.precio_unitario - descuento_monto).quantize(Decimal("0.01"))
+        iva_valor = (precio_total_sin_impuestos * det.iva_porcentaje / Decimal("100")).quantize(Decimal("0.01"))
 
         subtotal_sin_impuestos += precio_total_sin_impuestos
         total_iva += iva_valor
-        total_descuento += det.descuento
+        total_descuento += descuento_monto
 
         detalles.append(POSTicketDetalle(
             product_id=det.product_id,
@@ -454,7 +650,7 @@ async def create_ticket(
             cantidad=det.cantidad,
             unidad_medida=det.unidad_medida,
             precio_unitario=det.precio_unitario,
-            descuento=det.descuento,
+            descuento=descuento_monto,
             precio_total_sin_impuestos=precio_total_sin_impuestos,
             iva_codigo=det.iva_codigo,
             iva_porcentaje=det.iva_porcentaje,
@@ -484,6 +680,9 @@ async def create_ticket(
         cliente_nombre=cliente_nombre,
         cliente_identificacion=cliente_identificacion,
         cliente_tipo_identificacion=cliente_tipo_identificacion,
+        cliente_direccion=data.cliente_direccion,
+        cliente_telefono=data.cliente_telefono,
+        cliente_email=data.cliente_email,
         subtotal_sin_impuestos=subtotal_sin_impuestos,
         total_iva=total_iva,
         total_descuento=total_descuento,
@@ -495,6 +694,10 @@ async def create_ticket(
         cambio=cambio,
         propina=data.propina,
         numero_tarjeta=data.numero_tarjeta,
+        tarjeta_tipo=data.tarjeta_tipo,
+        tarjeta_marca=data.tarjeta_marca,
+        tarjeta_banco=data.tarjeta_banco,
+        tarjeta_titular=data.tarjeta_titular,
         referencia_pago=data.referencia_pago,
         observaciones=data.observaciones,
         user_id=current_user.id,
@@ -502,6 +705,20 @@ async def create_ticket(
     )
     db.add(ticket)
     await db.flush()
+
+    # Generar factura electrónica (SRI) automáticamente si se solicitó
+    comprobante = None
+    if data.crear_comprobante:
+        try:
+            comprobante = await _crear_factura_desde_ticket(db, ticket, data, current_user)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"POS: error al generar factura del ticket {numero_ticket}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error al generar la factura electrónica: {str(e)}",
+            )
 
     # Actualizar totales de la sesión de caja
     if data.tipo_venta == "efectivo" or data.tipo_venta == "mixto":
@@ -589,6 +806,17 @@ async def create_ticket(
         description=f"Ticket POS creado: {numero_ticket} por USD {total_con_impuestos}",
         ip_address=request.client.host if request.client else None,
     )
+
+    # Procesar la factura electrónica en segundo plano (validar -> firmar -> SRI),
+    # para no bloquear la venta en el POS mientras el SRI responde.
+    if comprobante:
+        # Las sub-cuentas firman con la firma de su cuenta principal
+        firma_user_id = current_user.parent_user_id if current_user.is_subaccount else current_user.id
+        background_tasks.add_task(
+            _procesar_factura_pos,
+            comprobante_id=str(comprobante.id),
+            user_id=str(firma_user_id),
+        )
 
     return POSTicketResponse.model_validate(ticket)
 
@@ -811,6 +1039,9 @@ async def get_printable_ticket(
         fecha=ticket.created_at,
         cliente_nombre=ticket.cliente_nombre,
         cliente_identificacion=ticket.cliente_identificacion,
+        cliente_direccion=ticket.cliente_direccion,
+        cliente_telefono=ticket.cliente_telefono,
+        cliente_email=ticket.cliente_email,
         cajero=cajero_nombre,
         numero_caja=numero_caja,
         items=items,
@@ -819,9 +1050,17 @@ async def get_printable_ticket(
         total_descuento=ticket.total_descuento,
         total_con_impuestos=ticket.total_con_impuestos,
         monto_efectivo=ticket.monto_efectivo,
+        monto_tarjeta=ticket.monto_tarjeta,
+        monto_credito=ticket.monto_credito,
+        monto_otro=ticket.monto_otro,
         cambio=ticket.cambio,
         propina=ticket.propina,
         tipo_venta=ticket.tipo_venta,
+        numero_tarjeta=ticket.numero_tarjeta,
+        tarjeta_tipo=ticket.tarjeta_tipo,
+        tarjeta_marca=ticket.tarjeta_marca,
+        tarjeta_banco=ticket.tarjeta_banco,
+        tarjeta_titular=ticket.tarjeta_titular,
         empresa_nombre=company.razon_social if company else None,
         empresa_ruc=company.ruc if company else None,
         empresa_direccion=company.dir_matriz if company else None,
@@ -1513,6 +1752,62 @@ async def get_arqueo_pdf(
 # ==========================================
 # Busqueda de producto por codigo de barras
 # ==========================================
+
+@router.get("/products/search", response_model=list[POSProductSearchResponse])
+async def search_products(
+    q: str = Query("", description="Texto de búsqueda: código de barras, código principal o nombre"),
+    barcode: str | None = Query(None, description="Alias de búsqueda por código de barras exacto"),
+    company_id: str = Query(..., description="ID de la empresa"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Buscar productos para el POS.
+
+    - Si `q` coincide exactamente con un código de barras, devuelve ese producto.
+    - Si no, busca por código principal o descripción (coincidencia parcial).
+    - Con `q` vacío devuelve todos los productos activos de la empresa.
+    """
+    company_id = validate_uuid(company_id, "company_id")
+    await _get_company_for_user(db, company_id, effective_owner_id(current_user))
+
+    query = select(Product).where(
+        Product.company_id == company_id,
+        Product.is_active == True,  # noqa: E712
+    )
+
+    q = (q or "").strip()
+    if not q and barcode:
+        q = str(barcode).strip()
+    if q:
+        # Coincidencia exacta de código de barras primero
+        query = query.where(
+            (Product.codigo_barras == q)
+            | (Product.codigo_principal.ilike(f"%{q}%"))
+            | (Product.descripcion.ilike(f"%{q}%"))
+        )
+
+    query = query.order_by(Product.descripcion).limit(50)
+    result = await db.execute(query)
+    products = result.scalars().all()
+
+    return [
+        POSProductSearchResponse(
+            id=p.id,
+            codigo_principal=p.codigo_principal,
+            codigo_barras=p.codigo_barras,
+            descripcion=p.descripcion,
+            tipo=p.tipo,
+            precio_unitario=p.precio_unitario,
+            iva_codigo=p.iva_codigo,
+            iva_porcentaje=p.iva_porcentaje,
+            unidad_medida=p.unidad_medida,
+            stock=p.stock,
+            stock_minimo=p.stock_minimo,
+        )
+        for p in products
+    ]
+
 
 @router.post("/tickets/search-barcode", response_model=POSProductSearchResponse)
 async def search_product_by_barcode(

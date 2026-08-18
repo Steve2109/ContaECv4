@@ -2489,6 +2489,9 @@ interface POSTicket {
   cliente_nombre: string;
   cliente_identificacion: string;
   cliente_tipo_identificacion: string;
+  cliente_direccion: string | null;
+  cliente_telefono: string | null;
+  cliente_email: string | null;
   subtotal_sin_impuestos: number;
   total_iva: number;
   total_descuento: number;
@@ -2500,6 +2503,10 @@ interface POSTicket {
   cambio: number;
   propina: number;
   numero_tarjeta: string | null;
+  tarjeta_tipo: string | null;
+  tarjeta_marca: string | null;
+  tarjeta_banco: string | null;
+  tarjeta_titular: string | null;
   referencia_pago: string | null;
   observaciones: string | null;
   user_id: string;
@@ -2515,6 +2522,9 @@ interface POSTicketCreate {
   cliente_nombre?: string;
   cliente_identificacion?: string;
   cliente_tipo_identificacion?: string;
+  cliente_direccion?: string;
+  cliente_telefono?: string;
+  cliente_email?: string;
   detalles: Array<{
     product_id?: string;
     codigo_principal: string;
@@ -2532,9 +2542,13 @@ interface POSTicketCreate {
   monto_otro?: number;
   propina?: number;
   numero_tarjeta?: string;
+  tarjeta_tipo?: string;
+  tarjeta_marca?: string;
+  tarjeta_banco?: string;
+  tarjeta_titular?: string;
   referencia_pago?: string;
   observaciones?: string;
-  generar_comprobante?: boolean;
+  crear_comprobante?: boolean;
 }
 
 interface POSArqueo {
@@ -2580,13 +2594,43 @@ interface POSProductSearchResult {
 }
 
 interface POSTicketPrintData {
-  ticket: POSTicket;
-  company: {
-    razon_social: string;
-    nombre_comercial: string | null;
-    ruc: string;
-    dir_matriz: string;
-  };
+  numero_ticket: string;
+  fecha: string;
+  cliente_nombre: string;
+  cliente_identificacion: string;
+  cliente_direccion?: string | null;
+  cliente_telefono?: string | null;
+  cajero: string;
+  numero_caja: string;
+  items: Array<{
+    codigo: string;
+    descripcion: string;
+    cantidad: string;
+    precio_unitario: string;
+    descuento: string;
+    precio_total_sin_impuestos: string;
+    iva_porcentaje: string;
+    iva_valor: string;
+  }>;
+  subtotal_sin_impuestos: number;
+  total_iva: number;
+  total_descuento: number;
+  total_con_impuestos: number;
+  monto_efectivo: number;
+  monto_tarjeta: number;
+  monto_credito: number;
+  monto_otro: number;
+  cambio: number;
+  propina: number;
+  tipo_venta: string;
+  numero_tarjeta?: string | null;
+  tarjeta_tipo?: string | null;
+  tarjeta_marca?: string | null;
+  tarjeta_banco?: string | null;
+  tarjeta_titular?: string | null;
+  empresa_nombre?: string | null;
+  empresa_ruc?: string | null;
+  empresa_direccion?: string | null;
 }
 
 interface POSCashSessionResumen {

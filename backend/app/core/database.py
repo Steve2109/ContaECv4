@@ -110,6 +110,14 @@ async def _ensure_new_columns(conn) -> None:
         # Cargas familiares: porcentaje y tipo de discapacidad
         "ALTER TABLE cargas_familiares ADD COLUMN IF NOT EXISTS porcentaje_discapacidad INTEGER",
         "ALTER TABLE cargas_familiares ADD COLUMN IF NOT EXISTS tipo_discapacidad VARCHAR(50)",
+        # Tickets POS: datos completos del cliente y del pago con tarjeta
+        "ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS cliente_direccion VARCHAR(300)",
+        "ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS cliente_telefono VARCHAR(30)",
+        "ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS cliente_email VARCHAR(255)",
+        "ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS tarjeta_tipo VARCHAR(20)",
+        "ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS tarjeta_marca VARCHAR(30)",
+        "ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS tarjeta_banco VARCHAR(100)",
+        "ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS tarjeta_titular VARCHAR(200)",
     ]
     for stmt in statements:
         await conn.execute(text(stmt))

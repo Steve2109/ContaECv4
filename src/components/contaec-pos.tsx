@@ -250,11 +250,24 @@ function POSTerminalView({
   const [montoRecibido, setMontoRecibido] = useState('');
   const [montoTarjeta, setMontoTarjeta] = useState('');
   const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('');
-  const [last4Digits, setLast4Digits] = useState('');
   const [propina, setPropina] = useState('');
   const [useCustomClient, setUseCustomClient] = useState(false);
-  const [clientNombre, setClientNombre] = useState('');
-  const [clientId, setClientId] = useState('');
+  const [generarFactura, setGenerarFactura] = useState(true);
+  const [customClient, setCustomClient] = useState({
+    tipo_identificacion: '05',
+    identificacion: '',
+    nombre: '',
+    direccion: '',
+    telefono: '',
+    email: '',
+  });
+  const [cardData, setCardData] = useState({
+    tipo: 'credito',
+    marca: 'visa',
+    banco: '',
+    titular: '',
+    ultimos4: '',
+  });
   const [creating, setCreating] = useState(false);
   const [lastTicket, setLastTicket] = useState<POSTicket | null>(null);
   const [showChangeDialog, setShowChangeDialog] = useState(false);
@@ -403,11 +416,10 @@ function POSTerminalView({
     setMontoRecibido('');
     setMontoTarjeta('');
     setMontoEfectivoMixto('');
-    setLast4Digits('');
     setPropina('');
     setUseCustomClient(false);
-    setClientNombre('');
-    setClientId('');
+    setCustomClient({ tipo_identificacion: '05', identificacion: '', nombre: '', direccion: '', telefono: '', email: '' });
+    setCardData({ tipo: 'credito', marca: 'visa', banco: '', titular: '', ultimos4: '' });
   }
 
   // Cart calculations
@@ -469,8 +481,14 @@ function POSTerminalView({
       toast.error('El monto recibido es menor al total');
       return;
     }
-    if (tipoVenta === 'tarjeta' && !last4Digits) {
-      toast.error('Ingrese los ultimos 4 digitos de la tarjeta');
+    const usaTarjeta = tipoVenta === 'tarjeta' || tipoVenta === 'mixto';
+    const esConsumidorFinal = useCustomClient && customClient.tipo_identificacion === '07';
+    if (tipoVenta === 'tarjeta' && cardData.ultimos4.length !== 4) {
+      toast.error('Ingrese los 4 ultimos digitos de la tarjeta');
+      return;
+    }
+    if (tipoVenta === 'tarjeta' && !cardData.titular.trim()) {
+      toast.error('Ingrese el nombre del titular de la tarjeta');
       return;
     }
     if (tipoVenta === 'mixto') {
@@ -480,6 +498,14 @@ function POSTerminalView({
         toast.error('Los montos no cubren el total');
         return;
       }
+      if (tarjetaMixto > 0 && cardData.ultimos4.length !== 4) {
+        toast.error('Ingrese los 4 ultimos digitos de la tarjeta');
+        return;
+      }
+    }
+    if (useCustomClient && !esConsumidorFinal && (!customClient.nombre.trim() || !customClient.identificacion.trim())) {
+      toast.error('Complete nombre/razón social e identificación del cliente');
+      return;
     }
 
     setCreating(true);
@@ -488,9 +514,12 @@ function POSTerminalView({
         company_id: companyId,
         cash_session_id: activeSession.id,
         tipo_venta: tipoVenta,
-        cliente_nombre: useCustomClient ? clientNombre || 'CONSUMIDOR FINAL' : 'CONSUMIDOR FINAL',
-        cliente_identificacion: useCustomClient ? clientId || '9999999999999' : '9999999999999',
-        cliente_tipo_identificacion: useCustomClient && clientId ? '05' : '07',
+        cliente_nombre: useCustomClient && !esConsumidorFinal ? customClient.nombre.trim() : 'CONSUMIDOR FINAL',
+        cliente_identificacion: useCustomClient && !esConsumidorFinal ? customClient.identificacion.trim() : '9999999999999',
+        cliente_tipo_identificacion: useCustomClient && !esConsumidorFinal ? customClient.tipo_identificacion : '07',
+        cliente_direccion: useCustomClient ? customClient.direccion.trim() || undefined : undefined,
+        cliente_telefono: useCustomClient ? customClient.telefono.trim() || undefined : undefined,
+        cliente_email: useCustomClient ? customClient.email.trim() || undefined : undefined,
         detalles: cart.map((i) => ({
           product_id: i.productId,
           codigo_principal: i.codigoPrincipal,
@@ -502,7 +531,12 @@ function POSTerminalView({
           iva_porcentaje: i.ivaPorcentaje,
         })),
         propina: propinaVal > 0 ? propinaVal : undefined,
-        numero_tarjeta: tipoVenta === 'tarjeta' || tipoVenta === 'mixto' ? last4Digits : undefined,
+        crear_comprobante: generarFactura,
+        numero_tarjeta: usaTarjeta ? cardData.ultimos4 : undefined,
+        tarjeta_tipo: usaTarjeta ? cardData.tipo : undefined,
+        tarjeta_marca: usaTarjeta ? cardData.marca : undefined,
+        tarjeta_banco: usaTarjeta && cardData.banco.trim() ? cardData.banco.trim() : undefined,
+        tarjeta_titular: usaTarjeta ? cardData.titular.trim() : undefined,
       };
 
       if (tipoVenta === 'efectivo') {
@@ -519,7 +553,11 @@ function POSTerminalView({
       const ticket = await createPOSTicket(ticketData);
       setLastTicket(ticket);
       setShowChangeDialog(true);
-      toast.success(`Ticket creado: ${ticket.numero_ticket}`);
+      toast.success(
+        ticket.comprobante_id
+          ? `Ticket ${ticket.numero_ticket} creado. Factura electrónica en proceso...`
+          : `Ticket creado: ${ticket.numero_ticket}`
+      );
       clearCart();
       // Refresh session to update totals
       loadActiveSession();
@@ -789,21 +827,73 @@ function POSTerminalView({
                   <Label className="text-sm">Cliente personalizado</Label>
                 </div>
                 {useCustomClient && (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2 rounded-md border p-2 bg-muted/20">
+                    <Select
+                      value={customClient.tipo_identificacion}
+                      onValueChange={(v) => setCustomClient({ ...customClient, tipo_identificacion: v })}
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Tipo de identificación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="05">Cédula (05)</SelectItem>
+                        <SelectItem value="04">RUC (04)</SelectItem>
+                        <SelectItem value="06">Pasaporte (06)</SelectItem>
+                        <SelectItem value="07">Consumidor Final (07)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {customClient.tipo_identificacion !== '07' && (
+                      <Input
+                        className="h-9 text-sm"
+                        placeholder="Identificación * (cédula / RUC / pasaporte)"
+                        value={customClient.identificacion}
+                        onChange={(e) => setCustomClient({ ...customClient, identificacion: e.target.value })}
+                        maxLength={13}
+                      />
+                    )}
+                    {customClient.tipo_identificacion !== '07' && (
+                      <Input
+                        className="h-9 text-sm"
+                        placeholder="Nombre / Razón social *"
+                        value={customClient.nombre}
+                        onChange={(e) => setCustomClient({ ...customClient, nombre: e.target.value })}
+                      />
+                    )}
                     <Input
                       className="h-9 text-sm"
-                      placeholder="Nombre"
-                      value={clientNombre}
-                      onChange={(e) => setClientNombre(e.target.value)}
+                      placeholder="Dirección"
+                      value={customClient.direccion}
+                      onChange={(e) => setCustomClient({ ...customClient, direccion: e.target.value })}
                     />
-                    <Input
-                      className="h-9 text-sm"
-                      placeholder="RUC/CI"
-                      value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        className="h-9 text-sm"
+                        placeholder="Teléfono"
+                        value={customClient.telefono}
+                        onChange={(e) => setCustomClient({ ...customClient, telefono: e.target.value })}
+                      />
+                      <Input
+                        className="h-9 text-sm"
+                        type="email"
+                        placeholder="Correo"
+                        value={customClient.email}
+                        onChange={(e) => setCustomClient({ ...customClient, email: e.target.value })}
+                      />
+                    </div>
                   </div>
                 )}
+              </div>
+
+              {/* Invoice toggle */}
+              <div className="flex items-center justify-between rounded-md border p-2 bg-emerald-50/40">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-emerald-700" />
+                  <div>
+                    <Label className="text-sm">Factura electrónica (SRI)</Label>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Genera y envía la factura al SRI automáticamente</p>
+                  </div>
+                </div>
+                <Switch checked={generarFactura} onCheckedChange={setGenerarFactura} />
               </div>
 
               {/* Payment */}
@@ -854,28 +944,22 @@ function POSTerminalView({
                 )}
 
                 {tipoVenta === 'tarjeta' && (
-                  <div>
-                    <Label className="text-xs">Últimos 4 digitos</Label>
-                    <Input
-                      maxLength={4}
-                      className="h-10"
-                      value={last4Digits}
-                      onChange={(e) => setLast4Digits(e.target.value.replace(/\D/g, ''))}
-                      placeholder="0000"
-                    />
-                  </div>
+                  <CardPaymentFields cardData={cardData} setCardData={setCardData} />
                 )}
 
                 {tipoVenta === 'mixto' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs">Efectivo</Label>
-                      <Input type="number" step="0.01" className="h-10" value={montoEfectivoMixto} onChange={(e) => setMontoEfectivoMixto(e.target.value)} placeholder="0.00" />
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Efectivo</Label>
+                        <Input type="number" step="0.01" className="h-10" value={montoEfectivoMixto} onChange={(e) => setMontoEfectivoMixto(e.target.value)} placeholder="0.00" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Tarjeta</Label>
+                        <Input type="number" step="0.01" className="h-10" value={montoTarjeta} onChange={(e) => setMontoTarjeta(e.target.value)} placeholder="0.00" />
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-xs">Tarjeta</Label>
-                      <Input type="number" step="0.01" className="h-10" value={montoTarjeta} onChange={(e) => setMontoTarjeta(e.target.value)} placeholder="0.00" />
-                    </div>
+                    {Number(montoTarjeta) > 0 && <CardPaymentFields cardData={cardData} setCardData={setCardData} />}
                   </div>
                 )}
 
@@ -957,6 +1041,76 @@ function POSTerminalView({
 }
 
 // ─── Change/Success Dialog ───────────────────────────────────
+
+function CardPaymentFields({
+  cardData,
+  setCardData,
+}: {
+  cardData: { tipo: string; marca: string; banco: string; titular: string; ultimos4: string };
+  setCardData: React.Dispatch<React.SetStateAction<{ tipo: string; marca: string; banco: string; titular: string; ultimos4: string }>>;
+}) {
+  const MARCAS_TARJETA = [
+    { key: 'visa', label: 'Visa' },
+    { key: 'mastercard', label: 'Mastercard' },
+    { key: 'amex', label: 'American Express' },
+    { key: 'diners', label: 'Diners Club' },
+    { key: 'discover', label: 'Discover' },
+    { key: 'otra', label: 'Otra' },
+  ];
+
+  return (
+    <div className="space-y-2 rounded-md border p-2 bg-muted/20">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">Tipo de tarjeta</Label>
+          <Select value={cardData.tipo} onValueChange={(v) => setCardData({ ...cardData, tipo: v })}>
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="credito">Crédito</SelectItem>
+              <SelectItem value="debito">Débito</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Marca</Label>
+          <Select value={cardData.marca} onValueChange={(v) => setCardData({ ...cardData, marca: v })}>
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MARCAS_TARJETA.map((m) => (<SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <Input
+        className="h-9 text-sm"
+        placeholder="Banco emisor (ej: Banco Pichincha)"
+        value={cardData.banco}
+        onChange={(e) => setCardData({ ...cardData, banco: e.target.value })}
+      />
+      <Input
+        className="h-9 text-sm"
+        placeholder="Nombre del titular *"
+        value={cardData.titular}
+        onChange={(e) => setCardData({ ...cardData, titular: e.target.value })}
+      />
+      <div>
+        <Label className="text-xs">Últimos 4 dígitos de la tarjeta *</Label>
+        <Input
+          className="h-10 text-base tracking-[0.3em]"
+          maxLength={4}
+          inputMode="numeric"
+          value={cardData.ultimos4}
+          onChange={(e) => setCardData({ ...cardData, ultimos4: e.target.value.replace(/\D/g, '') })}
+          placeholder="•••• 0000"
+        />
+      </div>
+    </div>
+  );
+}
 
 function ChangeDialog({
   open,
@@ -1073,63 +1227,78 @@ function ChangeDialog({
 // ─── Receipt Formatter ───────────────────────────────────────
 
 function formatReceipt(data: POSTicketPrintData): string {
-  const { ticket, company } = data;
+  const t = data;
+  const companyName = t.empresa_nombre || 'ContaEC';
   const line = '================================';
   const dash = '--------------------------------';
   const pad = (str: string, len: number, align: 'left' | 'right' = 'left') => {
-    const s = str.substring(0, len);
+    const s = String(str).substring(0, len);
     if (align === 'right') return s.padStart(len);
     return s.padEnd(len);
   };
 
   let r = '';
   r += line + '\n';
-  r += pad(company.nombre_comercial || company.razon_social, 32, 'left').padStart(32 + Math.floor((32 - (company.nombre_comercial || company.razon_social).length) / 2)) + '\n';
-  r += pad(`RUC: ${company.ruc}`, 32, 'left') + '\n';
-  r += pad(company.dir_matriz.substring(0, 32), 32, 'left') + '\n';
+  r += pad(companyName, 32, 'left').padStart(32 + Math.floor((32 - companyName.length) / 2)) + '\n';
+  if (t.empresa_ruc) r += pad(`RUC: ${t.empresa_ruc}`, 32, 'left') + '\n';
+  if (t.empresa_direccion) r += pad(t.empresa_direccion.substring(0, 32), 32, 'left') + '\n';
   r += dash + '\n';
-  r += `TICKET: ${ticket.numero_ticket}\n`;
-  r += `Fecha: ${formatDateTime(ticket.created_at)}\n`;
-  r += `Caja: ${ticket.cash_session_id.substring(0, 8)}\n`;
+  r += `TICKET: ${t.numero_ticket}\n`;
+  r += `Fecha: ${formatDateTime(t.fecha)}\n`;
+  r += `Caja: ${t.numero_caja}\n`;
   r += dash + '\n';
-  r += `Cliente: ${ticket.cliente_nombre}\n`;
-  r += `RUC/CI: ${ticket.cliente_identificacion}\n`;
+  r += `Cliente: ${t.cliente_nombre}\n`;
+  r += `RUC/CI: ${t.cliente_identificacion}\n`;
+  if (t.cliente_direccion) r += `Dir: ${t.cliente_direccion.substring(0, 28)}\n`;
+  if (t.cliente_telefono) r += `Tel: ${t.cliente_telefono}\n`;
   r += dash + '\n';
   r += pad('Cant', 4) + pad('Descripción', 16) + pad('P.Unit', 6, 'right') + pad('Total', 6, 'right') + '\n';
   r += dash + '\n';
 
-  for (const d of ticket.detalles) {
+  for (const d of t.items) {
     r += pad(String(d.cantidad), 4);
-    r += pad(d.descripcion.substring(0, 16), 16);
-    r += pad(d.precio_unitario.toFixed(2), 6, 'right');
-    r += pad(d.precio_total_sin_impuestos.toFixed(2), 6, 'right');
+    r += pad(String(d.descripcion).substring(0, 16), 16);
+    r += pad(Number(d.precio_unitario).toFixed(2), 6, 'right');
+    r += pad(Number(d.precio_total_sin_impuestos).toFixed(2), 6, 'right');
     r += '\n';
   }
 
   r += dash + '\n';
-  r += pad('Subtotal:', 24) + pad(ticket.subtotal_sin_impuestos.toFixed(2), 8, 'right') + '\n';
-  r += pad(`IVA:`, 24) + pad(ticket.total_iva.toFixed(2), 8, 'right') + '\n';
-  if (ticket.total_descuento > 0) {
-    r += pad('Descuento:', 24) + pad(ticket.total_descuento.toFixed(2), 8, 'right') + '\n';
+  r += pad('Subtotal:', 24) + pad(Number(t.subtotal_sin_impuestos).toFixed(2), 8, 'right') + '\n';
+  r += pad(`IVA:`, 24) + pad(Number(t.total_iva).toFixed(2), 8, 'right') + '\n';
+  if (Number(t.total_descuento) > 0) {
+    r += pad('Descuento:', 24) + pad(Number(t.total_descuento).toFixed(2), 8, 'right') + '\n';
   }
   r += dash + '\n';
-  r += pad('TOTAL:', 24) + pad(ticket.total_con_impuestos.toFixed(2), 8, 'right') + '\n';
+  r += pad('TOTAL:', 24) + pad(Number(t.total_con_impuestos).toFixed(2), 8, 'right') + '\n';
   r += dash + '\n';
 
-  if (ticket.tipo_venta === 'efectivo' || ticket.tipo_venta === 'mixto') {
-    r += pad('Efectivo:', 24) + pad(ticket.monto_efectivo.toFixed(2), 8, 'right') + '\n';
-    if (ticket.cambio > 0) {
-      r += pad('Cambio:', 24) + pad(ticket.cambio.toFixed(2), 8, 'right') + '\n';
+  if (t.tipo_venta === 'efectivo' || t.tipo_venta === 'mixto') {
+    r += pad('Efectivo:', 24) + pad(Number(t.monto_efectivo).toFixed(2), 8, 'right') + '\n';
+    if (Number(t.cambio) > 0) {
+      r += pad('Cambio:', 24) + pad(Number(t.cambio).toFixed(2), 8, 'right') + '\n';
     }
   }
-  if (ticket.tipo_venta === 'tarjeta' || ticket.tipo_venta === 'mixto') {
-    r += pad('Tarjeta:', 24) + pad(ticket.monto_tarjeta.toFixed(2), 8, 'right') + '\n';
-    if (ticket.numero_tarjeta) {
-      r += pad(`Tarj: ****${ticket.numero_tarjeta}`, 32) + '\n';
+  if (t.tipo_venta === 'tarjeta' || t.tipo_venta === 'mixto') {
+    r += pad('Tarjeta:', 24) + pad(Number(t.monto_tarjeta || 0).toFixed(2), 8, 'right') + '\n';
+    if (t.numero_tarjeta) {
+      r += pad(`Tarj: ****${t.numero_tarjeta}`, 32) + '\n';
+    }
+    if (t.tarjeta_marca) {
+      r += pad(`Marca: ${t.tarjeta_marca}`, 32) + '\n';
+    }
+    if (t.tarjeta_tipo) {
+      r += pad(`Tipo: ${t.tarjeta_tipo === 'debito' ? 'Débito' : 'Crédito'}`, 32) + '\n';
+    }
+    if (t.tarjeta_banco) {
+      r += pad(`Banco: ${t.tarjeta_banco.substring(0, 28)}`, 32) + '\n';
+    }
+    if (t.tarjeta_titular) {
+      r += pad(`Titular: ${t.tarjeta_titular.substring(0, 28)}`, 32) + '\n';
     }
   }
-  if (ticket.propina > 0) {
-    r += pad('Propina:', 24) + pad(ticket.propina.toFixed(2), 8, 'right') + '\n';
+  if (Number(t.propina) > 0) {
+    r += pad('Propina:', 24) + pad(Number(t.propina).toFixed(2), 8, 'right') + '\n';
   }
 
   r += line + '\n';
