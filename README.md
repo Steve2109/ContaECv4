@@ -555,8 +555,15 @@ chmod 755 /opt/contaec/backend/uploads
 # Proteger todos los propietarios
 chown www-data:www-data /opt/contaec/backend/.env /opt/contaec/backend/backups /opt/contaec/backend/signatures /opt/contaec/backend/uploads
 ```
-
-### 4.11 Integración de Email Templates en Frontend
+---
+### 4.11 Creacion de symlink
+```bash
+ln -sf /opt/contaec/backend/uploads /opt/contaec/public/uploads
+ls -la /opt/contaec/public/
+ls -la /opt/contaec/backend/uploads/
+```
+---
+### 4.12 Integración de Email Templates en Frontend
 ```sh
 # El sistema incluye un editor visual de plantillas de correo en `src/components/email-template-editor.tsx`.
 
@@ -579,13 +586,6 @@ import { EmailTemplateEditor } from '@/components/email-template-editor';
 
 // En tu página
 <EmailTemplateEditor companyId={companyId} />
-```
-
-### 4.12 Creacion de symlink
-```bash
-ln -sf /opt/contaec/backend/uploads /opt/contaec/public/uploads
-ls -la /opt/contaec/public/
-ls -la /opt/contaec/backend/uploads/
 ```
 ---
 
