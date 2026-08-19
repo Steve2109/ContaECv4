@@ -90,6 +90,7 @@ import {
   RefreshCw,
   Sparkles,
   Landmark,
+  Upload,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
@@ -280,9 +281,19 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
       let logoPath: string | undefined;
       let firmaPath: string | undefined;
 
-      // Upload logo if selected
+      // Upload logo if selected (solo .webp)
       const logoFile = logoInputRef.current?.files?.[0];
       if (logoFile) {
+        if (!logoFile.name.toLowerCase().endsWith('.webp')) {
+          toast.error('El logo debe estar en formato .webp. Convierta la imagen a WebP e intente nuevamente.');
+          setCreatingCompany(false);
+          return;
+        }
+        if (logoFile.size > 2 * 1024 * 1024) {
+          toast.error('El logo no debe exceder 2MB.');
+          setCreatingCompany(false);
+          return;
+        }
         try {
           const logoResult = await uploadCompanyFile('logo', logoFile);
           logoPath = logoResult.file_path;
@@ -1000,22 +1011,38 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
               </div>
             </div>
 
-            {/* Seccion: Firma Electronica */}
+            {/* Seccion: Logo y Firma Electronica */}
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.signature')}</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
+                  {/* Logo Empresa */}
                   <div className="space-y-2">
-                    <Label htmlFor="nc-logo">{t('company.logo')}</Label>
-                    <Input id="nc-logo" type="file" accept="image/*" ref={logoInputRef} />
+                    <Label htmlFor="nc-logo">Logo Empresa <span className="text-xs text-muted-foreground">(.webp)</span></Label>
+                    <label
+                      htmlFor="nc-logo"
+                      className="flex flex-col items-center justify-center w-full h-24 rounded-md border border-dashed border-input bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
+                      <Upload className="h-5 w-5 text-muted-foreground mb-1" />
+                      <span className="text-sm font-medium text-foreground">Subir Archivo</span>
+                    </label>
+                    <input id="nc-logo" type="file" accept=".webp" ref={logoInputRef} className="hidden" />
                   </div>
+                  {/* Firma Electronica */}
                   <div className="space-y-2">
-                    <Label htmlFor="nc-firma-archivo">{t('company.signature_file')} <span className="text-destructive">*</span></Label>
-                    <Input id="nc-firma-archivo" type="file" accept=".p12,.pfx" ref={firmaInputRef} required />
+                    <Label htmlFor="nc-firma-archivo">Archivo Firma Electrónica (.p12/pfx) <span className="text-destructive">*</span></Label>
+                    <label
+                      htmlFor="nc-firma-archivo"
+                      className="flex flex-col items-center justify-center w-full h-24 rounded-md border border-dashed border-input bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
+                      <Upload className="h-5 w-5 text-muted-foreground mb-1" />
+                      <span className="text-sm font-medium text-foreground">Subir Archivo</span>
+                    </label>
+                    <input id="nc-firma-archivo" type="file" accept=".p12,.pfx" ref={firmaInputRef} className="hidden" required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nc-firma-pass">{t('company.signature_pass')} <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nc-firma-pass">Contraseña Firma Electrónica <span className="text-destructive">*</span></Label>
                   <Input id="nc-firma-pass" type="password" placeholder={t('company.signature_pass_placeholder')} value={newCompany.firma_electronica_password} onChange={(e) => setNewCompany({ ...newCompany, firma_electronica_password: e.target.value })} required />
                   <p className="text-xs text-muted-foreground">{t('company.signature_required_hint')}</p>
                 </div>

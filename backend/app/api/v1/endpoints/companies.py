@@ -21,7 +21,7 @@ from app.core.config import get_settings
 from app.core.permissions import effective_owner_id
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.user import User
+from app.models.user import User, UserConfig
 from app.models.company import Company, Establishment
 from app.models.client import Client, TipoIdentificacion
 from app.models.ruc_cache import RucCache
@@ -186,6 +186,23 @@ async def create_company(
 
     # Crear cliente Consumidor Final por defecto
     await ensure_consumidor_final(db, str(company.id))
+
+    # ── Sincronizar logo con UserConfig (para que aparezca en Configuracion → Perfil)
+    if company_data.logo_path:
+        result_cfg = await db.execute(
+            select(UserConfig).where(UserConfig.user_id == current_user.id)
+        )
+        user_cfg = result_cfg.scalars().first()
+        if not user_cfg:
+            user_cfg = UserConfig(user_id=current_user.id)
+            db.add(user_cfg)
+        user_cfg.company_logo_path = company_data.logo_path
+        await db.flush()
+
+    # ── Sincronizar telefono del usuario si esta vacio
+    if company_data.telefono and not current_user.phone:
+        current_user.phone = company_data.telefono
+        await db.flush()
 
     logger.info(f"Nueva empresa creada: {company.ruc} - {company.razon_social}")
     return CompanyResponse.model_validate(company)
@@ -648,8 +665,8 @@ async def upload_company_file(
     # Validar extension
     filename = file.filename or ""
     if upload_type == "logo":
-        if not filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")):
-            raise HTTPException(status_code=400, detail="Solo se permiten imagenes (png, jpg, jpeg, gif, svg, webp)")
+        if not filename.lower().endswith(".webp"):
+            raise HTTPException(status_code=400, detail="El logotipo debe ser formato .webp (max. 2MB). Convierta la imagen a .webp e intente nuevamente.")
     else:  # firma
         if not filename.lower().endswith((".p12", ".pfx")):
             raise HTTPException(status_code=400, detail="Solo se permiten archivos .p12 o .pfx")
