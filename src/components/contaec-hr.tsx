@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Dialog,
   DialogContent,
@@ -332,7 +333,7 @@ function EmpleadosTab({ companyId }: { companyId: string }) {
               <div className="space-y-2"><Label>Fecha Ingreso</Label><Input type="date" value={form.fecha_ingreso} onChange={(e) => setForm({ ...form, fecha_ingreso: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Sueldo Mensual ($)</Label><Input type="number" value={form.sueldo_mensual} onChange={(e) => setForm({ ...form, sueldo_mensual: e.target.value })} /></div>
+ <div className="space-y-2"><Label>Sueldo Mensual ($)</Label><NumericInput value={form.sueldo_mensual} onChange={(e) => setForm({ ...form, sueldo_mensual: e.target.value })} /></div>
               <div className="space-y-2"><Label>Tipo Pago</Label><Select value={form.tipo_pago} onValueChange={(v) => setForm({ ...form, tipo_pago: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent><SelectItem value="mensual">Mensual</SelectItem><SelectItem value="quincenal">Quincenal</SelectItem><SelectItem value="semanal">Semanal</SelectItem></SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -479,7 +480,7 @@ function RolesPagoTab({ companyId }: { companyId: string }) {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Mes</Label><Select value={genForm.mes} onValueChange={(v) => setGenForm({ ...genForm, mes: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent>{MESES.map((m, i) => (<SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>))}</SelectContent></Select></div>
-              <div className="space-y-2"><Label>Año</Label><Input type="number" value={genForm.anio} onChange={(e) => setGenForm({ ...genForm, anio: e.target.value })} /></div>
+ <div className="space-y-2"><Label>Año</Label><NumericInput value={genForm.anio} onChange={(e) => setGenForm({ ...genForm, anio: e.target.value })} /></div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowGenerate(false)}>Cancelar</Button>
@@ -535,7 +536,7 @@ function DecimosTab({ companyId }: { companyId: string }) {
                 <SelectItem value="cuarto">Decimo Cuarto</SelectItem>
               </SelectContent>
             </Select>
-            <div className="space-y-0"><Label className="sr-only">Año</Label><Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" /></div>
+ <div className="space-y-0"><Label className="sr-only">Año</Label><NumericInput value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" /></div>
             {decimoType === 'cuarto' && (
               <Select value={region} onValueChange={setRegion}>
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
@@ -617,7 +618,7 @@ function IESSTab({ companyId }: { companyId: string }) {
               <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
               <SelectContent>{MESES.map((m, i) => (<SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>))}</SelectContent>
             </Select>
-            <Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" />
+ <NumericInput value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" />
             <Button onClick={handleLoadReport} disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Consultar</Button>
           </div>
 
@@ -820,7 +821,7 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
             </div>
             {form.discapacidad && (
               <div className="grid grid-cols-2 gap-4 rounded-md border p-3 bg-muted/30">
-                <div className="space-y-2"><Label>% de Discapacidad</Label><Input type="number" min="0" max="100" value={form.porcentaje_discapacidad} onChange={(e) => setForm({ ...form, porcentaje_discapacidad: e.target.value })} placeholder="0-100" /></div>
+ <div className="space-y-2"><Label>% de Discapacidad</Label><NumericInput value={form.porcentaje_discapacidad} onChange={(e) => setForm({ ...form, porcentaje_discapacidad: e.target.value })} placeholder="0-100" /></div>
                 <div className="space-y-2"><Label>Tipo de Discapacidad</Label><Select value={form.tipo_discapacidad} onValueChange={(v) => setForm({ ...form, tipo_discapacidad: v })}><SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger><SelectContent>{TIPOS_DISCAPACIDAD.map((t) => (<SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>))}</SelectContent></Select></div>
               </div>
             )}
@@ -1225,8 +1226,8 @@ function UtilidadesTab({ companyId }: { companyId: string }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
-            <Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-28" placeholder="Año" />
-            <Input type="number" min="0" step="0.01" value={totalUtilidades} onChange={(e) => setTotalUtilidades(e.target.value)} className="w-44" placeholder="Total utilidades ($)" />
+ <NumericInput value={anio} onChange={(e) => setAnio(e.target.value)} className="w-28" placeholder="Año" />
+ <NumericInput value={totalUtilidades} onChange={(e) => setTotalUtilidades(e.target.value)} className="w-44" placeholder="Total utilidades ($)" />
             <Button onClick={handleCalculate} disabled={calculating}>
               {calculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Calcular Utilidades

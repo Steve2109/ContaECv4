@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { useToast } from '@/hooks/use-toast';
 import {
   getContabilidadStats, getCuentasContables, createCuentaContable, deleteCuentaContable, seedPlanCuentasDefault,
@@ -355,7 +356,7 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Código</Label><Input value={form.codigo} onChange={e => setForm({ ...form, codigo: e.target.value })} placeholder="1.1.01" /></div>
-              <div className="space-y-2"><Label>Nivel</Label><Input type="number" value={form.nivel || 1} onChange={e => setForm({ ...form, nivel: Number(e.target.value) })} /></div>
+ <div className="space-y-2"><Label>Nivel</Label><NumericInput value={form.nivel || 1} onChange={e => setForm({ ...form, nivel: Number(e.target.value) })} /></div>
             </div>
             <div className="space-y-2"><Label>Nombre</Label><Input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Caja General" /></div>
             <div className="grid grid-cols-2 gap-4">
@@ -379,7 +380,7 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
             </div>
             <div className="space-y-2"><Label>Descripción</Label><Input value={form.descripcion || ''} onChange={e => setForm({ ...form, descripcion: e.target.value })} placeholder="Descripción de la cuenta" /></div>
             <div className="space-y-2"><Label>Notas</Label><textarea className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" value={form.notas || ''} onChange={e => setForm({ ...form, notas: e.target.value })} placeholder="Notas adicionales..." /></div>
-            <div className="space-y-2"><Label>Saldo Inicial</Label><Input type="number" value={form.saldo_inicial || 0} onChange={e => setForm({ ...form, saldo_inicial: Number(e.target.value) })} /></div>
+ <div className="space-y-2"><Label>Saldo Inicial</Label><NumericInput value={form.saldo_inicial || 0} onChange={e => setForm({ ...form, saldo_inicial: Number(e.target.value) })} /></div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={handleCreate} disabled={creating}>{creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Crear</Button>
@@ -606,11 +607,11 @@ function AsientosTab({ companyId, onRefresh }: { companyId: string; onRefresh: (
                     </div>
                     <div>
                       {i === 0 && <span className="text-xs text-muted-foreground">Débito</span>}
-                      <Input type="number" className="h-8 text-xs" value={d.debito} onChange={e => updateLine(i, 'debito', e.target.value)} />
+ <NumericInput className="h-8 text-xs" value={d.debito} onChange={e => updateLine(i, 'debito', e.target.value)} />
                     </div>
                     <div>
                       {i === 0 && <span className="text-xs text-muted-foreground">Crédito</span>}
-                      <Input type="number" className="h-8 text-xs" value={d.credito} onChange={e => updateLine(i, 'credito', e.target.value)} />
+ <NumericInput className="h-8 text-xs" value={d.credito} onChange={e => updateLine(i, 'credito', e.target.value)} />
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeLine(i)} disabled={detalles.length <= 2}>
                       <Trash2 className="h-3.5 w-3.5" />
@@ -773,8 +774,8 @@ function CxCTab({ companyId }: { companyId: string }) {
             </div>
             <div className="space-y-2"><Label>Cliente</Label><Input value={form.cliente_nombre || ''} onChange={e => setForm({ ...form, cliente_nombre: e.target.value })} placeholder="Nombre del cliente" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Monto Total</Label><Input type="number" value={form.monto_total || ''} onChange={e => setForm({ ...form, monto_total: Number(e.target.value) })} /></div>
-              <div className="space-y-2"><Label>Días Crédito</Label><Input type="number" value={form.dias_credito || 30} onChange={e => setForm({ ...form, dias_credito: Number(e.target.value) })} /></div>
+ <div className="space-y-2"><Label>Monto Total</Label><NumericInput value={form.monto_total || ''} onChange={e => setForm({ ...form, monto_total: Number(e.target.value) })} /></div>
+ <div className="space-y-2"><Label>Días Crédito</Label><NumericInput value={form.dias_credito || 30} onChange={e => setForm({ ...form, dias_credito: Number(e.target.value) })} /></div>
             </div>
             <div className="space-y-2"><Label>Observaciones</Label><Input value={form.observaciones || ''} onChange={e => setForm({ ...form, observaciones: e.target.value })} /></div>
             <div className="flex justify-end gap-2">
@@ -957,7 +958,7 @@ function PagosTab({ companyId }: { companyId: string }) {
             </div>
             <div className="space-y-2"><Label>Tercero</Label><Input value={form.tercero_nombre || ''} onChange={e => setForm({ ...form, tercero_nombre: e.target.value })} placeholder="Nombre del tercero" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Monto</Label><Input type="number" value={form.monto || ''} onChange={e => setForm({ ...form, monto: Number(e.target.value) })} /></div>
+ <div className="space-y-2"><Label>Monto</Label><NumericInput value={form.monto || ''} onChange={e => setForm({ ...form, monto: Number(e.target.value) })} /></div>
               <div className="space-y-2">
                 <Label>Forma de Pago</Label>
                 <Select value={form.forma_pago || 'efectivo'} onValueChange={v => setForm({ ...form, forma_pago: v })}>
@@ -1137,8 +1138,8 @@ function PeriodosTab({ companyId }: { companyId: string }) {
           <div className="space-y-4">
             <div className="space-y-2"><Label>Nombre</Label><Input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Enero 2025" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Año</Label><Input type="number" value={form.anio} onChange={e => setForm({ ...form, anio: Number(e.target.value) })} /></div>
-              <div className="space-y-2"><Label>Mes</Label><Input type="number" min={1} max={12} value={form.mes || ''} onChange={e => setForm({ ...form, mes: Number(e.target.value) || null })} /></div>
+ <div className="space-y-2"><Label>Año</Label><NumericInput value={form.anio} onChange={e => setForm({ ...form, anio: Number(e.target.value) })} /></div>
+ <div className="space-y-2"><Label>Mes</Label><NumericInput min={1} max={12} value={form.mes || ''} onChange={e => setForm({ ...form, mes: Number(e.target.value) || null })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Fecha Inicio</Label><Input type="date" value={form.fecha_inicio} onChange={e => setForm({ ...form, fecha_inicio: e.target.value })} /></div>
@@ -1184,7 +1185,7 @@ function BalanceTab({ companyId }: { companyId: string }) {
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex items-center gap-2">
           <Label>Año:</Label>
-          <Input type="number" value={anio} onChange={e => setAnio(Number(e.target.value))} className="w-[100px]" />
+ <NumericInput value={anio} onChange={e => setAnio(Number(e.target.value))} className="w-[100px]" />
         </div>
         <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
       </div>

@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Brain,
   TrendingUp,
@@ -927,555 +928,553 @@ export function ContaECMLAI({ user: _user, companies }: ContaECMLAIProps) {
                   )}
                 </ScrollArea>
                 <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Escriba su mensaje..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    disabled={sendingChat}
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={sendingChat || !chatInput.trim()}
-                    size="icon"
-                  >
-                    {sendingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                  <NumericInput placeholder="Escriba su mensaje..."
+ value={chatInput}
+ onChange={(e) => setChatInput(e.target.value)}
+ onKeyDown={(e) => {
+ if (e.key === 'Enter' && !e.shiftKey) {
+ e.preventDefault();
+ handleSendMessage();
+ }
+ }}
+ disabled={sendingChat}
+ />
+ <Button
+ onClick={handleSendMessage}
+ disabled={sendingChat || !chatInput.trim()}
+ size="icon"
+ >
+ {sendingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+ </Button>
+ </div>
+ </CardContent>
+ </Card>
+ </div>
+ </TabsContent>
 
-        {/* Tab: RECOMENDACIONES */}
-        <TabsContent value="recomendaciones" className="space-y-4">
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">
-                Las recomendaciones se generan analizando <strong>tus propios datos</strong>:
-                facturas autorizadas (productos más/menos vendidos, mejores clientes), stock
-                de productos por debajo del mínimo e inventario, y cuentas por pagar pendientes.
-                Si acabas de empezar, primero crea facturas, clientes, productos o compras para
-                que el sistema tenga información de la que extraer recomendaciones.
-              </p>
-            </CardContent>
-          </Card>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Select value={filterTipoRecomendacion} onValueChange={(v) => setFilterTipoRecomendacion(v === 'all' ? '' : v)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="producto">Producto</SelectItem>
-                  <SelectItem value="cliente">Cliente</SelectItem>
-                  <SelectItem value="precio">Precio</SelectItem>
-                  <SelectItem value="inventario">Inventario</SelectItem>
-                  <SelectItem value="financiera">Financiera</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterEstadoRecomendacion} onValueChange={(v) => setFilterEstadoRecomendacion(v === 'all' ? '' : v)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="pendiente">Pendiente</SelectItem>
-                  <SelectItem value="aplicada">Aplicada</SelectItem>
-                  <SelectItem value="descartada">Descartada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleGenerateRecomendaciones} disabled={generating}>
-              {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              Generar Recomendaciones
-            </Button>
-          </div>
+ {/* Tab: RECOMENDACIONES */}
+ <TabsContent value="recomendaciones" className="space-y-4">
+ <Card>
+ <CardContent className="pt-4">
+ <p className="text-sm text-muted-foreground">
+ Las recomendaciones se generan analizando <strong>tus propios datos</strong>:
+ facturas autorizadas (productos más/menos vendidos, mejores clientes), stock
+ de productos por debajo del mínimo e inventario, y cuentas por pagar pendientes.
+ Si acabas de empezar, primero crea facturas, clientes, productos o compras para
+ que el sistema tenga información de la que extraer recomendaciones.
+ </p>
+ </CardContent>
+ </Card>
+ <div className="flex items-center justify-between flex-wrap gap-2">
+ <div className="flex items-center gap-2">
+ <Select value={filterTipoRecomendacion} onValueChange={(v) => setFilterTipoRecomendacion(v === 'all' ? '' : v)}>
+ <SelectTrigger className="w-[150px]">
+ <SelectValue placeholder="Tipo" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="all">Todos</SelectItem>
+ <SelectItem value="producto">Producto</SelectItem>
+ <SelectItem value="cliente">Cliente</SelectItem>
+ <SelectItem value="precio">Precio</SelectItem>
+ <SelectItem value="inventario">Inventario</SelectItem>
+ <SelectItem value="financiera">Financiera</SelectItem>
+ </SelectContent>
+ </Select>
+ <Select value={filterEstadoRecomendacion} onValueChange={(v) => setFilterEstadoRecomendacion(v === 'all' ? '' : v)}>
+ <SelectTrigger className="w-[150px]">
+ <SelectValue placeholder="Estado" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="all">Todos</SelectItem>
+ <SelectItem value="pendiente">Pendiente</SelectItem>
+ <SelectItem value="aplicada">Aplicada</SelectItem>
+ <SelectItem value="descartada">Descartada</SelectItem>
+ </SelectContent>
+ </Select>
+ </div>
+ <Button onClick={handleGenerateRecomendaciones} disabled={generating}>
+ {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+ Generar Recomendaciones
+ </Button>
+ </div>
 
-          {filteredRecomendaciones.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-10">
-                <Lightbulb className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No hay recomendaciones disponibles</p>
-                <p className="text-xs text-muted-foreground mt-1">Genere recomendaciones basadas en sus datos</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredRecomendaciones.map((rec) => (
-                <Card key={rec.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge className={TIPO_RECOMENDACION_COLORS[rec.tipo] || 'bg-gray-100 text-gray-800'}>
-                          {rec.tipo}
-                        </Badge>
-                        <Badge className={ESTADO_RECOMENDACION_COLORS[rec.estado] || 'bg-gray-100 text-gray-800'}>
-                          {rec.estado}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 text-amber-500" />
-                        <span className="text-sm">{(rec.confianza * 100).toFixed(1)}%</span>
-                      </div>
-                    </div>
-                    <CardTitle className="text-base mt-2">{rec.titulo}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground">{rec.descripcion}</p>
-                    {rec.impacto_estimado && (
-                      <div className="flex items-center gap-1 text-sm">
-                        <TrendingUp className="h-3 w-3 text-green-500" />
-                        <span>Impacto estimado: {rec.impacto_estimado}</span>
-                      </div>
-                    )}
-                    {rec.fecha_aplicacion && (
-                      <p className="text-xs text-muted-foreground">
-                        Aplicada: {new Date(rec.fecha_aplicacion).toLocaleDateString('es-EC')}
-                      </p>
-                    )}
-                    {rec.estado === 'pendiente' && (
-                      <div className="flex items-center gap-2 pt-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateRecomendacion(rec.id, { estado: 'aplicada' })}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          Aplicar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUpdateRecomendacion(rec.id, { estado: 'descartada' })}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Descartar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteRecomendacion(rec.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+ {filteredRecomendaciones.length === 0 ? (
+ <Card>
+ <CardContent className="flex flex-col items-center justify-center py-10">
+ <Lightbulb className="h-12 w-12 text-muted-foreground mb-4" />
+ <p className="text-muted-foreground">No hay recomendaciones disponibles</p>
+ <p className="text-xs text-muted-foreground mt-1">Genere recomendaciones basadas en sus datos</p>
+ </CardContent>
+ </Card>
+ ) : (
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+ {filteredRecomendaciones.map((rec) => (
+ <Card key={rec.id}>
+ <CardHeader className="pb-3">
+ <div className="flex items-start justify-between">
+ <div className="flex items-center gap-2">
+ <Badge className={TIPO_RECOMENDACION_COLORS[rec.tipo] || 'bg-gray-100 text-gray-800'}>
+ {rec.tipo}
+ </Badge>
+ <Badge className={ESTADO_RECOMENDACION_COLORS[rec.estado] || 'bg-gray-100 text-gray-800'}>
+ {rec.estado}
+ </Badge>
+ </div>
+ <div className="flex items-center gap-1">
+ <Sparkles className="h-3 w-3 text-amber-500" />
+ <span className="text-sm">{(rec.confianza * 100).toFixed(1)}%</span>
+ </div>
+ </div>
+ <CardTitle className="text-base mt-2">{rec.titulo}</CardTitle>
+ </CardHeader>
+ <CardContent className="space-y-3">
+ <p className="text-sm text-muted-foreground">{rec.descripcion}</p>
+ {rec.impacto_estimado && (
+ <div className="flex items-center gap-1 text-sm">
+ <TrendingUp className="h-3 w-3 text-green-500" />
+ <span>Impacto estimado: {rec.impacto_estimado}</span>
+ </div>
+ )}
+ {rec.fecha_aplicacion && (
+ <p className="text-xs text-muted-foreground">
+ Aplicada: {new Date(rec.fecha_aplicacion).toLocaleDateString('es-EC')}
+ </p>
+ )}
+ {rec.estado === 'pendiente' && (
+ <div className="flex items-center gap-2 pt-2">
+ <Button
+ size="sm"
+ onClick={() => handleUpdateRecomendacion(rec.id, { estado: 'aplicada' })}
+ >
+ <CheckCircle2 className="h-4 w-4 mr-1" />
+ Aplicar
+ </Button>
+ <Button
+ size="sm"
+ variant="outline"
+ onClick={() => handleUpdateRecomendacion(rec.id, { estado: 'descartada' })}
+ >
+ <XCircle className="h-4 w-4 mr-1" />
+ Descartar
+ </Button>
+ <Button
+ size="sm"
+ variant="ghost"
+ onClick={() => handleDeleteRecomendacion(rec.id)}
+ >
+ <Trash2 className="h-4 w-4 text-red-500" />
+ </Button>
+ </div>
+ )}
+ </CardContent>
+ </Card>
+ ))}
+ </div>
+ )}
+ </TabsContent>
 
-        {/* Tab: CATEGORIZACION */}
-        <TabsContent value="categorizacion" className="space-y-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  Patrón Regex: expresion regular que busca coincidencias en la descripcion.
-                  Ejemplo: <code className="bg-muted px-1 rounded">.*SUPERMERCADO.*</code> para compras en supermercados
-                </p>
-                <p>
-                  Prioridad: 1 = maxima (se evalua primero), 10 = minima.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Reglas de Categorizacion</h3>
-            <Button onClick={() => {
-              setEditingRegla(null);
-              setReglaForm({
-                company_id: companyId,
-                categoria: '',
-                subcategoria: '',
-                palabras_clave: '',
-                patron_regex: '',
-                prioridad: 1,
-              });
-              setShowReglaDialog(true);
-            }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Regla
-            </Button>
-          </div>
+ {/* Tab: CATEGORIZACION */}
+ <TabsContent value="categorizacion" className="space-y-4">
+ <Card>
+ <CardContent className="pt-4">
+ <div className="space-y-2 text-sm text-muted-foreground">
+ <p>
+ Patrón Regex: expresion regular que busca coincidencias en la descripcion.
+ Ejemplo: <code className="bg-muted px-1 rounded">.*SUPERMERCADO.*</code> para compras en supermercados
+ </p>
+ <p>
+ Prioridad: 1 = maxima (se evalua primero), 10 = minima.
+ </p>
+ </div>
+ </CardContent>
+ </Card>
+ <div className="flex items-center justify-between">
+ <h3 className="text-lg font-semibold">Reglas de Categorizacion</h3>
+ <Button onClick={() => {
+ setEditingRegla(null);
+ setReglaForm({
+ company_id: companyId,
+ categoria: '',
+ subcategoria: '',
+ palabras_clave: '',
+ patron_regex: '',
+ prioridad: 1,
+ });
+ setShowReglaDialog(true);
+ }}>
+ <Plus className="h-4 w-4 mr-2" />
+ Nueva Regla
+ </Button>
+ </div>
 
-          {reglas.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-10">
-                <Tag className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No hay reglas de categorizacion</p>
-                <p className="text-xs text-muted-foreground mt-1">Cree reglas para categorizar automaticamente sus transacciones</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <ScrollArea className="max-h-96">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead>Subcategoria</TableHead>
-                        <TableHead>Palabras Clave</TableHead>
-                        <TableHead>Prioridad</TableHead>
-                        <TableHead>Activa</TableHead>
-                        <TableHead>Aplicaciones</TableHead>
-                        <TableHead>Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reglas.map((regla) => (
-                        <TableRow key={regla.id}>
-                          <TableCell className="font-medium">{regla.categoria}</TableCell>
-                          <TableCell className="text-sm">{regla.subcategoria || '-'}</TableCell>
-                          <TableCell className="text-sm max-w-[200px] truncate">
-                            {regla.palabras_clave || '-'}
-                          </TableCell>
-                          <TableCell className="text-sm">{regla.prioridad}</TableCell>
-                          <TableCell>
-                            {regla.es_activa ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-gray-400" />
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm">{regla.aplicaciones_count}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingRegla(regla);
-                                  setReglaForm({
-                                    company_id: companyId,
-                                    categoria: regla.categoria,
-                                    subcategoria: regla.subcategoria || '',
-                                    palabras_clave: regla.palabras_clave || '',
-                                    patron_regex: regla.patron_regex || '',
-                                    prioridad: regla.prioridad,
-                                  });
-                                  setShowReglaDialog(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteRegla(regla.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          )}
+ {reglas.length === 0 ? (
+ <Card>
+ <CardContent className="flex flex-col items-center justify-center py-10">
+ <Tag className="h-12 w-12 text-muted-foreground mb-4" />
+ <p className="text-muted-foreground">No hay reglas de categorizacion</p>
+ <p className="text-xs text-muted-foreground mt-1">Cree reglas para categorizar automaticamente sus transacciones</p>
+ </CardContent>
+ </Card>
+ ) : (
+ <Card>
+ <CardContent className="p-0">
+ <ScrollArea className="max-h-96">
+ <Table>
+ <TableHeader>
+ <TableRow>
+ <TableHead>Categoria</TableHead>
+ <TableHead>Subcategoria</TableHead>
+ <TableHead>Palabras Clave</TableHead>
+ <TableHead>Prioridad</TableHead>
+ <TableHead>Activa</TableHead>
+ <TableHead>Aplicaciones</TableHead>
+ <TableHead>Acciones</TableHead>
+ </TableRow>
+ </TableHeader>
+ <TableBody>
+ {reglas.map((regla) => (
+ <TableRow key={regla.id}>
+ <TableCell className="font-medium">{regla.categoria}</TableCell>
+ <TableCell className="text-sm">{regla.subcategoria || '-'}</TableCell>
+ <TableCell className="text-sm max-w-[200px] truncate">
+ {regla.palabras_clave || '-'}
+ </TableCell>
+ <TableCell className="text-sm">{regla.prioridad}</TableCell>
+ <TableCell>
+ {regla.es_activa ? (
+ <CheckCircle2 className="h-4 w-4 text-green-500" />
+ ) : (
+ <XCircle className="h-4 w-4 text-gray-400" />
+ )}
+ </TableCell>
+ <TableCell className="text-sm">{regla.aplicaciones_count}</TableCell>
+ <TableCell>
+ <div className="flex items-center gap-1">
+ <Button
+ variant="ghost"
+ size="sm"
+ onClick={() => {
+ setEditingRegla(regla);
+ setReglaForm({
+ company_id: companyId,
+ categoria: regla.categoria,
+ subcategoria: regla.subcategoria || '',
+ palabras_clave: regla.palabras_clave || '',
+ patron_regex: regla.patron_regex || '',
+ prioridad: regla.prioridad,
+ });
+ setShowReglaDialog(true);
+ }}
+ >
+ <Pencil className="h-4 w-4" />
+ </Button>
+ <Button
+ variant="ghost"
+ size="sm"
+ onClick={() => handleDeleteRegla(regla.id)}
+ >
+ <Trash2 className="h-4 w-4 text-red-500" />
+ </Button>
+ </div>
+ </TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ </ScrollArea>
+ </CardContent>
+ </Card>
+ )}
 
-          {/* Test Categorization */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                Probar Categorizacion
-              </CardTitle>
-              <CardDescription>
-                Ingrese una descripcion para probar la categorizacion automatica
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Descripción de la transaccion..."
-                  value={testDescripcion}
-                  onChange={(e) => setTestDescripcion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleTestCategorize();
-                  }}
-                />
-                <Button onClick={handleTestCategorize} disabled={testingCat || !testDescripcion.trim()}>
-                  {testingCat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                </Button>
-              </div>
-              {testResult && (
-                <div className="p-3 rounded-lg bg-accent space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    <span className="text-sm font-medium">Categoria: {testResult.categoria}</span>
-                  </div>
-                  {testResult.subcategoria && (
-                    <p className="text-sm text-muted-foreground ml-6">Subcategoria: {testResult.subcategoria}</p>
-                  )}
-                  <div className="flex items-center gap-1 ml-6">
-                    <Sparkles className="h-3 w-3 text-amber-500" />
-                    <span className="text-xs">Confianza: {(testResult.confianza * 100).toFixed(1)}%</span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+ {/* Test Categorization */}
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-sm flex items-center gap-2">
+ <Search className="h-4 w-4" />
+ Probar Categorizacion
+ </CardTitle>
+ <CardDescription>
+ Ingrese una descripcion para probar la categorizacion automatica
+ </CardDescription>
+ </CardHeader>
+ <CardContent className="space-y-3">
+ <div className="flex items-center gap-2">
+ <Input
+ placeholder="Descripción de la transaccion..."
+ value={testDescripcion}
+ onChange={(e) => setTestDescripcion(e.target.value)}
+ onKeyDown={(e) => {
+ if (e.key === 'Enter') handleTestCategorize();
+ }}
+ />
+ <Button onClick={handleTestCategorize} disabled={testingCat || !testDescripcion.trim()}>
+ {testingCat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+ </Button>
+ </div>
+ {testResult && (
+ <div className="p-3 rounded-lg bg-accent space-y-1">
+ <div className="flex items-center gap-2">
+ <Tag className="h-4 w-4" />
+ <span className="text-sm font-medium">Categoria: {testResult.categoria}</span>
+ </div>
+ {testResult.subcategoria && (
+ <p className="text-sm text-muted-foreground ml-6">Subcategoria: {testResult.subcategoria}</p>
+ )}
+ <div className="flex items-center gap-1 ml-6">
+ <Sparkles className="h-3 w-3 text-amber-500" />
+ <span className="text-xs">Confianza: {(testResult.confianza * 100).toFixed(1)}%</span>
+ </div>
+ </div>
+ )}
+ </CardContent>
+ </Card>
+ </TabsContent>
+ </Tabs>
 
-      {/* Dialog: Nueva Predicción */}
-      <Dialog open={showPrediccionDialog} onOpenChange={setShowPrediccionDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nueva Predicción</DialogTitle>
-            <DialogDescription>
-              Configure los parametros para generar una nueva prediccion
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Tipo de Predicción</Label>
-              <Select
-                value={prediccionForm.tipo}
-                onValueChange={(v) => setPrediccionForm({ ...prediccionForm, tipo: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ventas">Ventas</SelectItem>
-                  <SelectItem value="ingresos">Ingresos</SelectItem>
-                  <SelectItem value="gastos">Gastos</SelectItem>
-                  <SelectItem value="flujo_caja">Flujo de Caja</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Desde</Label>
-                <Input
-                  type="date"
-                  value={prediccionForm.periodo_desde}
-                  onChange={(e) => setPrediccionForm({ ...prediccionForm, periodo_desde: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Hasta</Label>
-                <Input
-                  type="date"
-                  value={prediccionForm.periodo_hasta}
-                  onChange={(e) => setPrediccionForm({ ...prediccionForm, periodo_hasta: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Modelo</Label>
-              <Select
-                value={prediccionForm.modelo_usado || 'regresion_lineal'}
-                onValueChange={(v) => setPrediccionForm({ ...prediccionForm, modelo_usado: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="regresion_lineal">Regresion Lineal</SelectItem>
-                  <SelectItem value="promedio_movil">Promedio Movil</SelectItem>
-                  <SelectItem value="suavizacion_exponencial">Suavizacion Exponencial</SelectItem>
-                  <SelectItem value="arima">ARIMA</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowPrediccionDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreatePrediccion} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Crear Predicción
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+ {/* Dialog: Nueva Predicción */}
+ <Dialog open={showPrediccionDialog} onOpenChange={setShowPrediccionDialog}>
+ <DialogContent>
+ <DialogHeader>
+ <DialogTitle>Nueva Predicción</DialogTitle>
+ <DialogDescription>
+ Configure los parametros para generar una nueva prediccion
+ </DialogDescription>
+ </DialogHeader>
+ <div className="space-y-4">
+ <div className="space-y-2">
+ <Label>Tipo de Predicción</Label>
+ <Select
+ value={prediccionForm.tipo}
+ onValueChange={(v) => setPrediccionForm({ ...prediccionForm, tipo: v })}
+ >
+ <SelectTrigger>
+ <SelectValue />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="ventas">Ventas</SelectItem>
+ <SelectItem value="ingresos">Ingresos</SelectItem>
+ <SelectItem value="gastos">Gastos</SelectItem>
+ <SelectItem value="flujo_caja">Flujo de Caja</SelectItem>
+ </SelectContent>
+ </Select>
+ </div>
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label>Desde</Label>
+ <Input
+ type="date"
+ value={prediccionForm.periodo_desde}
+ onChange={(e) => setPrediccionForm({ ...prediccionForm, periodo_desde: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>Hasta</Label>
+ <Input
+ type="date"
+ value={prediccionForm.periodo_hasta}
+ onChange={(e) => setPrediccionForm({ ...prediccionForm, periodo_hasta: e.target.value })}
+ />
+ </div>
+ </div>
+ <div className="space-y-2">
+ <Label>Modelo</Label>
+ <Select
+ value={prediccionForm.modelo_usado || 'regresion_lineal'}
+ onValueChange={(v) => setPrediccionForm({ ...prediccionForm, modelo_usado: v })}
+ >
+ <SelectTrigger>
+ <SelectValue />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="regresion_lineal">Regresion Lineal</SelectItem>
+ <SelectItem value="promedio_movil">Promedio Movil</SelectItem>
+ <SelectItem value="suavizacion_exponencial">Suavizacion Exponencial</SelectItem>
+ <SelectItem value="arima">ARIMA</SelectItem>
+ </SelectContent>
+ </Select>
+ </div>
+ </div>
+ <div className="flex justify-end gap-2 pt-4">
+ <Button variant="outline" onClick={() => setShowPrediccionDialog(false)}>
+ Cancelar
+ </Button>
+ <Button onClick={handleCreatePrediccion} disabled={saving}>
+ {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+ Crear Predicción
+ </Button>
+ </div>
+ </DialogContent>
+ </Dialog>
 
-      {/* Dialog: Predicción Detail */}
-      <Dialog open={showPrediccionDetail} onOpenChange={setShowPrediccionDetail}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Detalle de Predicción</DialogTitle>
-            <DialogDescription>
-              Resultados y metricas de la prediccion
-            </DialogDescription>
-          </DialogHeader>
-          {selectedPrediccion && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Tipo</p>
-                  <Badge className={TIPO_PREDICCION_COLORS[selectedPrediccion.tipo] || 'bg-gray-100 text-gray-800'}>
-                    {selectedPrediccion.tipo}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Estado</p>
-                  <Badge className={ESTADO_PREDICCION_COLORS[selectedPrediccion.estado] || 'bg-gray-100 text-gray-800'}>
-                    {selectedPrediccion.estado}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Modelo</p>
-                  <p className="text-sm font-medium">{selectedPrediccion.modelo_usado}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Confianza</p>
-                  <p className="text-sm font-medium">{(selectedPrediccion.confianza * 100).toFixed(1)}%</p>
-                </div>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Período</p>
-                <p className="text-sm">
-                  {new Date(selectedPrediccion.periodo_desde).toLocaleDateString('es-EC')} - {new Date(selectedPrediccion.periodo_hasta).toLocaleDateString('es-EC')}
-                </p>
-              </div>
-              {selectedPrediccion.resultado && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Resultado</p>
-                  <ScrollArea className="max-h-40">
-                    <pre className="text-xs bg-accent p-3 rounded-lg whitespace-pre-wrap">
-                      {JSON.stringify(JSON.parse(selectedPrediccion.resultado), null, 2)}
-                    </pre>
-                  </ScrollArea>
-                </div>
-              )}
-              {selectedPrediccion.metricas && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Metricas</p>
-                  <ScrollArea className="max-h-40">
-                    <pre className="text-xs bg-accent p-3 rounded-lg whitespace-pre-wrap">
-                      {JSON.stringify(JSON.parse(selectedPrediccion.metricas), null, 2)}
-                    </pre>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+ {/* Dialog: Predicción Detail */}
+ <Dialog open={showPrediccionDetail} onOpenChange={setShowPrediccionDetail}>
+ <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+ <DialogHeader>
+ <DialogTitle>Detalle de Predicción</DialogTitle>
+ <DialogDescription>
+ Resultados y metricas de la prediccion
+ </DialogDescription>
+ </DialogHeader>
+ {selectedPrediccion && (
+ <div className="space-y-4">
+ <div className="grid grid-cols-2 gap-4">
+ <div>
+ <p className="text-xs text-muted-foreground">Tipo</p>
+ <Badge className={TIPO_PREDICCION_COLORS[selectedPrediccion.tipo] || 'bg-gray-100 text-gray-800'}>
+ {selectedPrediccion.tipo}
+ </Badge>
+ </div>
+ <div>
+ <p className="text-xs text-muted-foreground">Estado</p>
+ <Badge className={ESTADO_PREDICCION_COLORS[selectedPrediccion.estado] || 'bg-gray-100 text-gray-800'}>
+ {selectedPrediccion.estado}
+ </Badge>
+ </div>
+ <div>
+ <p className="text-xs text-muted-foreground">Modelo</p>
+ <p className="text-sm font-medium">{selectedPrediccion.modelo_usado}</p>
+ </div>
+ <div>
+ <p className="text-xs text-muted-foreground">Confianza</p>
+ <p className="text-sm font-medium">{(selectedPrediccion.confianza * 100).toFixed(1)}%</p>
+ </div>
+ </div>
+ <Separator />
+ <div>
+ <p className="text-xs text-muted-foreground mb-1">Período</p>
+ <p className="text-sm">
+ {new Date(selectedPrediccion.periodo_desde).toLocaleDateString('es-EC')} - {new Date(selectedPrediccion.periodo_hasta).toLocaleDateString('es-EC')}
+ </p>
+ </div>
+ {selectedPrediccion.resultado && (
+ <div>
+ <p className="text-xs text-muted-foreground mb-1">Resultado</p>
+ <ScrollArea className="max-h-40">
+ <pre className="text-xs bg-accent p-3 rounded-lg whitespace-pre-wrap">
+ {JSON.stringify(JSON.parse(selectedPrediccion.resultado), null, 2)}
+ </pre>
+ </ScrollArea>
+ </div>
+ )}
+ {selectedPrediccion.metricas && (
+ <div>
+ <p className="text-xs text-muted-foreground mb-1">Metricas</p>
+ <ScrollArea className="max-h-40">
+ <pre className="text-xs bg-accent p-3 rounded-lg whitespace-pre-wrap">
+ {JSON.stringify(JSON.parse(selectedPrediccion.metricas), null, 2)}
+ </pre>
+ </ScrollArea>
+ </div>
+ )}
+ </div>
+ )}
+ </DialogContent>
+ </Dialog>
 
-      {/* Dialog: Descartar Alerta */}
-      <Dialog open={showAlertaDialog} onOpenChange={setShowAlertaDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Descartar Alerta de Fraude</DialogTitle>
-            <DialogDescription>
-              Proporcione una nota de resolucion para descartar esta alerta
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedAlerta && (
-              <div className="p-3 bg-accent rounded-lg">
-                <p className="text-sm font-medium">{selectedAlerta.tipo_deteccion}</p>
-                <p className="text-xs text-muted-foreground mt-1">{selectedAlerta.descripcion}</p>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Nota de Resolución</Label>
-              <Textarea
-                placeholder="Explique por que se descarta esta alerta..."
-                value={alertaResolucion}
-                onChange={(e) => setAlertaResolucion(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => {
-              setShowAlertaDialog(false);
-              setSelectedAlerta(null);
-              setAlertaResolucion('');
-            }}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (selectedAlerta) {
-                  handleUpdateAlerta(selectedAlerta.id, {
-                    estado: 'descartado',
-                    resolucion_nota: alertaResolucion || undefined,
-                  });
-                }
-              }}
-            >
-              Descartar Alerta
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+ {/* Dialog: Descartar Alerta */}
+ <Dialog open={showAlertaDialog} onOpenChange={setShowAlertaDialog}>
+ <DialogContent>
+ <DialogHeader>
+ <DialogTitle>Descartar Alerta de Fraude</DialogTitle>
+ <DialogDescription>
+ Proporcione una nota de resolucion para descartar esta alerta
+ </DialogDescription>
+ </DialogHeader>
+ <div className="space-y-4">
+ {selectedAlerta && (
+ <div className="p-3 bg-accent rounded-lg">
+ <p className="text-sm font-medium">{selectedAlerta.tipo_deteccion}</p>
+ <p className="text-xs text-muted-foreground mt-1">{selectedAlerta.descripcion}</p>
+ </div>
+ )}
+ <div className="space-y-2">
+ <Label>Nota de Resolución</Label>
+ <Textarea
+ placeholder="Explique por que se descarta esta alerta..."
+ value={alertaResolucion}
+ onChange={(e) => setAlertaResolucion(e.target.value)}
+ />
+ </div>
+ </div>
+ <div className="flex justify-end gap-2 pt-4">
+ <Button variant="outline" onClick={() => {
+ setShowAlertaDialog(false);
+ setSelectedAlerta(null);
+ setAlertaResolucion('');
+ }}>
+ Cancelar
+ </Button>
+ <Button
+ variant="destructive"
+ onClick={() => {
+ if (selectedAlerta) {
+ handleUpdateAlerta(selectedAlerta.id, {
+ estado: 'descartado',
+ resolucion_nota: alertaResolucion || undefined,
+ });
+ }
+ }}
+ >
+ Descartar Alerta
+ </Button>
+ </div>
+ </DialogContent>
+ </Dialog>
 
-      {/* Dialog: Nueva/Editar Regla */}
-      <Dialog open={showReglaDialog} onOpenChange={setShowReglaDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingRegla ? 'Editar Regla' : 'Nueva Regla de Categorizacion'}</DialogTitle>
-            <DialogDescription>
-              {editingRegla ? 'Modifique los campos de la regla' : 'Defina una nueva regla para categorizar automaticamente'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Input
-                placeholder="Ej: Servicios, Ventas, Gastos..."
-                value={reglaForm.categoria}
-                onChange={(e) => setReglaForm({ ...reglaForm, categoria: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Subcategoria</Label>
-              <Input
-                placeholder="Subcategoria (opcional)"
-                value={reglaForm.subcategoria || ''}
-                onChange={(e) => setReglaForm({ ...reglaForm, subcategoria: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Palabras Clave</Label>
-              <Input
-                placeholder="Separadas por comas: factura, venta, servicio"
-                value={reglaForm.palabras_clave || ''}
-                onChange={(e) => setReglaForm({ ...reglaForm, palabras_clave: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Patrón Regex</Label>
-              <Input
-                placeholder="Expresion regular (opcional)"
-                value={reglaForm.patron_regex || ''}
-                onChange={(e) => setReglaForm({ ...reglaForm, patron_regex: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Patrón Regex: expresion regular que busca coincidencias en la descripcion.
-                Ejemplo: <code className="bg-muted px-1 rounded">.*SUPERMERCADO.*</code> para compras en supermercados
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Prioridad</Label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={reglaForm.prioridad || 1}
-                onChange={(e) => setReglaForm({ ...reglaForm, prioridad: parseInt(e.target.value) || 1 })}
-              />
+ {/* Dialog: Nueva/Editar Regla */}
+ <Dialog open={showReglaDialog} onOpenChange={setShowReglaDialog}>
+ <DialogContent>
+ <DialogHeader>
+ <DialogTitle>{editingRegla ? 'Editar Regla' : 'Nueva Regla de Categorizacion'}</DialogTitle>
+ <DialogDescription>
+ {editingRegla ? 'Modifique los campos de la regla' : 'Defina una nueva regla para categorizar automaticamente'}
+ </DialogDescription>
+ </DialogHeader>
+ <div className="space-y-4">
+ <div className="space-y-2">
+ <Label>Categoria</Label>
+ <Input
+ placeholder="Ej: Servicios, Ventas, Gastos..."
+ value={reglaForm.categoria}
+ onChange={(e) => setReglaForm({ ...reglaForm, categoria: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>Subcategoria</Label>
+ <Input
+ placeholder="Subcategoria (opcional)"
+ value={reglaForm.subcategoria || ''}
+ onChange={(e) => setReglaForm({ ...reglaForm, subcategoria: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>Palabras Clave</Label>
+ <Input
+ placeholder="Separadas por comas: factura, venta, servicio"
+ value={reglaForm.palabras_clave || ''}
+ onChange={(e) => setReglaForm({ ...reglaForm, palabras_clave: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>Patrón Regex</Label>
+ <Input
+ placeholder="Expresion regular (opcional)"
+ value={reglaForm.patron_regex || ''}
+ onChange={(e) => setReglaForm({ ...reglaForm, patron_regex: e.target.value })}
+ />
+ <p className="text-xs text-muted-foreground">
+ Patrón Regex: expresion regular que busca coincidencias en la descripcion.
+ Ejemplo: <code className="bg-muted px-1 rounded">.*SUPERMERCADO.*</code> para compras en supermercados
+ </p>
+ </div>
+ <div className="space-y-2">
+ <Label>Prioridad</Label>
+ <Input
+ 
+ min={1}
+ max={100}
+ value={reglaForm.prioridad || 1}
+ onChange={(e) => setReglaForm({ ...reglaForm, prioridad: parseInt(e.target.value) || 1 })} />
               <p className="text-xs text-muted-foreground">
                 Prioridad: 1 = maxima (se evalua primero), 10 = minima.
               </p>

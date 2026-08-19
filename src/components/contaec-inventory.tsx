@@ -43,6 +43,7 @@ import {
   FileDown,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { toast } from 'sonner';
 import {
   getKardexMovements,
@@ -315,11 +316,11 @@ function KardexTab({ companyId }: { companyId: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cantidad (negativo = decrementar)</Label>
-                <Input type="number" value={ajusteForm.cantidad_ajuste} onChange={(e) => setAjusteForm({ ...ajusteForm, cantidad_ajuste: e.target.value })} />
+ <NumericInput value={ajusteForm.cantidad_ajuste} onChange={(e) => setAjusteForm({ ...ajusteForm, cantidad_ajuste: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label>Costo Unitario</Label>
-                <Input type="number" value={ajusteForm.costo_unitario} onChange={(e) => setAjusteForm({ ...ajusteForm, costo_unitario: e.target.value })} />
+ <NumericInput value={ajusteForm.costo_unitario} onChange={(e) => setAjusteForm({ ...ajusteForm, costo_unitario: e.target.value })} />
               </div>
             </div>
             <div className="space-y-2">

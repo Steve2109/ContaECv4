@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Table,
   TableBody,
@@ -811,15 +812,11 @@ export function ContaECAdmin({ onBack }: ContaECAdminProps) {
                       {editingPrices ? (
                         <div className="space-y-1">
                           <Label htmlFor={`price-${plan.key}`}>Precio (USD)</Label>
-                          <Input
-                            id={`price-${plan.key}`}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={plan.price}
-                            onChange={(e) => handlePriceChange(plan.key, e.target.value)}
-                            className="text-lg font-bold"
-                          />
+                          <NumericInput id={`price-${plan.key}`}
+ 
+ value={plan.price}
+ onChange={(e) => handlePriceChange(plan.key, e.target.value)}
+ className="text-lg font-bold" />
                         </div>
                       ) : (
                         <div className="text-center py-2">
@@ -1112,69 +1109,67 @@ export function ContaECAdmin({ onBack }: ContaECAdminProps) {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="reset-password">Contraseña temporal (opcional)</Label>
-                <Input
-                  id="reset-password"
-                  type="text"
-                  placeholder="Déjela vacía para generarla automáticamente"
-                  value={resetForm.temporary_password}
-                  onChange={(e) => setResetForm({ ...resetForm, temporary_password: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Mínimo 8 caracteres con mayúscula, minúscula, número y símbolo. Si la deja vacía, el sistema genera una segura.
-                </p>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={resetForm.send_email}
-                  onChange={(e) => setResetForm({ ...resetForm, send_email: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm">Enviar la contraseña temporal por correo al cliente</span>
-              </label>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleResetPassword}
-                  disabled={resetting || !!resetForm.temporary_password && resetForm.temporary_password.length < 8}
-                >
-                  {resetting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Restableciendo...
-                    </>
-                  ) : (
-                    'Restablecer Contraseña'
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+                <Input id="reset-password"
+ type="text"
+ placeholder="Déjela vacía para generarla automáticamente"
+ value={resetForm.temporary_password}
+ onChange={(e) => setResetForm({ ...resetForm, temporary_password: e.target.value })}
+ />
+ <p className="text-xs text-muted-foreground">
+ Mínimo 8 caracteres con mayúscula, minúscula, número y símbolo. Si la deja vacía, el sistema genera una segura.
+ </p>
+ </div>
+ <label className="flex items-center gap-2 cursor-pointer">
+ <input
+ type="checkbox"
+ checked={resetForm.send_email}
+ onChange={(e) => setResetForm({ ...resetForm, send_email: e.target.checked })}
+ className="h-4 w-4"
+ />
+ <span className="text-sm">Enviar la contraseña temporal por correo al cliente</span>
+ </label>
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+ Cancelar
+ </Button>
+ <Button
+ onClick={handleResetPassword}
+ disabled={resetting || !!resetForm.temporary_password && resetForm.temporary_password.length < 8}
+ >
+ {resetting ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ Restableciendo...
+ </>
+ ) : (
+ 'Restablecer Contraseña'
+ )}
+ </Button>
+ </div>
+ </div>
+ )}
+ </DialogContent>
+ </Dialog>
 
-      {/* Trial Modification Dialog */}
-      <Dialog open={trialDialogOpen} onOpenChange={setTrialDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Modificar Período de Prueba</DialogTitle>
-            <DialogDescription>
-              Modificar el período de prueba de {selectedTrialUser?.full_name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="mod-trial-days">Días de prueba (1-90)</Label>
-              <Input
-                id="mod-trial-days"
-                type="number"
-                min={1}
-                max={90}
-                value={trialDaysForm}
-                onChange={(e) => setTrialDaysForm(parseInt(e.target.value) || 15)}
-              />
+ {/* Trial Modification Dialog */}
+ <Dialog open={trialDialogOpen} onOpenChange={setTrialDialogOpen}>
+ <DialogContent className="sm:max-w-md">
+ <DialogHeader>
+ <DialogTitle>Modificar Período de Prueba</DialogTitle>
+ <DialogDescription>
+ Modificar el período de prueba de {selectedTrialUser?.full_name}
+ </DialogDescription>
+ </DialogHeader>
+ <div className="space-y-4">
+ <div className="space-y-2">
+ <Label htmlFor="mod-trial-days">Días de prueba (1-90)</Label>
+ <Input
+ id="mod-trial-days"
+ 
+ min={1}
+ max={90}
+ value={trialDaysForm}
+ onChange={(e) => setTrialDaysForm(parseInt(e.target.value) || 15)} />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setTrialDialogOpen(false)}>

@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Select,
   SelectContent,
@@ -843,658 +844,657 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                   <div className="col-span-2 space-y-2">
                     <Label htmlFor="nc-ruc">RUC <span className="text-red-500">*</span></Label>
                     <div className="flex gap-2">
-                      <Input
-                        id="nc-ruc"
-                        placeholder="1790000000001"
-                        value={newCompany.ruc}
-                        onChange={(e) => setNewCompany({ ...newCompany, ruc: e.target.value.replace(/\D/g, '').slice(0, 13) })}
-                        maxLength={13}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={newCompany.ruc.length !== 13}
-                        onClick={async () => {
-                          if (newCompany.ruc.length !== 13) return;
-                          try {
-                            const data = await lookupRuc(newCompany.ruc);
-                            if (data.razon_social) {
-                              setNewCompany((prev) => ({
-                                ...prev,
-                                razon_social: data.razon_social || prev.razon_social,
-                                nombre_comercial: data.nombre_comercial || prev.nombre_comercial,
-                                dir_matriz: data.dir_matriz || prev.dir_matriz,
-                                obligado_contabilidad: data.obligado_contabilidad || prev.obligado_contabilidad,
-                                contribuyente_especial: data.contribuyente_especial || prev.contribuyente_especial,
-                              }));
-                              toast.success(t('company.data_from_sri'));
-                            } else if (data.message) {
-                              toast.warning(data.message);
-                            }
-                          } catch {
-                            toast.error(t('company.sri_error'));
-                          }
-                        }}
-                      >
-                        SRI
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-cod-est">{t('company.code_est')}</Label>
-                    <Input id="nc-cod-est" placeholder="001" value={newCompany.cod_establecimiento} onChange={(e) => setNewCompany({ ...newCompany, cod_establecimiento: e.target.value.replace(/\D/g, '').slice(0, 3) })} maxLength={3} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-razon">{t('company.name')} <span className="text-red-500">*</span></Label>
-                    <Input id="nc-razon" placeholder="Mi Empresa S.A." value={newCompany.razon_social} onChange={(e) => setNewCompany({ ...newCompany, razon_social: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-nombre">{t('company.commercial')}</Label>
-                    <Input id="nc-nombre" placeholder="Mi Empresa" value={newCompany.nombre_comercial} onChange={(e) => setNewCompany({ ...newCompany, nombre_comercial: e.target.value })} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nc-dir">{t('company.address')} <span className="text-red-500">*</span></Label>
-                  <Input id="nc-dir" placeholder="Av. Amazonas 123, Quito" value={newCompany.dir_matriz} onChange={(e) => setNewCompany({ ...newCompany, dir_matriz: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-correo">{t('company.email')}</Label>
-                    <Input id="nc-correo" type="email" placeholder="info@empresa.com" value={newCompany.correo} onChange={(e) => setNewCompany({ ...newCompany, correo: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-tel">{t('company.phone')}</Label>
-                    <Input id="nc-tel" placeholder="0999999999" value={newCompany.telefono} onChange={(e) => setNewCompany({ ...newCompany, telefono: e.target.value })} />
-                  </div>
-                </div>
-              </div>
-            </div>
+                      <NumericInput id="nc-ruc"
+ placeholder="1790000000001"
+ value={newCompany.ruc}
+ onChange={(e) => setNewCompany({ ...newCompany, ruc: e.target.value.replace(/\D/g, '').slice(0, 13) })}
+ maxLength={13}
+ />
+ <Button
+ type="button"
+ variant="outline"
+ size="sm"
+ disabled={newCompany.ruc.length !== 13}
+ onClick={async () => {
+ if (newCompany.ruc.length !== 13) return;
+ try {
+ const data = await lookupRuc(newCompany.ruc);
+ if (data.razon_social) {
+ setNewCompany((prev) => ({
+ ...prev,
+ razon_social: data.razon_social || prev.razon_social,
+ nombre_comercial: data.nombre_comercial || prev.nombre_comercial,
+ dir_matriz: data.dir_matriz || prev.dir_matriz,
+ obligado_contabilidad: data.obligado_contabilidad || prev.obligado_contabilidad,
+ contribuyente_especial: data.contribuyente_especial || prev.contribuyente_especial,
+ }));
+ toast.success(t('company.data_from_sri'));
+ } else if (data.message) {
+ toast.warning(data.message);
+ }
+ } catch {
+ toast.error(t('company.sri_error'));
+ }
+ }}
+ >
+ SRI
+ </Button>
+ </div>
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-cod-est">{t('company.code_est')}</Label>
+ <Input id="nc-cod-est" placeholder="001" value={newCompany.cod_establecimiento} onChange={(e) => setNewCompany({ ...newCompany, cod_establecimiento: e.target.value.replace(/\D/g, '').slice(0, 3) })} maxLength={3} />
+ </div>
+ </div>
+ <div className="grid grid-cols-2 gap-3">
+ <div className="space-y-2">
+ <Label htmlFor="nc-razon">{t('company.name')} <span className="text-red-500">*</span></Label>
+ <Input id="nc-razon" placeholder="Mi Empresa S.A." value={newCompany.razon_social} onChange={(e) => setNewCompany({ ...newCompany, razon_social: e.target.value })} />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-nombre">{t('company.commercial')}</Label>
+ <Input id="nc-nombre" placeholder="Mi Empresa" value={newCompany.nombre_comercial} onChange={(e) => setNewCompany({ ...newCompany, nombre_comercial: e.target.value })} />
+ </div>
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-dir">{t('company.address')} <span className="text-red-500">*</span></Label>
+ <Input id="nc-dir" placeholder="Av. Amazonas 123, Quito" value={newCompany.dir_matriz} onChange={(e) => setNewCompany({ ...newCompany, dir_matriz: e.target.value })} />
+ </div>
+ <div className="grid grid-cols-2 gap-3">
+ <div className="space-y-2">
+ <Label htmlFor="nc-correo">{t('company.email')}</Label>
+ <Input id="nc-correo" type="email" placeholder="info@empresa.com" value={newCompany.correo} onChange={(e) => setNewCompany({ ...newCompany, correo: e.target.value })} />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-tel">{t('company.phone')}</Label>
+ <Input id="nc-tel" placeholder="0999999999" value={newCompany.telefono} onChange={(e) => setNewCompany({ ...newCompany, telefono: e.target.value })} />
+ </div>
+ </div>
+ </div>
+ </div>
 
-            {/* Seccion: Configuracion Fiscal */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.fiscal_config')}</h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-obligado">{t('company.obligated')}</Label>
-                    <select
-                      id="nc-obligado"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={newCompany.obligado_contabilidad}
-                      onChange={(e) => setNewCompany({ ...newCompany, obligado_contabilidad: e.target.value })}
-                    >
-                      <option value="NO">NO</option>
-                      <option value="SI">SI</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-cod-pemi">{t('company.code_emission')}</Label>
-                    <Input id="nc-cod-pemi" placeholder="001" value={newCompany.cod_punto_emision} onChange={(e) => setNewCompany({ ...newCompany, cod_punto_emision: e.target.value.replace(/\D/g, '').slice(0, 3) })} maxLength={3} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('company.rimpe')}</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className={`flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer transition-colors text-left ${
-                        newCompany.contribuyente_rimpe === 'RIMPE Emprendedor'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:bg-accent'
-                      }`}
-                      onClick={() => setNewCompany({
-                        ...newCompany,
-                        contribuyente_rimpe: newCompany.contribuyente_rimpe === 'RIMPE Emprendedor' ? '' : 'RIMPE Emprendedor',
-                      })}
-                    >
-                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        newCompany.contribuyente_rimpe === 'RIMPE Emprendedor' ? 'border-primary' : 'border-muted-foreground'
-                      }`}>
-                        {newCompany.contribuyente_rimpe === 'RIMPE Emprendedor' && (
-                          <div className="h-2 w-2 rounded-full bg-primary" />
-                        )}
-                      </div>
-                      <span className="text-sm">{t('company.rimpe_emprendedor')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer transition-colors text-left ${
-                        newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:bg-accent'
-                      }`}
-                      onClick={() => setNewCompany({
-                        ...newCompany,
-                        contribuyente_rimpe: newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' ? '' : 'RIMPE Negocio Popular',
-                      })}
-                    >
-                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' ? 'border-primary' : 'border-muted-foreground'
-                      }`}>
-                        {newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' && (
-                          <div className="h-2 w-2 rounded-full bg-primary" />
-                        )}
-                      </div>
-                      <span className="text-sm">{t('company.rimpe_popular')}</span>
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t('company.rimpe_note')}</p>
-                </div>
+ {/* Seccion: Configuracion Fiscal */}
+ <div>
+ <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.fiscal_config')}</h3>
+ <div className="space-y-3">
+ <div className="grid grid-cols-2 gap-3">
+ <div className="space-y-2">
+ <Label htmlFor="nc-obligado">{t('company.obligated')}</Label>
+ <select
+ id="nc-obligado"
+ className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+ value={newCompany.obligado_contabilidad}
+ onChange={(e) => setNewCompany({ ...newCompany, obligado_contabilidad: e.target.value })}
+ >
+ <option value="NO">NO</option>
+ <option value="SI">SI</option>
+ </select>
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-cod-pemi">{t('company.code_emission')}</Label>
+ <Input id="nc-cod-pemi" placeholder="001" value={newCompany.cod_punto_emision} onChange={(e) => setNewCompany({ ...newCompany, cod_punto_emision: e.target.value.replace(/\D/g, '').slice(0, 3) })} maxLength={3} />
+ </div>
+ </div>
+ <div className="space-y-2">
+ <Label>{t('company.rimpe')}</Label>
+ <div className="grid grid-cols-2 gap-2">
+ <button
+ type="button"
+ className={`flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer transition-colors text-left ${
+ newCompany.contribuyente_rimpe === 'RIMPE Emprendedor'
+ ? 'border-primary bg-primary/10 text-primary'
+ : 'hover:bg-accent'
+ }`}
+ onClick={() => setNewCompany({
+ ...newCompany,
+ contribuyente_rimpe: newCompany.contribuyente_rimpe === 'RIMPE Emprendedor' ? '' : 'RIMPE Emprendedor',
+ })}
+ >
+ <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+ newCompany.contribuyente_rimpe === 'RIMPE Emprendedor' ? 'border-primary' : 'border-muted-foreground'
+ }`}>
+ {newCompany.contribuyente_rimpe === 'RIMPE Emprendedor' && (
+ <div className="h-2 w-2 rounded-full bg-primary" />
+ )}
+ </div>
+ <span className="text-sm">{t('company.rimpe_emprendedor')}</span>
+ </button>
+ <button
+ type="button"
+ className={`flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer transition-colors text-left ${
+ newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular'
+ ? 'border-primary bg-primary/10 text-primary'
+ : 'hover:bg-accent'
+ }`}
+ onClick={() => setNewCompany({
+ ...newCompany,
+ contribuyente_rimpe: newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' ? '' : 'RIMPE Negocio Popular',
+ })}
+ >
+ <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+ newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' ? 'border-primary' : 'border-muted-foreground'
+ }`}>
+ {newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' && (
+ <div className="h-2 w-2 rounded-full bg-primary" />
+ )}
+ </div>
+ <span className="text-sm">{t('company.rimpe_popular')}</span>
+ </button>
+ </div>
+ <p className="text-xs text-muted-foreground">{t('company.rimpe_note')}</p>
+ </div>
 
-                {/* Campos condicionales para RIMPE Negocio Popular */}
-                {newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' && (
-                  <div className="pl-2 border-l-2 border-amber-400 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="nc-artesano-rimpe">{t('company.artisan_code')}</Label>
-                        <Input id="nc-artesano-rimpe" placeholder={t('company.assigned_code')} value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="nc-nom-recibos-rimpe">{t('company.receipts_name')}</Label>
-                        <Input id="nc-nom-recibos-rimpe" placeholder={t('company.receipts_placeholder')} value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
-                  <input
-                    type="checkbox"
-                    checked={newCompany.registro_turistico}
-                    onChange={(e) => setNewCompany({ ...newCompany, registro_turistico: e.target.checked })}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm">{t('company.tourism')}</span>
-                </label>
-              </div>
-            </div>
+ {/* Campos condicionales para RIMPE Negocio Popular */}
+ {newCompany.contribuyente_rimpe === 'RIMPE Negocio Popular' && (
+ <div className="pl-2 border-l-2 border-amber-400 space-y-3">
+ <div className="grid grid-cols-2 gap-3">
+ <div className="space-y-2">
+ <Label htmlFor="nc-artesano-rimpe">{t('company.artisan_code')}</Label>
+ <Input id="nc-artesano-rimpe" placeholder={t('company.assigned_code')} value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-nom-recibos-rimpe">{t('company.receipts_name')}</Label>
+ <Input id="nc-nom-recibos-rimpe" placeholder={t('company.receipts_placeholder')} value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
+ </div>
+ </div>
+ </div>
+ )}
+ <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
+ <input
+ type="checkbox"
+ checked={newCompany.registro_turistico}
+ onChange={(e) => setNewCompany({ ...newCompany, registro_turistico: e.target.checked })}
+ className="h-4 w-4"
+ />
+ <span className="text-sm">{t('company.tourism')}</span>
+ </label>
+ </div>
+ </div>
 
-            {/* Seccion: Logo y Firma Electronica */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.signature')}</h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Logo Empresa */}
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-logo">Logo Empresa <span className="text-xs text-muted-foreground">(.webp)</span></Label>
-                    <label
-                      htmlFor="nc-logo"
-                      className="flex flex-col items-center justify-center w-full h-24 rounded-md border border-dashed border-input bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                    >
-                      <Upload className="h-5 w-5 text-muted-foreground mb-1" />
-                      <span className="text-sm font-medium text-foreground">Subir Archivo</span>
-                    </label>
-                    <input id="nc-logo" type="file" accept=".webp" ref={logoInputRef} className="hidden" />
-                  </div>
-                  {/* Firma Electronica */}
-                  <div className="space-y-2">
-                    <Label htmlFor="nc-firma-archivo">Archivo Firma Electrónica (.p12/pfx) <span className="text-destructive">*</span></Label>
-                    <label
-                      htmlFor="nc-firma-archivo"
-                      className="flex flex-col items-center justify-center w-full h-24 rounded-md border border-dashed border-input bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                    >
-                      <Upload className="h-5 w-5 text-muted-foreground mb-1" />
-                      <span className="text-sm font-medium text-foreground">Subir Archivo</span>
-                    </label>
-                    <input id="nc-firma-archivo" type="file" accept=".p12,.pfx" ref={firmaInputRef} className="hidden" required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nc-firma-pass">Contraseña Firma Electrónica <span className="text-destructive">*</span></Label>
-                  <Input id="nc-firma-pass" type="password" placeholder={t('company.signature_pass_placeholder')} value={newCompany.firma_electronica_password} onChange={(e) => setNewCompany({ ...newCompany, firma_electronica_password: e.target.value })} required />
-                  <p className="text-xs text-muted-foreground">{t('company.signature_required_hint')}</p>
-                </div>
-              </div>
-            </div>
+ {/* Seccion: Logo y Firma Electronica */}
+ <div>
+ <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.signature')}</h3>
+ <div className="space-y-3">
+ <div className="grid grid-cols-2 gap-3">
+ {/* Logo Empresa */}
+ <div className="space-y-2">
+ <Label htmlFor="nc-logo">Logo Empresa <span className="text-xs text-muted-foreground">(.webp)</span></Label>
+ <label
+ htmlFor="nc-logo"
+ className="flex flex-col items-center justify-center w-full h-24 rounded-md border border-dashed border-input bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+ >
+ <Upload className="h-5 w-5 text-muted-foreground mb-1" />
+ <span className="text-sm font-medium text-foreground">Subir Archivo</span>
+ </label>
+ <input id="nc-logo" type="file" accept=".webp" ref={logoInputRef} className="hidden" />
+ </div>
+ {/* Firma Electronica */}
+ <div className="space-y-2">
+ <Label htmlFor="nc-firma-archivo">Archivo Firma Electrónica (.p12/pfx) <span className="text-destructive">*</span></Label>
+ <label
+ htmlFor="nc-firma-archivo"
+ className="flex flex-col items-center justify-center w-full h-24 rounded-md border border-dashed border-input bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+ >
+ <Upload className="h-5 w-5 text-muted-foreground mb-1" />
+ <span className="text-sm font-medium text-foreground">Subir Archivo</span>
+ </label>
+ <input id="nc-firma-archivo" type="file" accept=".p12,.pfx" ref={firmaInputRef} className="hidden" required />
+ </div>
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-firma-pass">Contraseña Firma Electrónica <span className="text-destructive">*</span></Label>
+ <Input id="nc-firma-pass" type="password" placeholder={t('company.signature_pass_placeholder')} value={newCompany.firma_electronica_password} onChange={(e) => setNewCompany({ ...newCompany, firma_electronica_password: e.target.value })} required />
+ <p className="text-xs text-muted-foreground">{t('company.signature_required_hint')}</p>
+ </div>
+ </div>
+ </div>
 
-            {/* Seccion: Transportista (condicional) */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.transport')}</h3>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
-                  <input
-                    type="checkbox"
-                    checked={newCompany.operadora_transportista_comercial}
-                    onChange={(e) => setNewCompany({ ...newCompany, operadora_transportista_comercial: e.target.checked })}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm">{t('company.transport_commercial')}</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
-                  <input
-                    type="checkbox"
-                    checked={newCompany.operadora_transportista_ligera}
-                    onChange={(e) => setNewCompany({ ...newCompany, operadora_transportista_ligera: e.target.checked })}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm">{t('company.transport_light')}</span>
-                </label>
-              </div>
-              {(newCompany.operadora_transportista_comercial || newCompany.operadora_transportista_ligera) && (
-                <div className="mt-3 space-y-3 pl-2 border-l-2 border-primary/30">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="nc-ruc-op-comercial">{t('company.ruc_operator_commercial')}</Label>
-                      <p className="text-xs text-muted-foreground">{t('company.only_partner')}</p>
-                      <Input id="nc-ruc-op-comercial" placeholder="1790000000001" value={newCompany.ruc_operadora_comercial} onChange={(e) => setNewCompany({ ...newCompany, ruc_operadora_comercial: e.target.value.replace(/\D/g, '').slice(0, 13) })} maxLength={13} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="nc-ruc-op">{t('company.ruc_operator')}</Label>
-                      <Input id="nc-ruc-op" placeholder="1790000000001" value={newCompany.ruc_operadora_transportista} onChange={(e) => setNewCompany({ ...newCompany, ruc_operadora_transportista: e.target.value.replace(/\D/g, '').slice(0, 13) })} maxLength={13} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="nc-agente-ret">{t('company.agent_retention')}</Label>
-                      <Input id="nc-agente-ret" placeholder={t('company.resolution_number')} value={newCompany.agente_retencion} onChange={(e) => setNewCompany({ ...newCompany, agente_retencion: e.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="nc-contrib-esp">{t('company.special_contributor')}</Label>
-                      <Input id="nc-contrib-esp" placeholder={t('company.resolution_number')} value={newCompany.contribuyente_especial} onChange={(e) => setNewCompany({ ...newCompany, contribuyente_especial: e.target.value })} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="nc-artesano">{t('company.artisan_code')}</Label>
-                      <Input id="nc-artesano" placeholder={t('company.code')} value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="nc-nom-recibos">{t('company.receipts_name')}</Label>
-                      <Input id="nc-nom-recibos" placeholder={t('company.receipts_placeholder')} value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+ {/* Seccion: Transportista (condicional) */}
+ <div>
+ <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">{t('company.transport')}</h3>
+ <div className="space-y-2">
+ <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
+ <input
+ type="checkbox"
+ checked={newCompany.operadora_transportista_comercial}
+ onChange={(e) => setNewCompany({ ...newCompany, operadora_transportista_comercial: e.target.checked })}
+ className="h-4 w-4"
+ />
+ <span className="text-sm">{t('company.transport_commercial')}</span>
+ </label>
+ <label className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent">
+ <input
+ type="checkbox"
+ checked={newCompany.operadora_transportista_ligera}
+ onChange={(e) => setNewCompany({ ...newCompany, operadora_transportista_ligera: e.target.checked })}
+ className="h-4 w-4"
+ />
+ <span className="text-sm">{t('company.transport_light')}</span>
+ </label>
+ </div>
+ {(newCompany.operadora_transportista_comercial || newCompany.operadora_transportista_ligera) && (
+ <div className="mt-3 space-y-3 pl-2 border-l-2 border-primary/30">
+ <div className="grid grid-cols-2 gap-3">
+ <div className="space-y-2">
+ <Label htmlFor="nc-ruc-op-comercial">{t('company.ruc_operator_commercial')}</Label>
+ <p className="text-xs text-muted-foreground">{t('company.only_partner')}</p>
+ <Input id="nc-ruc-op-comercial" placeholder="1790000000001" value={newCompany.ruc_operadora_comercial} onChange={(e) => setNewCompany({ ...newCompany, ruc_operadora_comercial: e.target.value.replace(/\D/g, '').slice(0, 13) })} maxLength={13} />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-ruc-op">{t('company.ruc_operator')}</Label>
+ <Input id="nc-ruc-op" placeholder="1790000000001" value={newCompany.ruc_operadora_transportista} onChange={(e) => setNewCompany({ ...newCompany, ruc_operadora_transportista: e.target.value.replace(/\D/g, '').slice(0, 13) })} maxLength={13} />
+ </div>
+ </div>
+ <div className="grid grid-cols-2 gap-3">
+ <div className="space-y-2">
+ <Label htmlFor="nc-agente-ret">{t('company.agent_retention')}</Label>
+ <Input id="nc-agente-ret" placeholder={t('company.resolution_number')} value={newCompany.agente_retencion} onChange={(e) => setNewCompany({ ...newCompany, agente_retencion: e.target.value })} />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-contrib-esp">{t('company.special_contributor')}</Label>
+ <Input id="nc-contrib-esp" placeholder={t('company.resolution_number')} value={newCompany.contribuyente_especial} onChange={(e) => setNewCompany({ ...newCompany, contribuyente_especial: e.target.value })} />
+ </div>
+ </div>
+ <div className="grid grid-cols-2 gap-3">
+ <div className="space-y-2">
+ <Label htmlFor="nc-artesano">{t('company.artisan_code')}</Label>
+ <Input id="nc-artesano" placeholder={t('company.code')} value={newCompany.codigo_artesano} onChange={(e) => setNewCompany({ ...newCompany, codigo_artesano: e.target.value })} />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="nc-nom-recibos">{t('company.receipts_name')}</Label>
+ <Input id="nc-nom-recibos" placeholder={t('company.receipts_placeholder')} value={newCompany.nombre_recibos} onChange={(e) => setNewCompany({ ...newCompany, nombre_recibos: e.target.value })} />
+ </div>
+ </div>
+ </div>
+ )}
+ </div>
 
-            {/* Botones */}
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowNewCompany(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button onClick={handleCreateCompany} disabled={creatingCompany}>
-                {creatingCompany ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t('company.creating')}
-                  </>
-                ) : (
-                  t('company.create')
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+ {/* Botones */}
+ <div className="flex justify-end gap-2 pt-2 border-t">
+ <Button variant="outline" onClick={() => setShowNewCompany(false)}>
+ {t('common.cancel')}
+ </Button>
+ <Button onClick={handleCreateCompany} disabled={creatingCompany}>
+ {creatingCompany ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ {t('company.creating')}
+ </>
+ ) : (
+ t('company.create')
+ )}
+ </Button>
+ </div>
+ </div>
+ </DialogContent>
+ </Dialog>
 
-      {/* Cambio forzado de contraseña (contraseña temporal) */}
-      <Dialog open={forcePasswordOpen} onOpenChange={(o) => {
-        // No permitir cerrar el modal sin cambiar la contraseña
-        if (!o) return;
-        setForcePasswordOpen(true);
-      }}>
-        <DialogContent className="sm:max-w-md" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-amber-500" />
-              Cambio de contraseña requerido
-            </DialogTitle>
-            <DialogDescription>
-              Ingresaste con una contraseña temporal. Por seguridad, debes crear una nueva contraseña antes de continuar.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setForcePwError(null);
-              if (forcePwNew.length < 8) {
-                setForcePwError('La contraseña debe tener al menos 8 caracteres');
-                return;
-              }
-              if (!/[A-Z]/.test(forcePwNew) || !/[a-z]/.test(forcePwNew) || !/\d/.test(forcePwNew) || !/[^A-Za-z0-9\s]/.test(forcePwNew)) {
-                setForcePwError('La contraseña debe incluir mayúscula, minúscula, número y símbolo');
-                return;
-              }
-              if (forcePwNew !== forcePwConfirm) {
-                setForcePwError('Las contraseñas no coinciden');
-                return;
-              }
-              setForcePwLoading(true);
-              try {
-                await forceChangePassword({
-                  new_password: forcePwNew,
-                  confirm_new_password: forcePwConfirm,
-                });
-                setForcePasswordOpen(false);
-                toast.success('Contraseña actualizada exitosamente');
-              } catch (err) {
-                setForcePwError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
-              } finally {
-                setForcePwLoading(false);
-              }
-            }}
-          >
-            {forcePwError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{forcePwError}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="fpw-new">Nueva contraseña</Label>
-              <Input
-                id="fpw-new"
-                type="password"
-                value={forcePwNew}
-                onChange={(e) => setForcePwNew(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
-                autoFocus
-                disabled={forcePwLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fpw-confirm">Confirmar nueva contraseña</Label>
-              <Input
-                id="fpw-confirm"
-                type="password"
-                value={forcePwConfirm}
-                onChange={(e) => setForcePwConfirm(e.target.value)}
-                placeholder="Repita la nueva contraseña"
-                disabled={forcePwLoading}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              La contraseña debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.
-            </p>
-            <Button type="submit" className="w-full" disabled={forcePwLoading}>
-              {forcePwLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                'Cambiar contraseña'
-              )}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+ {/* Cambio forzado de contraseña (contraseña temporal) */}
+ <Dialog open={forcePasswordOpen} onOpenChange={(o) => {
+ // No permitir cerrar el modal sin cambiar la contraseña
+ if (!o) return;
+ setForcePasswordOpen(true);
+ }}>
+ <DialogContent className="sm:max-w-md" showCloseButton={false}>
+ <DialogHeader>
+ <DialogTitle className="flex items-center gap-2">
+ <Key className="h-5 w-5 text-amber-500" />
+ Cambio de contraseña requerido
+ </DialogTitle>
+ <DialogDescription>
+ Ingresaste con una contraseña temporal. Por seguridad, debes crear una nueva contraseña antes de continuar.
+ </DialogDescription>
+ </DialogHeader>
+ <form
+ className="space-y-4"
+ onSubmit={async (e) => {
+ e.preventDefault();
+ setForcePwError(null);
+ if (forcePwNew.length < 8) {
+ setForcePwError('La contraseña debe tener al menos 8 caracteres');
+ return;
+ }
+ if (!/[A-Z]/.test(forcePwNew) || !/[a-z]/.test(forcePwNew) || !/\d/.test(forcePwNew) || !/[^A-Za-z0-9\s]/.test(forcePwNew)) {
+ setForcePwError('La contraseña debe incluir mayúscula, minúscula, número y símbolo');
+ return;
+ }
+ if (forcePwNew !== forcePwConfirm) {
+ setForcePwError('Las contraseñas no coinciden');
+ return;
+ }
+ setForcePwLoading(true);
+ try {
+ await forceChangePassword({
+ new_password: forcePwNew,
+ confirm_new_password: forcePwConfirm,
+ });
+ setForcePasswordOpen(false);
+ toast.success('Contraseña actualizada exitosamente');
+ } catch (err) {
+ setForcePwError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
+ } finally {
+ setForcePwLoading(false);
+ }
+ }}
+ >
+ {forcePwError && (
+ <Alert variant="destructive">
+ <AlertCircle className="h-4 w-4" />
+ <AlertDescription>{forcePwError}</AlertDescription>
+ </Alert>
+ )}
+ <div className="space-y-2">
+ <Label htmlFor="fpw-new">Nueva contraseña</Label>
+ <Input
+ id="fpw-new"
+ type="password"
+ value={forcePwNew}
+ onChange={(e) => setForcePwNew(e.target.value)}
+ placeholder="Mínimo 8 caracteres"
+ autoFocus
+ disabled={forcePwLoading}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="fpw-confirm">Confirmar nueva contraseña</Label>
+ <Input
+ id="fpw-confirm"
+ type="password"
+ value={forcePwConfirm}
+ onChange={(e) => setForcePwConfirm(e.target.value)}
+ placeholder="Repita la nueva contraseña"
+ disabled={forcePwLoading}
+ />
+ </div>
+ <p className="text-xs text-muted-foreground">
+ La contraseña debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.
+ </p>
+ <Button type="submit" className="w-full" disabled={forcePwLoading}>
+ {forcePwLoading ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ Guardando...
+ </>
+ ) : (
+ 'Cambiar contraseña'
+ )}
+ </Button>
+ </form>
+ </DialogContent>
+ </Dialog>
+ </div>
+ );
 }
 
 // --- Sub-views ---
 
 function DashboardView({
-  user,
-  license,
-  licenseExpiring,
-  companies,
-  invoiceStats,
-  ivaRates,
-  documentTypes,
-  onNavigate,
+ user,
+ license,
+ licenseExpiring,
+ companies,
+ invoiceStats,
+ ivaRates,
+ documentTypes,
+ onNavigate,
 }: {
-  user: UserType;
-  license: LicenseStatusType | null;
-  licenseExpiring: boolean;
-  companies: CompanyType[];
-  invoiceStats: InvoiceStatsType | null;
-  ivaRates: SRIIVARate[];
-  documentTypes: SRIDocumentType[];
-  onNavigate: (nav: NavItem) => void;
+ user: UserType;
+ license: LicenseStatusType | null;
+ licenseExpiring: boolean;
+ companies: CompanyType[];
+ invoiceStats: InvoiceStatsType | null;
+ ivaRates: SRIIVARate[];
+ documentTypes: SRIDocumentType[];
+ onNavigate: (nav: NavItem) => void;
 }) {
-  return (
-    <div className="space-y-6">
-      {/* License Alert */}
-      {licenseExpiring && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t('dash.license_expiring')}</AlertTitle>
-          <AlertDescription>
-            {t('dash.license_expiring_desc')}
-          </AlertDescription>
-        </Alert>
-      )}
+ return (
+ <div className="space-y-6">
+ {/* License Alert */}
+ {licenseExpiring && (
+ <Alert variant="destructive">
+ <AlertTriangle className="h-4 w-4" />
+ <AlertTitle>{t('dash.license_expiring')}</AlertTitle>
+ <AlertDescription>
+ {t('dash.license_expiring_desc')}
+ </AlertDescription>
+ </Alert>
+ )}
 
-      {/* Trial Status Banner */}
-      {license?.is_trial && license.trial_days_remaining !== null && (
-        <Alert variant={license.trial_days_remaining <= 3 ? 'destructive' : 'default'}>
-          <Clock className="h-4 w-4" />
-          <AlertTitle>
-            {license.trial_days_remaining <= 0
-              ? t('dash.trial_ended')
-              : license.trial_days_remaining <= 3
-              ? t('dash.trial_expiring')
-              : t('dash.trial_active')}
-          </AlertTitle>
-          <AlertDescription>
-            {license.trial_days_remaining <= 0
-              ? t('dash.trial_ended_desc')
-              : license.trial_days_remaining <= 3
-              ? t('dash.trial_days_left', { days: license.trial_days_remaining })
-              : t('dash.trial_remaining', { days: license.trial_days_remaining })}
-            {license.trial_end_date && (
-              <span className="block mt-1 text-xs">
-                {t('dash.expires')} {new Date(license.trial_end_date).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </span>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
+ {/* Trial Status Banner */}
+ {license?.is_trial && license.trial_days_remaining !== null && (
+ <Alert variant={license.trial_days_remaining <= 3 ? 'destructive' : 'default'}>
+ <Clock className="h-4 w-4" />
+ <AlertTitle>
+ {license.trial_days_remaining <= 0
+ ? t('dash.trial_ended')
+ : license.trial_days_remaining <= 3
+ ? t('dash.trial_expiring')
+ : t('dash.trial_active')}
+ </AlertTitle>
+ <AlertDescription>
+ {license.trial_days_remaining <= 0
+ ? t('dash.trial_ended_desc')
+ : license.trial_days_remaining <= 3
+ ? t('dash.trial_days_left', { days: license.trial_days_remaining })
+ : t('dash.trial_remaining', { days: license.trial_days_remaining })}
+ {license.trial_end_date && (
+ <span className="block mt-1 text-xs">
+ {t('dash.expires')} {new Date(license.trial_end_date).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
+ </span>
+ )}
+ </AlertDescription>
+ </Alert>
+ )}
 
-      {/* Welcome */}
-      <div>
-        <h2 className="text-2xl font-bold">
-          {t('dash.welcome', { name: user.full_name || user.email })}
-        </h2>
-        <p className="text-muted-foreground">
-          {t('dash.subtitle')}
-        </p>
-      </div>
+ {/* Welcome */}
+ <div>
+ <h2 className="text-2xl font-bold">
+ {t('dash.welcome', { name: user.full_name || user.email })}
+ </h2>
+ <p className="text-muted-foreground">
+ {t('dash.subtitle')}
+ </p>
+ </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <QuickStatCard
-          title={t('dash.companies')}
-          value={companies.length}
-          icon={<Building2 className="h-4 w-4" />}
-          description={t('dash.registered')}
-        />
-        <QuickStatCard
-          title={t('dash.vouchers')}
-          value={invoiceStats?.total ?? 0}
-          icon={<Receipt className="h-4 w-4" />}
-          description={t('dash.issued')}
-        />
-        <QuickStatCard
-          title={t('dash.approved_sri')}
-          value={invoiceStats?.autorizado ?? 0}
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          description={t('dash.this_month')}
-        />
-        <QuickStatCard
-          title={t('dash.rejected')}
-          value={invoiceStats?.rechazado ?? 0}
-          icon={<XCircle className="h-4 w-4" />}
-          description={t('dash.this_month')}
-          variant="warning"
-        />
-      </div>
+ {/* Quick Stats */}
+ <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+ <QuickStatCard
+ title={t('dash.companies')}
+ value={companies.length}
+ icon={<Building2 className="h-4 w-4" />}
+ description={t('dash.registered')}
+ />
+ <QuickStatCard
+ title={t('dash.vouchers')}
+ value={invoiceStats?.total ?? 0}
+ icon={<Receipt className="h-4 w-4" />}
+ description={t('dash.issued')}
+ />
+ <QuickStatCard
+ title={t('dash.approved_sri')}
+ value={invoiceStats?.autorizado ?? 0}
+ icon={<CheckCircle2 className="h-4 w-4" />}
+ description={t('dash.this_month')}
+ />
+ <QuickStatCard
+ title={t('dash.rejected')}
+ value={invoiceStats?.rechazado ?? 0}
+ icon={<XCircle className="h-4 w-4" />}
+ description={t('dash.this_month')}
+ variant="warning"
+ />
+ </div>
 
-      {/* License Status + Companies + SRI Catalogs Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <div className="space-y-6">
-        {/* License Card (click → menu Licencia) */}
-        <Card
-          className="cursor-pointer hover:bg-accent/40 transition-colors"
-          onClick={() => onNavigate('license')}
-          title={t('dash.go_license')}
-        >
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
-              {t('dash.license_status')}
-              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {license ? (
-              <div className="space-y-3">
-                {/* Trial Activo */}
-                {license.trial_active ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('common.status')}</span>
-                      <Badge variant="default" className="bg-amber-500">{t('dash.in_trial')}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
-                      <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} {t('license.days')}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('dash.trial_end')}</span>
-                      <span className="text-sm font-medium">
-                        {license.trial_end_date
-                          ? new Date(license.trial_end_date).toLocaleDateString('es-EC')
-                          : 'N/A'}
-                      </span>
-                    </div>
-                  </>
-                ) : license.license_active ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('common.status')}</span>
-                      <Badge variant="default" className="bg-emerald-500">{t('dash.active')}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('common.type')}</span>
-                      <Badge variant="secondary" className="capitalize">
-                        {license.license_type || 'N/A'}
-                      </Badge>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
-                      <span className={`text-sm font-bold ${
-                        (license.license_days_remaining ?? 0) <= 30 ? 'text-amber-500' : 'text-emerald-600'
-                      }`}>
-                        {license.license_days_remaining ?? 'N/A'} {t('license.days')}
-                      </span>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('dash.expires_on')}</span>
-                      <span className="text-sm font-medium">
-                        {license.license_end_date
-                          ? new Date(license.license_end_date).toLocaleDateString('es-EC')
-                          : 'N/A'}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{t('common.status')}</span>
-                      <Badge variant="destructive">{t('dash.inactive')}</Badge>
-                    </div>
-                    {license.license_expired && (
-                      <p className="text-xs text-destructive">
-                        {t('dash.license_expired_note')}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <AlertTriangle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {t('dash.load_license_error')}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+ {/* License Status + Companies + SRI Catalogs Preview */}
+ <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+ <div className="space-y-6">
+ {/* License Card (click → menu Licencia) */}
+ <Card
+ className="cursor-pointer hover:bg-accent/40 transition-colors"
+ onClick={() => onNavigate('license')}
+ title={t('dash.go_license')}
+ >
+ <CardHeader className="pb-3">
+ <CardTitle className="text-base flex items-center gap-2">
+ <FileText className="h-4 w-4 text-primary" />
+ {t('dash.license_status')}
+ <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+ </CardTitle>
+ </CardHeader>
+ <CardContent>
+ {license ? (
+ <div className="space-y-3">
+ {/* Trial Activo */}
+ {license.trial_active ? (
+ <>
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+ <Badge variant="default" className="bg-amber-500">{t('dash.in_trial')}</Badge>
+ </div>
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
+ <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} {t('license.days')}</span>
+ </div>
+ <Separator />
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('dash.trial_end')}</span>
+ <span className="text-sm font-medium">
+ {license.trial_end_date
+ ? new Date(license.trial_end_date).toLocaleDateString('es-EC')
+ : 'N/A'}
+ </span>
+ </div>
+ </>
+ ) : license.license_active ? (
+ <>
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+ <Badge variant="default" className="bg-emerald-500">{t('dash.active')}</Badge>
+ </div>
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('common.type')}</span>
+ <Badge variant="secondary" className="capitalize">
+ {license.license_type || 'N/A'}
+ </Badge>
+ </div>
+ <Separator />
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
+ <span className={`text-sm font-bold ${
+ (license.license_days_remaining ?? 0) <= 30 ? 'text-amber-500' : 'text-emerald-600'
+ }`}>
+ {license.license_days_remaining ?? 'N/A'} {t('license.days')}
+ </span>
+ </div>
+ <Separator />
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('dash.expires_on')}</span>
+ <span className="text-sm font-medium">
+ {license.license_end_date
+ ? new Date(license.license_end_date).toLocaleDateString('es-EC')
+ : 'N/A'}
+ </span>
+ </div>
+ </>
+ ) : (
+ <>
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">{t('common.status')}</span>
+ <Badge variant="destructive">{t('dash.inactive')}</Badge>
+ </div>
+ {license.license_expired && (
+ <p className="text-xs text-destructive">
+ {t('dash.license_expired_note')}
+ </p>
+ )}
+ </>
+ )}
+ </div>
+ ) : (
+ <div className="text-center py-4">
+ <AlertTriangle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+ <p className="text-sm text-muted-foreground">
+ {t('dash.load_license_error')}
+ </p>
+ </div>
+ )}
+ </CardContent>
+ </Card>
 
-        {/* Companies Carousel (click → menu Empresas) */}
-        <CompaniesCarousel companies={companies} onNavigate={() => onNavigate('companies')} />
-        </div>
+ {/* Companies Carousel (click → menu Empresas) */}
+ <CompaniesCarousel companies={companies} onNavigate={() => onNavigate('companies')} />
+ </div>
 
-        {/* SRI Catalogs Preview (click → menú Catálogos SRI) */}
-        <Card
-          className="cursor-pointer hover:bg-accent/40 transition-colors h-fit"
-          onClick={() => onNavigate('sri')}
-          title={t('dash.go_sri')}
-        >
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              {t('dash.sri_catalogs')}
-              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>
-              {t('dash.sri_catalogs_desc')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium mb-2">{t('dash.iva_rates')}</h4>
-                {ivaRates.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Preview: muestra la tarifa general (15%) y oculta la transitoria 13% */}
-                    {ivaRates.filter((r) => r.codigo !== '10').slice(0, 6).map((rate) => (
-                      <div
-                        key={rate.codigo}
-                        className="flex items-center justify-between rounded-md border px-3 py-1.5"
-                      >
-                        <span className="text-xs">{rate.descripcion}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {rate.porcentaje}%
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {t('dash.no_iva_error')}
-                  </p>
-                )}
-              </div>
-              <Separator />
-              <div>
-                <h4 className="text-sm font-medium mb-2">{t('dash.doc_types')}</h4>
-                {documentTypes.length > 0 ? (
-                  <div className="space-y-1">
-                    {documentTypes.slice(0, 5).map((dt) => (
-                      <div
-                        key={dt.codigo}
-                        className="flex items-center justify-between rounded-md border px-3 py-1.5"
-                      >
-                        <span className="text-xs">{dt.descripcion}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {dt.codigo}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {t('dash.no_docs_error')}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+ {/* SRI Catalogs Preview (click → menú Catálogos SRI) */}
+ <Card
+ className="cursor-pointer hover:bg-accent/40 transition-colors h-fit"
+ onClick={() => onNavigate('sri')}
+ title={t('dash.go_sri')}
+ >
+ <CardHeader className="pb-3">
+ <CardTitle className="text-base flex items-center gap-2">
+ <Shield className="h-4 w-4 text-primary" />
+ {t('dash.sri_catalogs')}
+ <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+ </CardTitle>
+ <CardDescription>
+ {t('dash.sri_catalogs_desc')}
+ </CardDescription>
+ </CardHeader>
+ <CardContent>
+ <div className="space-y-4">
+ <div>
+ <h4 className="text-sm font-medium mb-2">{t('dash.iva_rates')}</h4>
+ {ivaRates.length > 0 ? (
+ <div className="grid grid-cols-2 gap-2">
+ {/* Preview: muestra la tarifa general (15%) y oculta la transitoria 13% */}
+ {ivaRates.filter((r) => r.codigo !== '10').slice(0, 6).map((rate) => (
+ <div
+ key={rate.codigo}
+ className="flex items-center justify-between rounded-md border px-3 py-1.5"
+ >
+ <span className="text-xs">{rate.descripcion}</span>
+ <Badge variant="secondary" className="text-xs">
+ {rate.porcentaje}%
+ </Badge>
+ </div>
+ ))}
+ </div>
+ ) : (
+ <p className="text-xs text-muted-foreground">
+ {t('dash.no_iva_error')}
+ </p>
+ )}
+ </div>
+ <Separator />
+ <div>
+ <h4 className="text-sm font-medium mb-2">{t('dash.doc_types')}</h4>
+ {documentTypes.length > 0 ? (
+ <div className="space-y-1">
+ {documentTypes.slice(0, 5).map((dt) => (
+ <div
+ key={dt.codigo}
+ className="flex items-center justify-between rounded-md border px-3 py-1.5"
+ >
+ <span className="text-xs">{dt.descripcion}</span>
+ <Badge variant="outline" className="text-xs">
+ {dt.codigo}
+ </Badge>
+ </div>
+ ))}
+ </div>
+ ) : (
+ <p className="text-xs text-muted-foreground">
+ {t('dash.no_docs_error')}
+ </p>
+ )}
+ </div>
+ </div>
+ </CardContent>
+ </Card>
+ </div>
+ </div>
+ );
 }
 
 /**
@@ -1503,586 +1503,586 @@ function DashboardView({
  * abajo = siguiente). Clic en el recuadro → menú de Empresas.
  */
 function CompaniesCarousel({
-  companies,
-  onNavigate,
+ companies,
+ onNavigate,
 }: {
-  companies: CompanyType[];
-  onNavigate: () => void;
+ companies: CompanyType[];
+ onNavigate: () => void;
 }) {
-  const [index, setIndex] = useState(0);
+ const [index, setIndex] = useState(0);
 
-  useEffect(() => {
-    if (companies.length === 0) return;
-    setIndex((i) => (i >= companies.length ? 0 : i));
-  }, [companies.length]);
+ useEffect(() => {
+ if (companies.length === 0) return;
+ setIndex((i) => (i >= companies.length ? 0 : i));
+ }, [companies.length]);
 
-  const company = companies.length > 0 ? companies[index % companies.length] : null;
+ const company = companies.length > 0 ? companies[index % companies.length] : null;
 
-  return (
-    <Card
-      className="cursor-pointer hover:bg-accent/40 transition-colors"
-      onClick={onNavigate}
-      title={t('dash.go_companies')}
-    >
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-primary" />
-          {t('dash.companies_registered')}
-          <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-        </CardTitle>
-        {companies.length > 1 && (
-          <CardDescription>
-            {t('dash.companies_scroll_hint')}
-          </CardDescription>
-        )}
-      </CardHeader>
-      <CardContent>
-        {company ? (
-          <div
-            className="rounded-lg border p-4 space-y-2"
-            onWheel={(e) => {
-              if (companies.length <= 1) return;
-              e.preventDefault();
-              if (e.deltaY > 0) {
-                setIndex((i) => (i + 1) % companies.length);
-              } else {
-                setIndex((i) => (i - 1 + companies.length) % companies.length);
-              }
-            }}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h4 className="text-sm font-medium truncate">{company.razon_social}</h4>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  RUC: {company.ruc}
-                </p>
-              </div>
-              <Badge
-                variant={company.is_active ? 'default' : 'secondary'}
-                className={company.is_active ? 'bg-primary shrink-0' : 'shrink-0'}
-              >
-                {company.is_active ? t('companies.active') : t('companies.inactive')}
-              </Badge>
-            </div>
-            {company.nombre_comercial && (
-              <p className="text-xs text-muted-foreground truncate">
-                {company.nombre_comercial}
-              </p>
-            )}
-            {companies.length > 1 && (
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex gap-1">
-                  {companies.map((_, i) => (
-                    <span
-                      key={i}
-                      className={`h-1.5 rounded-full transition-all ${i === index % companies.length ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'}`}
-                    />
-                  ))}
-                </div>
-                <span className="text-[10px] text-muted-foreground">
-                  {index + 1} / {companies.length}
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-6">
-            <Building2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">
-              {t('dash.no_companies')}
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+ return (
+ <Card
+ className="cursor-pointer hover:bg-accent/40 transition-colors"
+ onClick={onNavigate}
+ title={t('dash.go_companies')}
+ >
+ <CardHeader className="pb-3">
+ <CardTitle className="text-base flex items-center gap-2">
+ <Building2 className="h-4 w-4 text-primary" />
+ {t('dash.companies_registered')}
+ <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+ </CardTitle>
+ {companies.length > 1 && (
+ <CardDescription>
+ {t('dash.companies_scroll_hint')}
+ </CardDescription>
+ )}
+ </CardHeader>
+ <CardContent>
+ {company ? (
+ <div
+ className="rounded-lg border p-4 space-y-2"
+ onWheel={(e) => {
+ if (companies.length <= 1) return;
+ e.preventDefault();
+ if (e.deltaY > 0) {
+ setIndex((i) => (i + 1) % companies.length);
+ } else {
+ setIndex((i) => (i - 1 + companies.length) % companies.length);
+ }
+ }}
+ >
+ <div className="flex items-start justify-between gap-2">
+ <div className="min-w-0">
+ <h4 className="text-sm font-medium truncate">{company.razon_social}</h4>
+ <p className="text-xs text-muted-foreground mt-0.5">
+ RUC: {company.ruc}
+ </p>
+ </div>
+ <Badge
+ variant={company.is_active ? 'default' : 'secondary'}
+ className={company.is_active ? 'bg-primary shrink-0' : 'shrink-0'}
+ >
+ {company.is_active ? t('companies.active') : t('companies.inactive')}
+ </Badge>
+ </div>
+ {company.nombre_comercial && (
+ <p className="text-xs text-muted-foreground truncate">
+ {company.nombre_comercial}
+ </p>
+ )}
+ {companies.length > 1 && (
+ <div className="flex items-center justify-between pt-1">
+ <div className="flex gap-1">
+ {companies.map((_, i) => (
+ <span
+ key={i}
+ className={`h-1.5 rounded-full transition-all ${i === index % companies.length ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'}`}
+ />
+ ))}
+ </div>
+ <span className="text-[10px] text-muted-foreground">
+ {index + 1} / {companies.length}
+ </span>
+ </div>
+ )}
+ </div>
+ ) : (
+ <div className="text-center py-6">
+ <Building2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+ <p className="text-sm text-muted-foreground">
+ {t('dash.no_companies')}
+ </p>
+ </div>
+ )}
+ </CardContent>
+ </Card>
+ );
 }
 
 function QuickStatCard({
-  title,
-  value,
-  icon,
-  description,
-  variant = 'default',
+ title,
+ value,
+ icon,
+ description,
+ variant = 'default',
 }: {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  description: string;
-  variant?: 'default' | 'warning';
+ title: string;
+ value: number;
+ icon: React.ReactNode;
+ description: string;
+ variant?: 'default' | 'warning';
 }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground">{title}</span>
-          <div
-            className={`rounded-md p-1.5 ${
-              variant === 'warning' ? 'bg-destructive/10' : 'bg-primary/10'
-            }`}
-          >
-            <span className={variant === 'warning' ? 'text-destructive' : 'text-primary'}>
-              {icon}
-            </span>
-          </div>
-        </div>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  );
+ return (
+ <Card>
+ <CardContent className="p-4">
+ <div className="flex items-center justify-between mb-2">
+ <span className="text-xs text-muted-foreground">{title}</span>
+ <div
+ className={`rounded-md p-1.5 ${
+ variant === 'warning' ? 'bg-destructive/10' : 'bg-primary/10'
+ }`}
+ >
+ <span className={variant === 'warning' ? 'text-destructive' : 'text-primary'}>
+ {icon}
+ </span>
+ </div>
+ </div>
+ <div className="text-2xl font-bold">{value}</div>
+ <p className="text-xs text-muted-foreground">{description}</p>
+ </CardContent>
+ </Card>
+ );
 }
 
 function CompaniesView({
-  companies,
-  onNewCompany,
-  onCompaniesChanged,
+ companies,
+ onNewCompany,
+ onCompaniesChanged,
 }: {
-  companies: CompanyType[];
-  onNewCompany: () => void;
-  onCompaniesChanged: () => void;
+ companies: CompanyType[];
+ onNewCompany: () => void;
+ onCompaniesChanged: () => void;
 }) {
-  const [editingCompany, setEditingCompany] = useState<CompanyType | null>(null);
-  const [deletingCompanyId, setDeletingCompanyId] = useState<string | null>(null);
-  const [operating, setOperating] = useState(false);
-  const [editForm, setEditForm] = useState({
-    ruc: '',
-    razon_social: '',
-    nombre_comercial: '',
-    dir_matriz: '',
-    cod_establecimiento: '',
-    cod_punto_emision: '',
-  });
+ const [editingCompany, setEditingCompany] = useState<CompanyType | null>(null);
+ const [deletingCompanyId, setDeletingCompanyId] = useState<string | null>(null);
+ const [operating, setOperating] = useState(false);
+ const [editForm, setEditForm] = useState({
+ ruc: '',
+ razon_social: '',
+ nombre_comercial: '',
+ dir_matriz: '',
+ cod_establecimiento: '',
+ cod_punto_emision: '',
+ });
 
-  function handleEditClick(company: CompanyType) {
-    setEditingCompany(company);
-    setEditForm({
-      ruc: company.ruc,
-      razon_social: company.razon_social,
-      nombre_comercial: company.nombre_comercial || '',
-      dir_matriz: company.dir_matriz,
-      cod_establecimiento: company.cod_establecimiento,
-      cod_punto_emision: company.cod_punto_emision,
-    });
-  }
+ function handleEditClick(company: CompanyType) {
+ setEditingCompany(company);
+ setEditForm({
+ ruc: company.ruc,
+ razon_social: company.razon_social,
+ nombre_comercial: company.nombre_comercial || '',
+ dir_matriz: company.dir_matriz,
+ cod_establecimiento: company.cod_establecimiento,
+ cod_punto_emision: company.cod_punto_emision,
+ });
+ }
 
-  async function handleEditSave() {
-    if (!editingCompany) return;
-    setOperating(true);
-    try {
-      await updateCompany(editingCompany.id, editForm);
-      setEditingCompany(null);
-      onCompaniesChanged();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('companies.save_error'));
-    } finally {
-      setOperating(false);
-    }
-  }
+ async function handleEditSave() {
+ if (!editingCompany) return;
+ setOperating(true);
+ try {
+ await updateCompany(editingCompany.id, editForm);
+ setEditingCompany(null);
+ onCompaniesChanged();
+ } catch (err) {
+ toast.error(err instanceof Error ? err.message : t('companies.save_error'));
+ } finally {
+ setOperating(false);
+ }
+ }
 
-  async function handleDeleteConfirm() {
-    if (!deletingCompanyId) return;
-    setOperating(true);
-    try {
-      await deleteCompany(deletingCompanyId);
-      setDeletingCompanyId(null);
-      onCompaniesChanged();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('companies.delete_error'));
-    } finally {
-      setOperating(false);
-    }
-  }
+ async function handleDeleteConfirm() {
+ if (!deletingCompanyId) return;
+ setOperating(true);
+ try {
+ await deleteCompany(deletingCompanyId);
+ setDeletingCompanyId(null);
+ onCompaniesChanged();
+ } catch (err) {
+ toast.error(err instanceof Error ? err.message : t('companies.delete_error'));
+ } finally {
+ setOperating(false);
+ }
+ }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">{t('companies.title')}</h2>
-          <p className="text-muted-foreground">
-            {t('companies.subtitle')}
-          </p>
-        </div>
-        <Button onClick={onNewCompany}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('companies.new')}
-        </Button>
-      </div>
+ return (
+ <div className="space-y-6">
+ <div className="flex items-center justify-between">
+ <div>
+ <h2 className="text-2xl font-bold">{t('companies.title')}</h2>
+ <p className="text-muted-foreground">
+ {t('companies.subtitle')}
+ </p>
+ </div>
+ <Button onClick={onNewCompany}>
+ <Plus className="mr-2 h-4 w-4" />
+ {t('companies.new')}
+ </Button>
+ </div>
 
-      {companies.length > 0 ? (
-        <Card>
-          <CardContent className="p-0">
-            <ScrollArea className="max-h-96">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>RUC</TableHead>
-                    <TableHead>{t('companies.name')}</TableHead>
-                    <TableHead>{t('companies.commercial_name')}</TableHead>
-                    <TableHead>{t('companies.state')}</TableHead>
-                    <TableHead className="text-right">{t('companies.actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {companies.map((company) => (
-                    <TableRow key={company.id}>
-                      <TableCell className="font-mono text-xs">{company.ruc}</TableCell>
-                      <TableCell className="font-medium">{company.razon_social}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {company.nombre_comercial || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={company.is_active ? 'default' : 'secondary'}
-                          className={company.is_active ? 'bg-primary' : ''}
-                        >
-                          {company.is_active ? t('companies.active') : t('companies.inactive')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleEditClick(company)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => setDeletingCompanyId(company.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="text-lg font-medium">{t('companies.no_companies')}</h3>
-            <p className="text-muted-foreground text-sm mt-1">
-              {t('companies.no_companies_desc')}
-            </p>
-            <Button className="mt-4" onClick={onNewCompany}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t('companies.register')}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+ {companies.length > 0 ? (
+ <Card>
+ <CardContent className="p-0">
+ <ScrollArea className="max-h-96">
+ <Table>
+ <TableHeader>
+ <TableRow>
+ <TableHead>RUC</TableHead>
+ <TableHead>{t('companies.name')}</TableHead>
+ <TableHead>{t('companies.commercial_name')}</TableHead>
+ <TableHead>{t('companies.state')}</TableHead>
+ <TableHead className="text-right">{t('companies.actions')}</TableHead>
+ </TableRow>
+ </TableHeader>
+ <TableBody>
+ {companies.map((company) => (
+ <TableRow key={company.id}>
+ <TableCell className="font-mono text-xs">{company.ruc}</TableCell>
+ <TableCell className="font-medium">{company.razon_social}</TableCell>
+ <TableCell className="text-muted-foreground">
+ {company.nombre_comercial || '-'}
+ </TableCell>
+ <TableCell>
+ <Badge
+ variant={company.is_active ? 'default' : 'secondary'}
+ className={company.is_active ? 'bg-primary' : ''}
+ >
+ {company.is_active ? t('companies.active') : t('companies.inactive')}
+ </Badge>
+ </TableCell>
+ <TableCell className="text-right">
+ <div className="flex justify-end gap-1">
+ <Button
+ variant="ghost"
+ size="icon"
+ className="h-8 w-8"
+ onClick={() => handleEditClick(company)}
+ >
+ <Pencil className="h-3.5 w-3.5" />
+ </Button>
+ <Button
+ variant="ghost"
+ size="icon"
+ className="h-8 w-8 text-destructive"
+ onClick={() => setDeletingCompanyId(company.id)}
+ >
+ <Trash2 className="h-3.5 w-3.5" />
+ </Button>
+ </div>
+ </TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ </ScrollArea>
+ </CardContent>
+ </Card>
+ ) : (
+ <Card>
+ <CardContent className="py-12 text-center">
+ <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+ <h3 className="text-lg font-medium">{t('companies.no_companies')}</h3>
+ <p className="text-muted-foreground text-sm mt-1">
+ {t('companies.no_companies_desc')}
+ </p>
+ <Button className="mt-4" onClick={onNewCompany}>
+ <Plus className="mr-2 h-4 w-4" />
+ {t('companies.register')}
+ </Button>
+ </CardContent>
+ </Card>
+ )}
 
-      {/* Edit Company Dialog */}
-      <Dialog open={!!editingCompany} onOpenChange={(open) => { if (!open) setEditingCompany(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('companies.edit_title')}</DialogTitle>
-            <DialogDescription>
-              {t('companies.edit_desc')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-ruc">RUC</Label>
-                <Input
-                  id="edit-ruc"
-                  value={editForm.ruc}
-                  onChange={(e) => setEditForm({ ...editForm, ruc: e.target.value })}
-                  maxLength={13}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-cod-est">{t('companies.code_est')}</Label>
-                <Input
-                  id="edit-cod-est"
-                  value={editForm.cod_establecimiento}
-                  onChange={(e) => setEditForm({ ...editForm, cod_establecimiento: e.target.value })}
-                  maxLength={3}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-razon">{t('companies.name')}</Label>
-              <Input
-                id="edit-razon"
-                value={editForm.razon_social}
-                onChange={(e) => setEditForm({ ...editForm, razon_social: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-nombre">{t('companies.commercial_name')}</Label>
-              <Input
-                id="edit-nombre"
-                value={editForm.nombre_comercial}
-                onChange={(e) => setEditForm({ ...editForm, nombre_comercial: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-dir">{t('companies.address')}</Label>
-              <Input
-                id="edit-dir"
-                value={editForm.dir_matriz}
-                onChange={(e) => setEditForm({ ...editForm, dir_matriz: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-cod-pemi">{t('companies.code_emission')}</Label>
-                <Input
-                  id="edit-cod-pemi"
-                  value={editForm.cod_punto_emision}
-                  onChange={(e) => setEditForm({ ...editForm, cod_punto_emision: e.target.value })}
-                  maxLength={3}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditingCompany(null)}>
-                {t('common.cancel')}
-              </Button>
-              <Button onClick={handleEditSave} disabled={operating}>
-                {operating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t('common.saving')}
-                  </>
-                ) : (
-                  t('companies.save_changes')
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+ {/* Edit Company Dialog */}
+ <Dialog open={!!editingCompany} onOpenChange={(open) => { if (!open) setEditingCompany(null); }}>
+ <DialogContent className="sm:max-w-md">
+ <DialogHeader>
+ <DialogTitle>{t('companies.edit_title')}</DialogTitle>
+ <DialogDescription>
+ {t('companies.edit_desc')}
+ </DialogDescription>
+ </DialogHeader>
+ <div className="space-y-4">
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label htmlFor="edit-ruc">RUC</Label>
+ <Input
+ id="edit-ruc"
+ value={editForm.ruc}
+ onChange={(e) => setEditForm({ ...editForm, ruc: e.target.value })}
+ maxLength={13}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="edit-cod-est">{t('companies.code_est')}</Label>
+ <Input
+ id="edit-cod-est"
+ value={editForm.cod_establecimiento}
+ onChange={(e) => setEditForm({ ...editForm, cod_establecimiento: e.target.value })}
+ maxLength={3}
+ />
+ </div>
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="edit-razon">{t('companies.name')}</Label>
+ <Input
+ id="edit-razon"
+ value={editForm.razon_social}
+ onChange={(e) => setEditForm({ ...editForm, razon_social: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="edit-nombre">{t('companies.commercial_name')}</Label>
+ <Input
+ id="edit-nombre"
+ value={editForm.nombre_comercial}
+ onChange={(e) => setEditForm({ ...editForm, nombre_comercial: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="edit-dir">{t('companies.address')}</Label>
+ <Input
+ id="edit-dir"
+ value={editForm.dir_matriz}
+ onChange={(e) => setEditForm({ ...editForm, dir_matriz: e.target.value })}
+ />
+ </div>
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label htmlFor="edit-cod-pemi">{t('companies.code_emission')}</Label>
+ <Input
+ id="edit-cod-pemi"
+ value={editForm.cod_punto_emision}
+ onChange={(e) => setEditForm({ ...editForm, cod_punto_emision: e.target.value })}
+ maxLength={3}
+ />
+ </div>
+ </div>
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" onClick={() => setEditingCompany(null)}>
+ {t('common.cancel')}
+ </Button>
+ <Button onClick={handleEditSave} disabled={operating}>
+ {operating ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ {t('common.saving')}
+ </>
+ ) : (
+ t('companies.save_changes')
+ )}
+ </Button>
+ </div>
+ </div>
+ </DialogContent>
+ </Dialog>
 
-      {/* Delete Company Confirmation Dialog */}
-      <Dialog open={!!deletingCompanyId} onOpenChange={(open) => { if (!open) setDeletingCompanyId(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('companies.delete_title')}</DialogTitle>
-            <DialogDescription>
-              {t('companies.delete_confirm')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeletingCompanyId(null)}>
-              {t('common.cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={operating}>
-              {operating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('common.deleting')}
-                </>
-              ) : (
-                t('common.delete')
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+ {/* Delete Company Confirmation Dialog */}
+ <Dialog open={!!deletingCompanyId} onOpenChange={(open) => { if (!open) setDeletingCompanyId(null); }}>
+ <DialogContent className="sm:max-w-sm">
+ <DialogHeader>
+ <DialogTitle>{t('companies.delete_title')}</DialogTitle>
+ <DialogDescription>
+ {t('companies.delete_confirm')}
+ </DialogDescription>
+ </DialogHeader>
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" onClick={() => setDeletingCompanyId(null)}>
+ {t('common.cancel')}
+ </Button>
+ <Button variant="destructive" onClick={handleDeleteConfirm} disabled={operating}>
+ {operating ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ {t('common.deleting')}
+ </>
+ ) : (
+ t('common.delete')
+ )}
+ </Button>
+ </div>
+ </DialogContent>
+ </Dialog>
+ </div>
+ );
 }
 
 function SRIView({
-  ivaRates,
-  documentTypes,
-  identTypes,
+ ivaRates,
+ documentTypes,
+ identTypes,
 }: {
-  ivaRates: SRIIVARate[];
-  documentTypes: SRIDocumentType[];
-  identTypes: SRICatalog[];
+ ivaRates: SRIIVARate[];
+ documentTypes: SRIDocumentType[];
+ identTypes: SRICatalog[];
 }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">{t('sri.title')}</h2>
-        <p className="text-muted-foreground">
-          {t('sri.subtitle')}
-        </p>
-      </div>
+ return (
+ <div className="space-y-6">
+ <div>
+ <h2 className="text-2xl font-bold">{t('sri.title')}</h2>
+ <p className="text-muted-foreground">
+ {t('sri.subtitle')}
+ </p>
+ </div>
 
-      <Tabs defaultValue="iva" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="iva">{t('sri.iva_tab')}</TabsTrigger>
-          <TabsTrigger value="docs">{t('sri.docs_tab')}</TabsTrigger>
-          <TabsTrigger value="ident">{t('sri.ident_tab')}</TabsTrigger>
-          <TabsTrigger value="ir"><Landmark className="h-3.5 w-3.5 mr-1" />IR</TabsTrigger>
-        </TabsList>
+ <Tabs defaultValue="iva" className="space-y-4">
+ <TabsList>
+ <TabsTrigger value="iva">{t('sri.iva_tab')}</TabsTrigger>
+ <TabsTrigger value="docs">{t('sri.docs_tab')}</TabsTrigger>
+ <TabsTrigger value="ident">{t('sri.ident_tab')}</TabsTrigger>
+ <TabsTrigger value="ir"><Landmark className="h-3.5 w-3.5 mr-1" />IR</TabsTrigger>
+ </TabsList>
 
-        <TabsContent value="iva">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('sri.iva_title')}</CardTitle>
-              <CardDescription>{t('sri.iva_desc')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {ivaRates.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('sri.code')}</TableHead>
-                      <TableHead>{t('sri.description')}</TableHead>
-                      <TableHead className="text-right">{t('sri.percentage')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ivaRates.map((rate) => (
-                      <TableRow key={rate.codigo}>
-                        <TableCell className="font-mono text-xs">{rate.codigo}</TableCell>
-                        <TableCell>{rate.descripcion}</TableCell>
-                        <TableCell className="text-right font-medium">{rate.porcentaje}%</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  {t('sri.no_iva_error')}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+ <TabsContent value="iva">
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base">{t('sri.iva_title')}</CardTitle>
+ <CardDescription>{t('sri.iva_desc')}</CardDescription>
+ </CardHeader>
+ <CardContent>
+ {ivaRates.length > 0 ? (
+ <Table>
+ <TableHeader>
+ <TableRow>
+ <TableHead>{t('sri.code')}</TableHead>
+ <TableHead>{t('sri.description')}</TableHead>
+ <TableHead className="text-right">{t('sri.percentage')}</TableHead>
+ </TableRow>
+ </TableHeader>
+ <TableBody>
+ {ivaRates.map((rate) => (
+ <TableRow key={rate.codigo}>
+ <TableCell className="font-mono text-xs">{rate.codigo}</TableCell>
+ <TableCell>{rate.descripcion}</TableCell>
+ <TableCell className="text-right font-medium">{rate.porcentaje}%</TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ ) : (
+ <p className="text-sm text-muted-foreground text-center py-6">
+ {t('sri.no_iva_error')}
+ </p>
+ )}
+ </CardContent>
+ </Card>
+ </TabsContent>
 
-        <TabsContent value="docs">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('sri.docs_title')}</CardTitle>
-              <CardDescription>{t('sri.docs_desc')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {documentTypes.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('sri.code')}</TableHead>
-                      <TableHead>{t('sri.description')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {documentTypes.map((dt) => (
-                      <TableRow key={dt.codigo}>
-                        <TableCell className="font-mono text-xs">{dt.codigo}</TableCell>
-                        <TableCell>{dt.descripcion}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  {t('sri.no_docs_error')}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+ <TabsContent value="docs">
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base">{t('sri.docs_title')}</CardTitle>
+ <CardDescription>{t('sri.docs_desc')}</CardDescription>
+ </CardHeader>
+ <CardContent>
+ {documentTypes.length > 0 ? (
+ <Table>
+ <TableHeader>
+ <TableRow>
+ <TableHead>{t('sri.code')}</TableHead>
+ <TableHead>{t('sri.description')}</TableHead>
+ </TableRow>
+ </TableHeader>
+ <TableBody>
+ {documentTypes.map((dt) => (
+ <TableRow key={dt.codigo}>
+ <TableCell className="font-mono text-xs">{dt.codigo}</TableCell>
+ <TableCell>{dt.descripcion}</TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ ) : (
+ <p className="text-sm text-muted-foreground text-center py-6">
+ {t('sri.no_docs_error')}
+ </p>
+ )}
+ </CardContent>
+ </Card>
+ </TabsContent>
 
-        <TabsContent value="ident">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('sri.ident_title')}</CardTitle>
-              <CardDescription>{t('sri.ident_desc')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {identTypes.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('sri.code')}</TableHead>
-                      <TableHead>{t('sri.description')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {identTypes.map((it) => (
-                      <TableRow key={it.codigo}>
-                        <TableCell className="font-mono text-xs">{it.codigo}</TableCell>
-                        <TableCell>{it.descripcion || it.nombre || '—'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  {t('sri.no_ident_error')}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+ <TabsContent value="ident">
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base">{t('sri.ident_title')}</CardTitle>
+ <CardDescription>{t('sri.ident_desc')}</CardDescription>
+ </CardHeader>
+ <CardContent>
+ {identTypes.length > 0 ? (
+ <Table>
+ <TableHeader>
+ <TableRow>
+ <TableHead>{t('sri.code')}</TableHead>
+ <TableHead>{t('sri.description')}</TableHead>
+ </TableRow>
+ </TableHeader>
+ <TableBody>
+ {identTypes.map((it) => (
+ <TableRow key={it.codigo}>
+ <TableCell className="font-mono text-xs">{it.codigo}</TableCell>
+ <TableCell>{it.descripcion || it.nombre || '—'}</TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ ) : (
+ <p className="text-sm text-muted-foreground text-center py-6">
+ {t('sri.no_ident_error')}
+ </p>
+ )}
+ </CardContent>
+ </Card>
+ </TabsContent>
 
-        <TabsContent value="ir">
-          <IRCalculator />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+ <TabsContent value="ir">
+ <IRCalculator />
+ </TabsContent>
+ </Tabs>
+ </div>
+ );
 }
 
 // Tabla de IR Ecuador (fracción básica exenta + tasas progresivas)
 const TABLA_IR_EC = [
-  { desde: 0, hasta: 11722, exencion: 0, porcentaje: 0 },
-  { desde: 11722, hasta: 14930, exencion: 0, porcentaje: 5 },
-  { desde: 14930, hasta: 19385, exencion: 160.40, porcentaje: 10 },
-  { desde: 19385, hasta: 25638, exencion: 606.45, porcentaje: 12 },
-  { desde: 25638, hasta: 33739, exencion: 1357.81, porcentaje: 15 },
-  { desde: 33739, hasta: 44737, exencion: 2573.32, porcentaje: 20 },
-  { desde: 44737, hasta: 59537, exencion: 4773.30, porcentaje: 25 },
-  { desde: 59537, hasta: 79388, exencion: 8473.30, porcentaje: 30 },
-  { desde: 79388, hasta: 105517, exencion: 14424.60, porcentaje: 35 },
-  { desde: 105517, hasta: Infinity, exencion: 23558.15, porcentaje: 37 },
+ { desde: 0, hasta: 11722, exencion: 0, porcentaje: 0 },
+ { desde: 11722, hasta: 14930, exencion: 0, porcentaje: 5 },
+ { desde: 14930, hasta: 19385, exencion: 160.40, porcentaje: 10 },
+ { desde: 19385, hasta: 25638, exencion: 606.45, porcentaje: 12 },
+ { desde: 25638, hasta: 33739, exencion: 1357.81, porcentaje: 15 },
+ { desde: 33739, hasta: 44737, exencion: 2573.32, porcentaje: 20 },
+ { desde: 44737, hasta: 59537, exencion: 4773.30, porcentaje: 25 },
+ { desde: 59537, hasta: 79388, exencion: 8473.30, porcentaje: 30 },
+ { desde: 79388, hasta: 105517, exencion: 14424.60, porcentaje: 35 },
+ { desde: 105517, hasta: Infinity, exencion: 23558.15, porcentaje: 37 },
 ];
 
 function IRCalculator() {
-  const [ingresosGravados, setIngresosGravados] = useState('');
-  const [result, setResult] = useState<IRCalculation | null>(null);
-  const [calculating, setCalculating] = useState(false);
+ const [ingresosGravados, setIngresosGravados] = useState('');
+ const [result, setResult] = useState<IRCalculation | null>(null);
+ const [calculating, setCalculating] = useState(false);
 
-  async function handleCalculate() {
-    if (!ingresosGravados) { toast.error('Ingrese los ingresos gravados'); return; }
-    setCalculating(true);
-    try {
-      const data = await calcularIR({
-        ingreso_gravable: parseFloat(ingresosGravados),
-        periodo: String(new Date().getFullYear()),
-      });
-      setResult(data);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al calcular IR');
-    } finally {
-      setCalculating(false);
-    }
-  }
+ async function handleCalculate() {
+ if (!ingresosGravados) { toast.error('Ingrese los ingresos gravados'); return; }
+ setCalculating(true);
+ try {
+ const data = await calcularIR({
+ ingreso_gravable: parseFloat(ingresosGravados),
+ periodo: String(new Date().getFullYear()),
+ });
+ setResult(data);
+ } catch (err) {
+ toast.error(err instanceof Error ? err.message : 'Error al calcular IR');
+ } finally {
+ setCalculating(false);
+ }
+ }
 
-  const fmt = (v: number | undefined | null) =>
-    v === undefined || v === null || Number.isNaN(Number(v))
-      ? '$0.00'
-      : `$${Number(v).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+ const fmt = (v: number | undefined | null) =>
+ v === undefined || v === null || Number.isNaN(Number(v))
+ ? '$0.00'
+ : `$${Number(v).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Cálculo de Impuesto a la Renta</CardTitle>
-          <CardDescription>Simulador de IR progresivo según la tabla vigente del SRI</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="space-y-0">
-              <Label className="sr-only">Ingresos Gravados</Label>
-              <Input type="number" value={ingresosGravados} onChange={(e) => setIngresosGravados(e.target.value)} className="w-48" placeholder="Ingresos gravados ($)" />
+ return (
+ <div className="space-y-4">
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base">Cálculo de Impuesto a la Renta</CardTitle>
+ <CardDescription>Simulador de IR progresivo según la tabla vigente del SRI</CardDescription>
+ </CardHeader>
+ <CardContent className="space-y-4">
+ <div className="flex flex-wrap gap-3 items-center">
+ <div className="space-y-0">
+ <Label className="sr-only">Ingresos Gravados</Label>
+ <Input value={ingresosGravados} onChange={(e) => setIngresosGravados(e.target.value)} className="w-48" placeholder="Ingresos gravados ($)" />
             </div>
             <Button onClick={handleCalculate} disabled={calculating}>
               {calculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -3552,14 +3552,9 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                     {editingPrice ? (
                       <div className="flex items-center justify-center gap-1">
                         <span className="text-lg font-bold">$</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="w-24 text-center text-xl font-bold"
-                          value={priceForm[plan.key] ?? plan.price}
-                          onChange={(e) => setPriceForm({ ...priceForm, [plan.key]: parseFloat(e.target.value) || 0 })}
-                        />
+                        <NumericInput className="w-24 text-center text-xl font-bold"
+ value={priceForm[plan.key] ?? plan.price}
+ onChange={(e) => setPriceForm({ ...priceForm, [plan.key]: parseFloat(e.target.value) || 0 })} />
                       </div>
                     ) : (
                       <span className="text-3xl font-bold">${plan.price.toFixed(2)}</span>
@@ -3616,13 +3611,10 @@ function AdminDashboardView({ onLogout, activeAdminTab }: { onLogout: () => void
                         {['monthly', 'quarterly', 'semiannual', 'annual'].map((k) => (
                           <TableCell key={k}>
                             {editingLimits ? (
-                              <Input
-                                type="number"
-                                min={0}
-                                className="w-24 h-8 text-sm"
-                                value={planLimits[k]?.limits?.[limitKey] ?? 0}
-                                onChange={(e) => updatePlanLimit(k, limitKey, e.target.value)}
-                              />
+                              <NumericInput min={0}
+ className="w-24 h-8 text-sm"
+ value={planLimits[k]?.limits?.[limitKey] ?? 0}
+ onChange={(e) => updatePlanLimit(k, limitKey, e.target.value)} />
                             ) : (
                               <span>{planLimits[k]?.limits?.[limitKey]?.toLocaleString('es-EC') ?? 'Ilimitado'}</span>
                             )}

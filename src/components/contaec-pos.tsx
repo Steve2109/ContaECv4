@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   ScanLine,
   ShoppingCart,
@@ -609,21 +610,18 @@ function POSTerminalView({
               </div>
               <div className="space-y-2">
                 <Label>Número de Caja</Label>
-                <Input
-                  value={sessionForm.numero_caja}
-                  onChange={(e) => setSessionForm({ ...sessionForm, numero_caja: e.target.value })}
-                  placeholder="CAJA-001"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Monto de Apertura ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={sessionForm.monto_apertura}
-                  onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })}
-                  placeholder="0.00"
-                />
+                <NumericInput value={sessionForm.numero_caja}
+ onChange={(e) => setSessionForm({ ...sessionForm, numero_caja: e.target.value })}
+ placeholder="CAJA-001"
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>Monto de Apertura ($)</Label>
+ <Input
+ 
+ value={sessionForm.monto_apertura}
+ onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })}
+ placeholder="0.00" />
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setShowOpenSession(false)}>Cancelar</Button>
@@ -658,122 +656,120 @@ function POSTerminalView({
           <div className="flex gap-2">
             <div className="relative flex-1">
               <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600" />
-              <Input
-                ref={barcodeRef}
-                className="pl-10 h-12 text-base"
-                placeholder="Escanear codigo de barras..."
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleBarcodeScan(); }}
-                autoFocus
-              />
-            </div>
-            <Button size="lg" className="h-12 bg-emerald-600 hover:bg-emerald-700 min-w-[80px]" onClick={handleBarcodeScan}>
-              <ScanLine className="h-5 w-5" />
-            </Button>
-          </div>
+              <NumericInput ref={barcodeRef}
+ className="pl-10 h-12 text-base"
+ placeholder="Escanear codigo de barras..."
+ value={barcodeInput}
+ onChange={(e) => setBarcodeInput(e.target.value)}
+ onKeyDown={(e) => { if (e.key === 'Enter') handleBarcodeScan(); }}
+ autoFocus
+ />
+ </div>
+ <Button size="lg" className="h-12 bg-emerald-600 hover:bg-emerald-700 min-w-[80px]" onClick={handleBarcodeScan}>
+ <ScanLine className="h-5 w-5" />
+ </Button>
+ </div>
 
-          {/* Quick Search */}
-          <div className="flex gap-2">
-            <Input
-              className="h-10"
-              placeholder="Buscar producto por nombre o codigo..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleNameSearch(); }}
-            />
-            <Button variant="outline" onClick={handleNameSearch}>Buscar</Button>
-            <Button variant="ghost" onClick={() => { setSearchInput(''); loadProducts(); }}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+ {/* Quick Search */}
+ <div className="flex gap-2">
+ <Input
+ className="h-10"
+ placeholder="Buscar producto por nombre o codigo..."
+ value={searchInput}
+ onChange={(e) => setSearchInput(e.target.value)}
+ onKeyDown={(e) => { if (e.key === 'Enter') handleNameSearch(); }}
+ />
+ <Button variant="outline" onClick={handleNameSearch}>Buscar</Button>
+ <Button variant="ghost" onClick={() => { setSearchInput(''); loadProducts(); }}>
+ <X className="h-4 w-4" />
+ </Button>
+ </div>
 
-          {/* Product Grid */}
-          <ScrollArea className="h-[calc(100vh-380px)]">
-            {loadingProducts ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : products.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 pr-2">
-                {products.map((p) => (
-                  <button
-                    key={p.id}
-                    className={`flex flex-col p-3 rounded-lg border text-left transition-colors min-h-[90px] ${
-                      p.stock === 0
-                        ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
-                        : 'bg-white border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 active:bg-emerald-100 cursor-pointer'
-                    }`}
-                    onClick={() => p.stock !== 0 && addToCart(p)}
-                    disabled={p.stock === 0}
-                  >
-                    <span className="text-sm font-medium line-clamp-2 leading-tight">{p.descripcion}</span>
-                    <span className="text-xs text-muted-foreground mt-1">{p.codigo_principal}</span>
-                    <div className="mt-auto flex items-end justify-between pt-1">
-                      <span className="text-base font-bold text-emerald-700">${formatCurrency(p.precio_unitario)}</span>
-                      {p.stock > 0 ? (
-                        <span className="text-xs text-muted-foreground">Stock: {p.stock}</span>
-                      ) : (
-                        <Badge variant="destructive" className="text-[10px] px-1 py-0">Agotado</Badge>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <ShoppingCart className="h-10 w-10 mx-auto mb-2" />
-                <p>No se encontraron productos</p>
-              </div>
-            )}
-          </ScrollArea>
-        </div>
+ {/* Product Grid */}
+ <ScrollArea className="h-[calc(100vh-380px)]">
+ {loadingProducts ? (
+ <div className="flex items-center justify-center py-12">
+ <Loader2 className="h-8 w-8 animate-spin text-primary" />
+ </div>
+ ) : products.length > 0 ? (
+ <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 pr-2">
+ {products.map((p) => (
+ <button
+ key={p.id}
+ className={`flex flex-col p-3 rounded-lg border text-left transition-colors min-h-[90px] ${
+ p.stock === 0
+ ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
+ : 'bg-white border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 active:bg-emerald-100 cursor-pointer'
+ }`}
+ onClick={() => p.stock !== 0 && addToCart(p)}
+ disabled={p.stock === 0}
+ >
+ <span className="text-sm font-medium line-clamp-2 leading-tight">{p.descripcion}</span>
+ <span className="text-xs text-muted-foreground mt-1">{p.codigo_principal}</span>
+ <div className="mt-auto flex items-end justify-between pt-1">
+ <span className="text-base font-bold text-emerald-700">${formatCurrency(p.precio_unitario)}</span>
+ {p.stock > 0 ? (
+ <span className="text-xs text-muted-foreground">Stock: {p.stock}</span>
+ ) : (
+ <Badge variant="destructive" className="text-[10px] px-1 py-0">Agotado</Badge>
+ )}
+ </div>
+ </button>
+ ))}
+ </div>
+ ) : (
+ <div className="text-center py-12 text-muted-foreground">
+ <ShoppingCart className="h-10 w-10 mx-auto mb-2" />
+ <p>No se encontraron productos</p>
+ </div>
+ )}
+ </ScrollArea>
+ </div>
 
-        {/* RIGHT PANEL - Cart & Checkout (40%) */}
-        <div className="lg:col-span-2">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Nueva Venta</CardTitle>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">
-                    {activeSession.numero_caja} | {activeSession.user_nombre}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Desde: {formatDateTime(activeSession.fecha_apertura)}
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
+ {/* RIGHT PANEL - Cart & Checkout (40%) */}
+ <div className="lg:col-span-2">
+ <Card className="h-full flex flex-col">
+ <CardHeader className="pb-2">
+ <div className="flex items-center justify-between">
+ <CardTitle className="text-lg">Nueva Venta</CardTitle>
+ <div className="text-right">
+ <p className="text-xs text-muted-foreground">
+ {activeSession.numero_caja} | {activeSession.user_nombre}
+ </p>
+ <p className="text-xs text-muted-foreground">
+ Desde: {formatDateTime(activeSession.fecha_apertura)}
+ </p>
+ </div>
+ </div>
+ </CardHeader>
 
-            <CardContent className="flex-1 flex flex-col gap-3 overflow-hidden">
-              {/* Cart Items */}
-              <ScrollArea className="flex-1 max-h-[240px]">
-                {cart.length > 0 ? (
-                  <div className="space-y-2 pr-1">
-                    {cart.map((item) => (
-                      <div key={item.productId} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium line-clamp-1">{item.descripcion}</p>
-                          <p className="text-xs text-muted-foreground">
-                            ${formatCurrency(item.precioUnitario)} c/u
-                            {item.descuento > 0 && <span className="text-red-500 ml-1">-{item.descuento}%</span>}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateCartItemQty(item.productId, -1)}>
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-sm font-medium w-6 text-center">{item.cantidad}</span>
-                            <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateCartItemQty(item.productId, 1)}>
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              type="number"
-                              placeholder="Desc%"
-                              value={item.descuento || ''}
-                              onChange={(e) => updateCartItemDiscount(item.productId, Number(e.target.value) || 0)}
-                            />
+ <CardContent className="flex-1 flex flex-col gap-3 overflow-hidden">
+ {/* Cart Items */}
+ <ScrollArea className="flex-1 max-h-[240px]">
+ {cart.length > 0 ? (
+ <div className="space-y-2 pr-1">
+ {cart.map((item) => (
+ <div key={item.productId} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
+ <div className="flex-1 min-w-0">
+ <p className="text-sm font-medium line-clamp-1">{item.descripcion}</p>
+ <p className="text-xs text-muted-foreground">
+ ${formatCurrency(item.precioUnitario)} c/u
+ {item.descuento > 0 && <span className="text-red-500 ml-1">-{item.descuento}%</span>}
+ </p>
+ <div className="flex items-center gap-2 mt-1">
+ <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateCartItemQty(item.productId, -1)}>
+ <Minus className="h-3 w-3" />
+ </Button>
+ <span className="text-sm font-medium w-6 text-center">{item.cantidad}</span>
+ <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateCartItemQty(item.productId, 1)}>
+ <Plus className="h-3 w-3" />
+ </Button>
+ <Input
+ className="h-7 w-16 text-xs"
+ 
+ placeholder="Desc%"
+ value={item.descuento || ''}
+ onChange={(e) => updateCartItemDiscount(item.productId, Number(e.target.value) || 0)} />
                           </div>
                         </div>
                         <div className="text-right">
@@ -843,93 +839,90 @@ function POSTerminalView({
                       </SelectContent>
                     </Select>
                     {customClient.tipo_identificacion !== '07' && (
-                      <Input
-                        className="h-9 text-sm"
-                        placeholder="Identificación * (cédula / RUC / pasaporte)"
-                        value={customClient.identificacion}
-                        onChange={(e) => setCustomClient({ ...customClient, identificacion: e.target.value })}
-                        maxLength={13}
-                      />
-                    )}
-                    {customClient.tipo_identificacion !== '07' && (
-                      <Input
-                        className="h-9 text-sm"
-                        placeholder="Nombre / Razón social *"
-                        value={customClient.nombre}
-                        onChange={(e) => setCustomClient({ ...customClient, nombre: e.target.value })}
-                      />
-                    )}
-                    <Input
-                      className="h-9 text-sm"
-                      placeholder="Dirección"
-                      value={customClient.direccion}
-                      onChange={(e) => setCustomClient({ ...customClient, direccion: e.target.value })}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        className="h-9 text-sm"
-                        placeholder="Teléfono"
-                        value={customClient.telefono}
-                        onChange={(e) => setCustomClient({ ...customClient, telefono: e.target.value })}
-                      />
-                      <Input
-                        className="h-9 text-sm"
-                        type="email"
-                        placeholder="Correo"
-                        value={customClient.email}
-                        onChange={(e) => setCustomClient({ ...customClient, email: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+                      <NumericInput className="h-9 text-sm"
+ placeholder="Identificación * (cédula / RUC / pasaporte)"
+ value={customClient.identificacion}
+ onChange={(e) => setCustomClient({ ...customClient, identificacion: e.target.value })}
+ maxLength={13}
+ />
+ )}
+ {customClient.tipo_identificacion !== '07' && (
+ <Input
+ className="h-9 text-sm"
+ placeholder="Nombre / Razón social *"
+ value={customClient.nombre}
+ onChange={(e) => setCustomClient({ ...customClient, nombre: e.target.value })}
+ />
+ )}
+ <Input
+ className="h-9 text-sm"
+ placeholder="Dirección"
+ value={customClient.direccion}
+ onChange={(e) => setCustomClient({ ...customClient, direccion: e.target.value })}
+ />
+ <div className="grid grid-cols-2 gap-2">
+ <Input
+ className="h-9 text-sm"
+ placeholder="Teléfono"
+ value={customClient.telefono}
+ onChange={(e) => setCustomClient({ ...customClient, telefono: e.target.value })}
+ />
+ <Input
+ className="h-9 text-sm"
+ type="email"
+ placeholder="Correo"
+ value={customClient.email}
+ onChange={(e) => setCustomClient({ ...customClient, email: e.target.value })}
+ />
+ </div>
+ </div>
+ )}
+ </div>
 
-              {/* Invoice toggle */}
-              <div className="flex items-center justify-between rounded-md border p-2 bg-emerald-50/40">
-                <div className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-emerald-700" />
-                  <div>
-                    <Label className="text-sm">Factura electrónica (SRI)</Label>
-                    <p className="text-[10px] text-muted-foreground leading-tight">Genera y envía la factura al SRI automáticamente</p>
-                  </div>
-                </div>
-                <Switch checked={generarFactura} onCheckedChange={setGenerarFactura} />
-              </div>
+ {/* Invoice toggle */}
+ <div className="flex items-center justify-between rounded-md border p-2 bg-emerald-50/40">
+ <div className="flex items-center gap-2">
+ <Receipt className="h-4 w-4 text-emerald-700" />
+ <div>
+ <Label className="text-sm">Factura electrónica (SRI)</Label>
+ <p className="text-[10px] text-muted-foreground leading-tight">Genera y envía la factura al SRI automáticamente</p>
+ </div>
+ </div>
+ <Switch checked={generarFactura} onCheckedChange={setGenerarFactura} />
+ </div>
 
-              {/* Payment */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Tipo de Venta</Label>
-                <div className="grid grid-cols-4 gap-1">
-                  {(['efectivo', 'tarjeta', 'credito', 'mixto'] as const).map((tipo) => (
-                    <Button
-                      key={tipo}
-                      size="sm"
-                      variant={tipoVenta === tipo ? 'default' : 'outline'}
-                      className={`h-10 text-xs ${tipoVenta === tipo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-                      onClick={() => setTipoVenta(tipo)}
-                    >
-                      {tipo === 'efectivo' && <Banknote className="mr-1 h-3 w-3" />}
-                      {tipo === 'tarjeta' && <CreditCard className="mr-1 h-3 w-3" />}
-                      {tipo === 'credito' && <Clock className="mr-1 h-3 w-3" />}
-                      {tipo === 'mixto' && <DollarSign className="mr-1 h-3 w-3" />}
-                      {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                    </Button>
-                  ))}
-                </div>
+ {/* Payment */}
+ <div className="space-y-2">
+ <Label className="text-sm font-medium">Tipo de Venta</Label>
+ <div className="grid grid-cols-4 gap-1">
+ {(['efectivo', 'tarjeta', 'credito', 'mixto'] as const).map((tipo) => (
+ <Button
+ key={tipo}
+ size="sm"
+ variant={tipoVenta === tipo ? 'default' : 'outline'}
+ className={`h-10 text-xs ${tipoVenta === tipo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+ onClick={() => setTipoVenta(tipo)}
+ >
+ {tipo === 'efectivo' && <Banknote className="mr-1 h-3 w-3" />}
+ {tipo === 'tarjeta' && <CreditCard className="mr-1 h-3 w-3" />}
+ {tipo === 'credito' && <Clock className="mr-1 h-3 w-3" />}
+ {tipo === 'mixto' && <DollarSign className="mr-1 h-3 w-3" />}
+ {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+ </Button>
+ ))}
+ </div>
 
-                {tipoVenta === 'efectivo' && (
-                  <div className="space-y-1">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs">Efectivo recibido</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          className="h-10 text-base"
-                          value={montoRecibido}
-                          onChange={(e) => setMontoRecibido(e.target.value)}
-                          placeholder="0.00"
-                        />
+ {tipoVenta === 'efectivo' && (
+ <div className="space-y-1">
+ <div className="grid grid-cols-2 gap-2">
+ <div>
+ <Label className="text-xs">Efectivo recibido</Label>
+ <Input
+ 
+ className="h-10 text-base"
+ value={montoRecibido}
+ onChange={(e) => setMontoRecibido(e.target.value)}
+ placeholder="0.00" />
                       </div>
                       <div>
                         <Label className="text-xs">Cambio</Label>
@@ -952,11 +945,11 @@ function POSTerminalView({
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-xs">Efectivo</Label>
-                        <Input type="number" step="0.01" className="h-10" value={montoEfectivoMixto} onChange={(e) => setMontoEfectivoMixto(e.target.value)} placeholder="0.00" />
+ <NumericInput className="h-10" value={montoEfectivoMixto} onChange={(e) => setMontoEfectivoMixto(e.target.value)} placeholder="0.00" />
                       </div>
                       <div>
                         <Label className="text-xs">Tarjeta</Label>
-                        <Input type="number" step="0.01" className="h-10" value={montoTarjeta} onChange={(e) => setMontoTarjeta(e.target.value)} placeholder="0.00" />
+ <NumericInput className="h-10" value={montoTarjeta} onChange={(e) => setMontoTarjeta(e.target.value)} placeholder="0.00" />
                       </div>
                     </div>
                     {Number(montoTarjeta) > 0 && <CardPaymentFields cardData={cardData} setCardData={setCardData} />}
@@ -965,7 +958,7 @@ function POSTerminalView({
 
                 <div>
                   <Label className="text-xs">Propina ($)</Label>
-                  <Input type="number" step="0.01" className="h-9 text-sm" value={propina} onChange={(e) => setPropina(e.target.value)} placeholder="0.00" />
+ <NumericInput className="h-9 text-sm" value={propina} onChange={(e) => setPropina(e.target.value)} placeholder="0.00" />
                 </div>
               </div>
 
@@ -1015,7 +1008,7 @@ function POSTerminalView({
             </div>
             <div className="space-y-2">
               <Label>Monto de Apertura ($)</Label>
-              <Input type="number" step="0.01" value={sessionForm.monto_apertura} onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })} placeholder="0.00" />
+ <NumericInput value={sessionForm.monto_apertura} onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })} placeholder="0.00" />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowOpenSession(false)}>Cancelar</Button>
@@ -1085,227 +1078,226 @@ function CardPaymentFields({
           </Select>
         </div>
       </div>
-      <Input
-        className="h-9 text-sm"
-        placeholder="Banco emisor (ej: Banco Pichincha)"
-        value={cardData.banco}
-        onChange={(e) => setCardData({ ...cardData, banco: e.target.value })}
-      />
-      <Input
-        className="h-9 text-sm"
-        placeholder="Nombre del titular *"
-        value={cardData.titular}
-        onChange={(e) => setCardData({ ...cardData, titular: e.target.value })}
-      />
-      <div>
-        <Label className="text-xs">Últimos 4 dígitos de la tarjeta *</Label>
-        <Input
-          className="h-10 text-base tracking-[0.3em]"
-          maxLength={4}
-          inputMode="numeric"
-          value={cardData.ultimos4}
-          onChange={(e) => setCardData({ ...cardData, ultimos4: e.target.value.replace(/\D/g, '') })}
-          placeholder="•••• 0000"
-        />
-      </div>
-    </div>
-  );
+      <NumericInput className="h-9 text-sm"
+ placeholder="Banco emisor (ej: Banco Pichincha)"
+ value={cardData.banco}
+ onChange={(e) => setCardData({ ...cardData, banco: e.target.value })}
+ />
+ <Input
+ className="h-9 text-sm"
+ placeholder="Nombre del titular *"
+ value={cardData.titular}
+ onChange={(e) => setCardData({ ...cardData, titular: e.target.value })}
+ />
+ <div>
+ <Label className="text-xs">Últimos 4 dígitos de la tarjeta *</Label>
+ <Input
+ className="h-10 text-base tracking-[0.3em]"
+ maxLength={4}
+ inputMode="numeric"
+ value={cardData.ultimos4}
+ onChange={(e) => setCardData({ ...cardData, ultimos4: e.target.value.replace(/\D/g, '') })}
+ placeholder="•••• 0000"
+ />
+ </div>
+ </div>
+ );
 }
 
 function ChangeDialog({
-  open,
-  onOpenChange,
-  ticket,
-  cambio,
-  company: _company,
+ open,
+ onOpenChange,
+ ticket,
+ cambio,
+ company: _company,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  ticket: POSTicket | null;
-  cambio: number;
-  company: Company | undefined;
+ open: boolean;
+ onOpenChange: (open: boolean) => void;
+ ticket: POSTicket | null;
+ cambio: number;
+ company: Company | undefined;
 }) {
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [receiptText, setReceiptText] = useState('');
-  const [loadingReceipt, setLoadingReceipt] = useState(false);
+ const [showReceipt, setShowReceipt] = useState(false);
+ const [receiptText, setReceiptText] = useState('');
+ const [loadingReceipt, setLoadingReceipt] = useState(false);
 
-  async function handlePrint() {
-    if (!ticket) return;
-    setLoadingReceipt(true);
-    try {
-      const data = await getPOSTicketPrintData(ticket.id);
-      const text = formatReceipt(data);
-      setReceiptText(text);
-      setShowReceipt(true);
-    } catch {
-      toast.error('Error al obtener datos de impresion');
-    } finally {
-      setLoadingReceipt(false);
-    }
-  }
+ async function handlePrint() {
+ if (!ticket) return;
+ setLoadingReceipt(true);
+ try {
+ const data = await getPOSTicketPrintData(ticket.id);
+ const text = formatReceipt(data);
+ setReceiptText(text);
+ setShowReceipt(true);
+ } catch {
+ toast.error('Error al obtener datos de impresion');
+ } finally {
+ setLoadingReceipt(false);
+ }
+ }
 
-  function handleCopy() {
-    navigator.clipboard.writeText(receiptText);
-    toast.success('Recibo copiado al portapapeles');
-  }
+ function handleCopy() {
+ navigator.clipboard.writeText(receiptText);
+ toast.success('Recibo copiado al portapapeles');
+ }
 
-  function handleWindowPrint() {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      // HTML-encode receiptText to prevent XSS from product descriptions, client names, etc.
-      const encoded = receiptText
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-      printWindow.document.write(`<pre style="font-family:monospace;font-size:12px;">${encoded}</pre>`);
-      printWindow.document.close();
-      printWindow.print();
-    }
-  }
+ function handleWindowPrint() {
+ const printWindow = window.open('', '_blank');
+ if (printWindow) {
+ // HTML-encode receiptText to prevent XSS from product descriptions, client names, etc.
+ const encoded = receiptText
+ .replace(/&/g, '&amp;')
+ .replace(/</g, '&lt;')
+ .replace(/>/g, '&gt;')
+ .replace(/"/g, '&quot;');
+ printWindow.document.write(`<pre style="font-family:monospace;font-size:12px;">${encoded}</pre>`);
+ printWindow.document.close();
+ printWindow.print();
+ }
+ }
 
-  if (!ticket) return null;
+ if (!ticket) return null;
 
-  return (
-    <>
-      <Dialog open={open && !showReceipt} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-sm text-center">
-          <DialogHeader>
-            <DialogTitle className="text-emerald-700 flex items-center justify-center gap-2">
-              <CheckCircle2 className="h-6 w-6" /> Venta Exitosa
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-lg font-bold">Ticket: {ticket.numero_ticket}</p>
-            <p className="text-2xl font-bold text-emerald-700">
-              Total: ${formatCurrency(ticket.total_con_impuestos)}
-            </p>
-            {cambio > 0 && (
-              <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                <p className="text-sm text-emerald-600">Cambio</p>
-                <p className="text-3xl font-bold text-emerald-700">${formatCurrency(cambio)}</p>
-              </div>
-            )}
-            <div className="flex gap-2 justify-center">
-              <Button variant="outline" onClick={handlePrint} disabled={loadingReceipt}>
-                {loadingReceipt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
-                Imprimir
-              </Button>
-              <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+ return (
+ <>
+ <Dialog open={open && !showReceipt} onOpenChange={onOpenChange}>
+ <DialogContent className="sm:max-w-sm text-center">
+ <DialogHeader>
+ <DialogTitle className="text-emerald-700 flex items-center justify-center gap-2">
+ <CheckCircle2 className="h-6 w-6" /> Venta Exitosa
+ </DialogTitle>
+ </DialogHeader>
+ <div className="space-y-4 py-2">
+ <p className="text-lg font-bold">Ticket: {ticket.numero_ticket}</p>
+ <p className="text-2xl font-bold text-emerald-700">
+ Total: ${formatCurrency(ticket.total_con_impuestos)}
+ </p>
+ {cambio > 0 && (
+ <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+ <p className="text-sm text-emerald-600">Cambio</p>
+ <p className="text-3xl font-bold text-emerald-700">${formatCurrency(cambio)}</p>
+ </div>
+ )}
+ <div className="flex gap-2 justify-center">
+ <Button variant="outline" onClick={handlePrint} disabled={loadingReceipt}>
+ {loadingReceipt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+ Imprimir
+ </Button>
+ <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
+ </div>
+ </div>
+ </DialogContent>
+ </Dialog>
 
-      {/* Receipt Preview Dialog */}
-      <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Vista Previa del Ticket</DialogTitle>
-            <DialogDescription>Recibo para impresora termica</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <ScrollArea className="max-h-[400px]">
-              <pre className="text-xs font-mono bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">{receiptText}</pre>
-            </ScrollArea>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleCopy}>
-                <Copy className="mr-2 h-4 w-4" /> Copiar
-              </Button>
-              <Button onClick={handleWindowPrint}>
-                <Printer className="mr-2 h-4 w-4" /> Imprimir
-              </Button>
-              <Button variant="ghost" onClick={() => setShowReceipt(false)}>Cerrar</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+ {/* Receipt Preview Dialog */}
+ <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
+ <DialogContent className="sm:max-w-md">
+ <DialogHeader>
+ <DialogTitle>Vista Previa del Ticket</DialogTitle>
+ <DialogDescription>Recibo para impresora termica</DialogDescription>
+ </DialogHeader>
+ <div className="space-y-3">
+ <ScrollArea className="max-h-[400px]">
+ <pre className="text-xs font-mono bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">{receiptText}</pre>
+ </ScrollArea>
+ <div className="flex gap-2 justify-end">
+ <Button variant="outline" onClick={handleCopy}>
+ <Copy className="mr-2 h-4 w-4" /> Copiar
+ </Button>
+ <Button onClick={handleWindowPrint}>
+ <Printer className="mr-2 h-4 w-4" /> Imprimir
+ </Button>
+ <Button variant="ghost" onClick={() => setShowReceipt(false)}>Cerrar</Button>
+ </div>
+ </div>
+ </DialogContent>
+ </Dialog>
+ </>
+ );
 }
 
 // ─── Receipt Formatter ───────────────────────────────────────
 
 function formatReceipt(data: POSTicketPrintData): string {
-  const t = data;
-  const companyName = t.empresa_nombre || 'ContaEC';
-  const line = '================================';
-  const dash = '--------------------------------';
-  const pad = (str: string, len: number, align: 'left' | 'right' = 'left') => {
-    const s = String(str).substring(0, len);
-    if (align === 'right') return s.padStart(len);
-    return s.padEnd(len);
-  };
+ const t = data;
+ const companyName = t.empresa_nombre || 'ContaEC';
+ const line = '================================';
+ const dash = '--------------------------------';
+ const pad = (str: string, len: number, align: 'left' | 'right' = 'left') => {
+ const s = String(str).substring(0, len);
+ if (align === 'right') return s.padStart(len);
+ return s.padEnd(len);
+ };
 
-  let r = '';
-  r += line + '\n';
-  r += pad(companyName, 32, 'left').padStart(32 + Math.floor((32 - companyName.length) / 2)) + '\n';
-  if (t.empresa_ruc) r += pad(`RUC: ${t.empresa_ruc}`, 32, 'left') + '\n';
-  if (t.empresa_direccion) r += pad(t.empresa_direccion.substring(0, 32), 32, 'left') + '\n';
-  r += dash + '\n';
-  r += `TICKET: ${t.numero_ticket}\n`;
-  r += `Fecha: ${formatDateTime(t.fecha)}\n`;
-  r += `Caja: ${t.numero_caja}\n`;
-  r += dash + '\n';
-  r += `Cliente: ${t.cliente_nombre}\n`;
-  r += `RUC/CI: ${t.cliente_identificacion}\n`;
-  if (t.cliente_direccion) r += `Dir: ${t.cliente_direccion.substring(0, 28)}\n`;
-  if (t.cliente_telefono) r += `Tel: ${t.cliente_telefono}\n`;
-  r += dash + '\n';
-  r += pad('Cant', 4) + pad('Descripción', 16) + pad('P.Unit', 6, 'right') + pad('Total', 6, 'right') + '\n';
-  r += dash + '\n';
+ let r = '';
+ r += line + '\n';
+ r += pad(companyName, 32, 'left').padStart(32 + Math.floor((32 - companyName.length) / 2)) + '\n';
+ if (t.empresa_ruc) r += pad(`RUC: ${t.empresa_ruc}`, 32, 'left') + '\n';
+ if (t.empresa_direccion) r += pad(t.empresa_direccion.substring(0, 32), 32, 'left') + '\n';
+ r += dash + '\n';
+ r += `TICKET: ${t.numero_ticket}\n`;
+ r += `Fecha: ${formatDateTime(t.fecha)}\n`;
+ r += `Caja: ${t.numero_caja}\n`;
+ r += dash + '\n';
+ r += `Cliente: ${t.cliente_nombre}\n`;
+ r += `RUC/CI: ${t.cliente_identificacion}\n`;
+ if (t.cliente_direccion) r += `Dir: ${t.cliente_direccion.substring(0, 28)}\n`;
+ if (t.cliente_telefono) r += `Tel: ${t.cliente_telefono}\n`;
+ r += dash + '\n';
+ r += pad('Cant', 4) + pad('Descripción', 16) + pad('P.Unit', 6, 'right') + pad('Total', 6, 'right') + '\n';
+ r += dash + '\n';
 
-  for (const d of t.items) {
-    r += pad(String(d.cantidad), 4);
-    r += pad(String(d.descripcion).substring(0, 16), 16);
-    r += pad(Number(d.precio_unitario).toFixed(2), 6, 'right');
-    r += pad(Number(d.precio_total_sin_impuestos).toFixed(2), 6, 'right');
-    r += '\n';
-  }
+ for (const d of t.items) {
+ r += pad(String(d.cantidad), 4);
+ r += pad(String(d.descripcion).substring(0, 16), 16);
+ r += pad(Number(d.precio_unitario).toFixed(2), 6, 'right');
+ r += pad(Number(d.precio_total_sin_impuestos).toFixed(2), 6, 'right');
+ r += '\n';
+ }
 
-  r += dash + '\n';
-  r += pad('Subtotal:', 24) + pad(Number(t.subtotal_sin_impuestos).toFixed(2), 8, 'right') + '\n';
-  r += pad(`IVA:`, 24) + pad(Number(t.total_iva).toFixed(2), 8, 'right') + '\n';
-  if (Number(t.total_descuento) > 0) {
-    r += pad('Descuento:', 24) + pad(Number(t.total_descuento).toFixed(2), 8, 'right') + '\n';
-  }
-  r += dash + '\n';
-  r += pad('TOTAL:', 24) + pad(Number(t.total_con_impuestos).toFixed(2), 8, 'right') + '\n';
-  r += dash + '\n';
+ r += dash + '\n';
+ r += pad('Subtotal:', 24) + pad(Number(t.subtotal_sin_impuestos).toFixed(2), 8, 'right') + '\n';
+ r += pad(`IVA:`, 24) + pad(Number(t.total_iva).toFixed(2), 8, 'right') + '\n';
+ if (Number(t.total_descuento) > 0) {
+ r += pad('Descuento:', 24) + pad(Number(t.total_descuento).toFixed(2), 8, 'right') + '\n';
+ }
+ r += dash + '\n';
+ r += pad('TOTAL:', 24) + pad(Number(t.total_con_impuestos).toFixed(2), 8, 'right') + '\n';
+ r += dash + '\n';
 
-  if (t.tipo_venta === 'efectivo' || t.tipo_venta === 'mixto') {
-    r += pad('Efectivo:', 24) + pad(Number(t.monto_efectivo).toFixed(2), 8, 'right') + '\n';
-    if (Number(t.cambio) > 0) {
-      r += pad('Cambio:', 24) + pad(Number(t.cambio).toFixed(2), 8, 'right') + '\n';
-    }
-  }
-  if (t.tipo_venta === 'tarjeta' || t.tipo_venta === 'mixto') {
-    r += pad('Tarjeta:', 24) + pad(Number(t.monto_tarjeta || 0).toFixed(2), 8, 'right') + '\n';
-    if (t.numero_tarjeta) {
-      r += pad(`Tarj: ****${t.numero_tarjeta}`, 32) + '\n';
-    }
-    if (t.tarjeta_marca) {
-      r += pad(`Marca: ${t.tarjeta_marca}`, 32) + '\n';
-    }
-    if (t.tarjeta_tipo) {
-      r += pad(`Tipo: ${t.tarjeta_tipo === 'debito' ? 'Débito' : 'Crédito'}`, 32) + '\n';
-    }
-    if (t.tarjeta_banco) {
-      r += pad(`Banco: ${t.tarjeta_banco.substring(0, 28)}`, 32) + '\n';
-    }
-    if (t.tarjeta_titular) {
-      r += pad(`Titular: ${t.tarjeta_titular.substring(0, 28)}`, 32) + '\n';
-    }
-  }
-  if (Number(t.propina) > 0) {
-    r += pad('Propina:', 24) + pad(Number(t.propina).toFixed(2), 8, 'right') + '\n';
-  }
+ if (t.tipo_venta === 'efectivo' || t.tipo_venta === 'mixto') {
+ r += pad('Efectivo:', 24) + pad(Number(t.monto_efectivo).toFixed(2), 8, 'right') + '\n';
+ if (Number(t.cambio) > 0) {
+ r += pad('Cambio:', 24) + pad(Number(t.cambio).toFixed(2), 8, 'right') + '\n';
+ }
+ }
+ if (t.tipo_venta === 'tarjeta' || t.tipo_venta === 'mixto') {
+ r += pad('Tarjeta:', 24) + pad(Number(t.monto_tarjeta || 0).toFixed(2), 8, 'right') + '\n';
+ if (t.numero_tarjeta) {
+ r += pad(`Tarj: ****${t.numero_tarjeta}`, 32) + '\n';
+ }
+ if (t.tarjeta_marca) {
+ r += pad(`Marca: ${t.tarjeta_marca}`, 32) + '\n';
+ }
+ if (t.tarjeta_tipo) {
+ r += pad(`Tipo: ${t.tarjeta_tipo === 'debito' ? 'Débito' : 'Crédito'}`, 32) + '\n';
+ }
+ if (t.tarjeta_banco) {
+ r += pad(`Banco: ${t.tarjeta_banco.substring(0, 28)}`, 32) + '\n';
+ }
+ if (t.tarjeta_titular) {
+ r += pad(`Titular: ${t.tarjeta_titular.substring(0, 28)}`, 32) + '\n';
+ }
+ }
+ if (Number(t.propina) > 0) {
+ r += pad('Propina:', 24) + pad(Number(t.propina).toFixed(2), 8, 'right') + '\n';
+ }
 
-  r += line + '\n';
-  r += pad('Gracias por su compra!', 32, 'left').padStart(32 + 5) + '\n';
-  r += line + '\n';
+ r += line + '\n';
+ r += pad('Gracias por su compra!', 32, 'left').padStart(32 + 5) + '\n';
+ r += line + '\n';
 
-  return r;
+ return r;
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -1313,220 +1305,220 @@ function formatReceipt(data: POSTicketPrintData): string {
 // ═════════════════════════════════════════════════════════════
 
 function POSAdminView({
-  user: _user,
-  companyId,
-  companies,
+ user: _user,
+ companyId,
+ companies,
 }: {
-  user: User;
-  companyId: string;
-  companies: Company[];
+ user: User;
+ companyId: string;
+ companies: Company[];
 }) {
-  return (
-    <Tabs defaultValue="sesiones" className="space-y-4">
-      <TabsList className="flex flex-wrap h-auto gap-1">
-        <TabsTrigger value="sesiones" className="gap-1.5">
-          <Banknote className="h-3.5 w-3.5" /><span className="hidden sm:inline">Sesiones de Caja</span>
-        </TabsTrigger>
-        <TabsTrigger value="arqueo" className="gap-1.5">
-          <Receipt className="h-3.5 w-3.5" /><span className="hidden sm:inline">Arqueo de Caja</span>
-        </TabsTrigger>
-        <TabsTrigger value="tickets" className="gap-1.5">
-          <FileText className="h-3.5 w-3.5" /><span className="hidden sm:inline">Tickets</span>
-        </TabsTrigger>
-        <TabsTrigger value="historial" className="gap-1.5">
-          <Clock className="h-3.5 w-3.5" /><span className="hidden sm:inline">Historial</span>
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="sesiones"><SesionesTab companyId={companyId} companies={companies} /></TabsContent>
-      <TabsContent value="arqueo"><ArqueoTab companyId={companyId} /></TabsContent>
-      <TabsContent value="tickets"><TicketsTab companyId={companyId} /></TabsContent>
-      <TabsContent value="historial"><HistorialTab companyId={companyId} /></TabsContent>
-    </Tabs>
-  );
+ return (
+ <Tabs defaultValue="sesiones" className="space-y-4">
+ <TabsList className="flex flex-wrap h-auto gap-1">
+ <TabsTrigger value="sesiones" className="gap-1.5">
+ <Banknote className="h-3.5 w-3.5" /><span className="hidden sm:inline">Sesiones de Caja</span>
+ </TabsTrigger>
+ <TabsTrigger value="arqueo" className="gap-1.5">
+ <Receipt className="h-3.5 w-3.5" /><span className="hidden sm:inline">Arqueo de Caja</span>
+ </TabsTrigger>
+ <TabsTrigger value="tickets" className="gap-1.5">
+ <FileText className="h-3.5 w-3.5" /><span className="hidden sm:inline">Tickets</span>
+ </TabsTrigger>
+ <TabsTrigger value="historial" className="gap-1.5">
+ <Clock className="h-3.5 w-3.5" /><span className="hidden sm:inline">Historial</span>
+ </TabsTrigger>
+ </TabsList>
+ <TabsContent value="sesiones"><SesionesTab companyId={companyId} companies={companies} /></TabsContent>
+ <TabsContent value="arqueo"><ArqueoTab companyId={companyId} /></TabsContent>
+ <TabsContent value="tickets"><TicketsTab companyId={companyId} /></TabsContent>
+ <TabsContent value="historial"><HistorialTab companyId={companyId} /></TabsContent>
+ </Tabs>
+ );
 }
 
 // ─── Tab 1: Sesiones de Caja ────────────────────────────────
 
 function SesionesTab({ companyId, companies }: { companyId: string; companies: Company[] }) {
-  const [sessions, setSessions] = useState<POSCashSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showOpenDialog, setShowOpenDialog] = useState(false);
-  const [showCloseDialog, setShowCloseDialog] = useState<POSCashSession | null>(null);
-  const [showDetailDialog, setShowDetailDialog] = useState<POSCashSessionResumen | null>(null);
-  const [opening, setOpening] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [sessionForm, setSessionForm] = useState({ numero_caja: 'CAJA-001', monto_apertura: '0.00' });
-  const [closeForm, setCloseForm] = useState({ monto_cierre_efectivo: '', observaciones_cierre: '' });
-  const [loadingDetail, setLoadingDetail] = useState(false);
+ const [sessions, setSessions] = useState<POSCashSession[]>([]);
+ const [loading, setLoading] = useState(true);
+ const [showOpenDialog, setShowOpenDialog] = useState(false);
+ const [showCloseDialog, setShowCloseDialog] = useState<POSCashSession | null>(null);
+ const [showDetailDialog, setShowDetailDialog] = useState<POSCashSessionResumen | null>(null);
+ const [opening, setOpening] = useState(false);
+ const [closing, setClosing] = useState(false);
+ const [sessionForm, setSessionForm] = useState({ numero_caja: 'CAJA-001', monto_apertura: '0.00' });
+ const [closeForm, setCloseForm] = useState({ monto_cierre_efectivo: '', observaciones_cierre: '' });
+ const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const loadData = useCallback(async () => {
-    if (!companyId) return;
-    setLoading(true);
-    try {
-      const data = await getPOSSessions({ company_id: companyId });
-      setSessions(data);
-    } catch {
-      toast.error('Error al cargar sesiones');
-    } finally {
-      setLoading(false);
-    }
-  }, [companyId]);
+ const loadData = useCallback(async () => {
+ if (!companyId) return;
+ setLoading(true);
+ try {
+ const data = await getPOSSessions({ company_id: companyId });
+ setSessions(data);
+ } catch {
+ toast.error('Error al cargar sesiones');
+ } finally {
+ setLoading(false);
+ }
+ }, [companyId]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+ useEffect(() => { loadData(); }, [loadData]);
 
-  async function handleOpen() {
-    if (!sessionForm.numero_caja || !sessionForm.monto_apertura) {
-      toast.error('Complete todos los campos');
-      return;
-    }
-    setOpening(true);
-    try {
-      await openPOSSession({
-        company_id: companyId,
-        numero_caja: sessionForm.numero_caja,
-        monto_apertura: Number(sessionForm.monto_apertura),
-      });
-      toast.success('Caja abierta');
-      setShowOpenDialog(false);
-      setSessionForm({ numero_caja: 'CAJA-001', monto_apertura: '0.00' });
-      loadData();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al abrir caja');
-    } finally {
-      setOpening(false);
-    }
-  }
+ async function handleOpen() {
+ if (!sessionForm.numero_caja || !sessionForm.monto_apertura) {
+ toast.error('Complete todos los campos');
+ return;
+ }
+ setOpening(true);
+ try {
+ await openPOSSession({
+ company_id: companyId,
+ numero_caja: sessionForm.numero_caja,
+ monto_apertura: Number(sessionForm.monto_apertura),
+ });
+ toast.success('Caja abierta');
+ setShowOpenDialog(false);
+ setSessionForm({ numero_caja: 'CAJA-001', monto_apertura: '0.00' });
+ loadData();
+ } catch (err) {
+ toast.error(err instanceof Error ? err.message : 'Error al abrir caja');
+ } finally {
+ setOpening(false);
+ }
+ }
 
-  async function handleClose() {
-    if (!showCloseDialog || !closeForm.monto_cierre_efectivo) {
-      toast.error('Ingrese el monto de cierre');
-      return;
-    }
-    setClosing(true);
-    try {
-      await closePOSSession(showCloseDialog.id, {
-        monto_cierre_efectivo: Number(closeForm.monto_cierre_efectivo),
-        observaciones_cierre: closeForm.observaciones_cierre || undefined,
-      });
-      toast.success('Caja cerrada');
-      setShowCloseDialog(null);
-      setCloseForm({ monto_cierre_efectivo: '', observaciones_cierre: '' });
-      loadData();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al cerrar caja');
-    } finally {
-      setClosing(false);
-    }
-  }
+ async function handleClose() {
+ if (!showCloseDialog || !closeForm.monto_cierre_efectivo) {
+ toast.error('Ingrese el monto de cierre');
+ return;
+ }
+ setClosing(true);
+ try {
+ await closePOSSession(showCloseDialog.id, {
+ monto_cierre_efectivo: Number(closeForm.monto_cierre_efectivo),
+ observaciones_cierre: closeForm.observaciones_cierre || undefined,
+ });
+ toast.success('Caja cerrada');
+ setShowCloseDialog(null);
+ setCloseForm({ monto_cierre_efectivo: '', observaciones_cierre: '' });
+ loadData();
+ } catch (err) {
+ toast.error(err instanceof Error ? err.message : 'Error al cerrar caja');
+ } finally {
+ setClosing(false);
+ }
+ }
 
-  async function handleViewDetail(sessionId: string) {
-    setLoadingDetail(true);
-    try {
-      const resumen = await getPOSSessionResumen(sessionId);
-      setShowDetailDialog(resumen);
-    } catch {
-      toast.error('Error al cargar detalle');
-    } finally {
-      setLoadingDetail(false);
-    }
-  }
+ async function handleViewDetail(sessionId: string) {
+ setLoadingDetail(true);
+ try {
+ const resumen = await getPOSSessionResumen(sessionId);
+ setShowDetailDialog(resumen);
+ } catch {
+ toast.error('Error al cargar detalle');
+ } finally {
+ setLoadingDetail(false);
+ }
+ }
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
+ if (loading) {
+ return <div className="flex items-center justify-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+ }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
-        <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowOpenDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Abrir Caja
-        </Button>
-      </div>
+ return (
+ <div className="space-y-4">
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
+ <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowOpenDialog(true)}>
+ <Plus className="mr-2 h-4 w-4" /> Abrir Caja
+ </Button>
+ </div>
 
-      {sessions.length > 0 ? (
-        <Card>
-          <CardContent className="p-0">
-            <ScrollArea className="max-h-[500px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Caja</TableHead>
-                    <TableHead>Cajero</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Apertura</TableHead>
-                    <TableHead className="text-right">Monto Apertura</TableHead>
-                    <TableHead className="text-right">Total Ventas</TableHead>
-                    <TableHead>Cierre</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sessions.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-mono text-xs">{s.numero_caja}</TableCell>
-                      <TableCell className="text-xs">{s.user_nombre}</TableCell>
-                      <TableCell>
-                        <Badge variant={s.estado === 'abierta' ? 'default' : 'secondary'} className={s.estado === 'abierta' ? 'bg-emerald-600' : ''}>
-                          {s.estado.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">{formatDateTime(s.fecha_apertura)}</TableCell>
-                      <TableCell className="text-right">${formatCurrency(s.monto_apertura)}</TableCell>
-                      <TableCell className="text-right font-medium">${formatCurrency(s.total_ventas)}</TableCell>
-                      <TableCell className="text-xs">{s.fecha_cierre ? formatDateTime(s.fecha_cierre) : '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="sm" variant="outline" onClick={() => handleViewDetail(s.id)} disabled={loadingDetail}>
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                          {s.estado === 'abierta' && (
-                            <Button size="sm" variant="outline" className="text-red-600" onClick={() => { setShowCloseDialog(s); setCloseForm({ monto_cierre_efectivo: '', observaciones_cierre: '' }); }}>
-                              Cerrar
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Banknote className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="text-lg font-medium">Sin sesiones de caja</h3>
-          </CardContent>
-        </Card>
-      )}
+ {sessions.length > 0 ? (
+ <Card>
+ <CardContent className="p-0">
+ <ScrollArea className="max-h-[500px]">
+ <Table>
+ <TableHeader>
+ <TableRow>
+ <TableHead>Caja</TableHead>
+ <TableHead>Cajero</TableHead>
+ <TableHead>Estado</TableHead>
+ <TableHead>Apertura</TableHead>
+ <TableHead className="text-right">Monto Apertura</TableHead>
+ <TableHead className="text-right">Total Ventas</TableHead>
+ <TableHead>Cierre</TableHead>
+ <TableHead className="text-right">Acciones</TableHead>
+ </TableRow>
+ </TableHeader>
+ <TableBody>
+ {sessions.map((s) => (
+ <TableRow key={s.id}>
+ <TableCell className="font-mono text-xs">{s.numero_caja}</TableCell>
+ <TableCell className="text-xs">{s.user_nombre}</TableCell>
+ <TableCell>
+ <Badge variant={s.estado === 'abierta' ? 'default' : 'secondary'} className={s.estado === 'abierta' ? 'bg-emerald-600' : ''}>
+ {s.estado.toUpperCase()}
+ </Badge>
+ </TableCell>
+ <TableCell className="text-xs">{formatDateTime(s.fecha_apertura)}</TableCell>
+ <TableCell className="text-right">${formatCurrency(s.monto_apertura)}</TableCell>
+ <TableCell className="text-right font-medium">${formatCurrency(s.total_ventas)}</TableCell>
+ <TableCell className="text-xs">{s.fecha_cierre ? formatDateTime(s.fecha_cierre) : '-'}</TableCell>
+ <TableCell className="text-right">
+ <div className="flex justify-end gap-1">
+ <Button size="sm" variant="outline" onClick={() => handleViewDetail(s.id)} disabled={loadingDetail}>
+ <Eye className="h-3 w-3" />
+ </Button>
+ {s.estado === 'abierta' && (
+ <Button size="sm" variant="outline" className="text-red-600" onClick={() => { setShowCloseDialog(s); setCloseForm({ monto_cierre_efectivo: '', observaciones_cierre: '' }); }}>
+ Cerrar
+ </Button>
+ )}
+ </div>
+ </TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ </ScrollArea>
+ </CardContent>
+ </Card>
+ ) : (
+ <Card>
+ <CardContent className="py-12 text-center">
+ <Banknote className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+ <h3 className="text-lg font-medium">Sin sesiones de caja</h3>
+ </CardContent>
+ </Card>
+ )}
 
-      {/* Open Session Dialog */}
-      <Dialog open={showOpenDialog} onOpenChange={setShowOpenDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Abrir Caja</DialogTitle>
-            <DialogDescription>Inicie una nueva sesion de caja</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Empresa</Label>
-              <Select value={companyId} disabled>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {companies.map((c) => (<SelectItem key={c.id} value={c.id}>{c.razon_social}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Número de Caja</Label>
-              <Input value={sessionForm.numero_caja} onChange={(e) => setSessionForm({ ...sessionForm, numero_caja: e.target.value })} placeholder="CAJA-001" />
-            </div>
-            <div className="space-y-2">
-              <Label>Monto de Apertura ($)</Label>
-              <Input type="number" step="0.01" value={sessionForm.monto_apertura} onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })} placeholder="0.00" />
+ {/* Open Session Dialog */}
+ <Dialog open={showOpenDialog} onOpenChange={setShowOpenDialog}>
+ <DialogContent className="sm:max-w-md">
+ <DialogHeader>
+ <DialogTitle>Abrir Caja</DialogTitle>
+ <DialogDescription>Inicie una nueva sesion de caja</DialogDescription>
+ </DialogHeader>
+ <div className="space-y-4">
+ <div className="space-y-2">
+ <Label>Empresa</Label>
+ <Select value={companyId} disabled>
+ <SelectTrigger><SelectValue /></SelectTrigger>
+ <SelectContent>
+ {companies.map((c) => (<SelectItem key={c.id} value={c.id}>{c.razon_social}</SelectItem>))}
+ </SelectContent>
+ </Select>
+ </div>
+ <div className="space-y-2">
+ <Label>Número de Caja</Label>
+ <Input value={sessionForm.numero_caja} onChange={(e) => setSessionForm({ ...sessionForm, numero_caja: e.target.value })} placeholder="CAJA-001" />
+ </div>
+ <div className="space-y-2">
+ <Label>Monto de Apertura ($)</Label>
+ <Input value={sessionForm.monto_apertura} onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })} placeholder="0.00" />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowOpenDialog(false)}>Cancelar</Button>
@@ -1559,7 +1551,7 @@ function SesionesTab({ companyId, companies }: { companyId: string; companies: C
             )}
             <div className="space-y-2">
               <Label>Monto de Cierre - Efectivo Contado ($)</Label>
-              <Input type="number" step="0.01" value={closeForm.monto_cierre_efectivo} onChange={(e) => setCloseForm({ ...closeForm, monto_cierre_efectivo: e.target.value })} placeholder="0.00" />
+ <NumericInput value={closeForm.monto_cierre_efectivo} onChange={(e) => setCloseForm({ ...closeForm, monto_cierre_efectivo: e.target.value })} placeholder="0.00" />
             </div>
             <div className="space-y-2">
               <Label>Observaciones</Label>
@@ -1750,13 +1742,9 @@ function ArqueoTab({ companyId }: { companyId: string }) {
                 <div key={den} className="flex items-center gap-3">
                   <span className="w-16 text-sm font-medium">${den}</span>
                   <span className="text-muted-foreground text-sm">x</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    className="h-9 w-20"
-                    value={billeteCounts[String(den)] || ''}
-                    onChange={(e) => setBilleteCounts({ ...billeteCounts, [String(den)]: Number(e.target.value) || 0 })}
-                  />
+                  <NumericInput className="h-9 w-20"
+ value={billeteCounts[String(den)] || ''}
+ onChange={(e) => setBilleteCounts({ ...billeteCounts, [String(den)]: Number(e.target.value) || 0 })} />
                   <span className="text-sm text-muted-foreground w-20 text-right">
                     = ${formatCurrency((billeteCounts[String(den)] || 0) * den)}
                   </span>
@@ -1780,13 +1768,9 @@ function ArqueoTab({ companyId }: { companyId: string }) {
                 <div key={den} className="flex items-center gap-3">
                   <span className="w-16 text-sm font-medium">${den.toFixed(2)}</span>
                   <span className="text-muted-foreground text-sm">x</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    className="h-9 w-20"
-                    value={monedaCounts[String(den)] || ''}
-                    onChange={(e) => setMonedaCounts({ ...monedaCounts, [String(den)]: Number(e.target.value) || 0 })}
-                  />
+                  <NumericInput className="h-9 w-20"
+ value={monedaCounts[String(den)] || ''}
+ onChange={(e) => setMonedaCounts({ ...monedaCounts, [String(den)]: Number(e.target.value) || 0 })} />
                   <span className="text-sm text-muted-foreground w-20 text-right">
                     = ${formatCurrency((monedaCounts[String(den)] || 0) * den)}
                   </span>
@@ -1838,13 +1822,9 @@ function ArqueoTab({ companyId }: { companyId: string }) {
 
               <div className="space-y-2">
                 <Label className="text-sm">Monto Cierre Efectivo ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={montoCierreEfectivo}
-                  onChange={(e) => setMontoCierreEfectivo(e.target.value)}
-                  placeholder={totalEfectivoContado.toFixed(2)}
-                />
+                <NumericInput value={montoCierreEfectivo}
+ onChange={(e) => setMontoCierreEfectivo(e.target.value)}
+ placeholder={totalEfectivoContado.toFixed(2)} />
               </div>
 
               <div className="flex gap-2">

@@ -30,6 +30,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Truck,
   Loader2,
@@ -304,7 +305,7 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
                 <div className="space-y-2"><Label>Contacto Teléfono</Label><Input value={form.contacto_telefono} onChange={(e) => setForm({ ...form, contacto_telefono: e.target.value })} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Plazo Crédito (dias)</Label><Input type="number" value={form.plazo_credito_dias} onChange={(e) => setForm({ ...form, plazo_credito_dias: e.target.value })} /></div>
+ <div className="space-y-2"><Label>Plazo Crédito (dias)</Label><NumericInput value={form.plazo_credito_dias} onChange={(e) => setForm({ ...form, plazo_credito_dias: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Dirección</Label><Input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></div>
               </div>
               <div className="space-y-2"><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} rows={2} /></div>

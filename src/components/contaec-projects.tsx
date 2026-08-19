@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Briefcase,
   FolderKanban,
@@ -650,7 +651,7 @@ function CreateProyectoDialog({ open, onOpenChange, companyId, clients, onCreate
             </div>
             <div className="space-y-2">
               <Label>Presupuesto</Label>
-              <Input type="number" value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} placeholder="0.00" />
+ <NumericInput value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} placeholder="0.00" />
             </div>
             <div className="space-y-2">
               <Label>Responsable</Label>
@@ -782,11 +783,11 @@ function EditProyectoDialog({ proyecto, open, onOpenChange, clients, onUpdated }
             </div>
             <div className="space-y-2">
               <Label>Presupuesto</Label>
-              <Input type="number" value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} />
+ <NumericInput value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Ingreso</Label>
-              <Input type="number" value={ingreso} onChange={(e) => setIngreso(e.target.value)} />
+ <NumericInput value={ingreso} onChange={(e) => setIngreso(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Responsable</Label>
@@ -1226,7 +1227,7 @@ function CreateTareaDialog({ open, onOpenChange, proyectoId, onCreated }: {
             </div>
             <div className="space-y-2">
               <Label>Horas Estimadas</Label>
-              <Input type="number" value={horasEstimadas} onChange={(e) => setHorasEstimadas(e.target.value)} placeholder="0" />
+ <NumericInput value={horasEstimadas} onChange={(e) => setHorasEstimadas(e.target.value)} placeholder="0" />
             </div>
           </div>
           <div className="flex justify-end gap-2">
@@ -1317,11 +1318,11 @@ function EditTareaDialog({ tarea, open, onOpenChange, onUpdated }: {
             </div>
             <div className="space-y-2">
               <Label>Progreso (%)</Label>
-              <Input type="number" min="0" max="100" value={progreso} onChange={(e) => setProgreso(e.target.value)} />
+ <NumericInput value={progreso} onChange={(e) => setProgreso(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Horas Estimadas</Label>
-              <Input type="number" value={horasEstimadas} onChange={(e) => setHorasEstimadas(e.target.value)} />
+ <NumericInput value={horasEstimadas} onChange={(e) => setHorasEstimadas(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Fase</Label>
@@ -1582,11 +1583,11 @@ function CreateRecursoDialog({ open, onOpenChange, proyectoId, onCreated }: {
             </div>
             <div className="space-y-2">
               <Label>Costo Unitario</Label>
-              <Input type="number" value={costoUnitario} onChange={(e) => setCostoUnitario(e.target.value)} placeholder="0.00" />
+ <NumericInput value={costoUnitario} onChange={(e) => setCostoUnitario(e.target.value)} placeholder="0.00" />
             </div>
             <div className="space-y-2">
               <Label>Cantidad</Label>
-              <Input type="number" value={cantidad} onChange={(e) => setCantidad(e.target.value)} placeholder="1" />
+ <NumericInput value={cantidad} onChange={(e) => setCantidad(e.target.value)} placeholder="1" />
             </div>
             <div className="space-y-2">
               <Label>Fecha Asignación</Label>
@@ -1816,11 +1817,11 @@ function CreateTimesheetDialog({ open, onOpenChange, proyectoId, companyId, onCr
             </div>
             <div className="space-y-2">
               <Label>Horas *</Label>
-              <Input type="number" step="0.5" value={horas} onChange={(e) => setHoras(e.target.value)} placeholder="8" />
+ <NumericInput value={horas} onChange={(e) => setHoras(e.target.value)} placeholder="8" />
             </div>
             <div className="space-y-2">
               <Label>Tarifa por Hora</Label>
-              <Input type="number" value={tarifaHora} onChange={(e) => setTarifaHora(e.target.value)} placeholder="25.00" />
+ <NumericInput value={tarifaHora} onChange={(e) => setTarifaHora(e.target.value)} placeholder="25.00" />
             </div>
             <div className="space-y-2">
               <Label>Facturable</Label>

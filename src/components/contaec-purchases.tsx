@@ -31,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   ShoppingCart,
   Loader2,
@@ -364,7 +365,7 @@ function CuentasTab({ companyId }: { companyId: string }) {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle>Registrar Pago</DialogTitle><DialogDescription>Ingrese el monto del pago</DialogDescription></DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2"><Label>Monto ($)</Label><Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} /></div>
+ <div className="space-y-2"><Label>Monto ($)</Label><NumericInput value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} /></div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowPayment(null)}>Cancelar</Button>
               <Button onClick={handlePayment} disabled={paying}>{paying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Registrar</Button>
@@ -384,8 +385,8 @@ function CuentasTab({ companyId }: { companyId: string }) {
               <div className="space-y-2"><Label>Fecha Emisión</Label><Input type="date" value={createForm.fecha_emision} onChange={(e) => setCreateForm({ ...createForm, fecha_emision: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Monto Total ($)</Label><Input type="number" value={createForm.monto_total} onChange={(e) => setCreateForm({ ...createForm, monto_total: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Dias Crédito</Label><Input type="number" value={createForm.dias_credito} onChange={(e) => setCreateForm({ ...createForm, dias_credito: e.target.value })} /></div>
+ <div className="space-y-2"><Label>Monto Total ($)</Label><NumericInput value={createForm.monto_total} onChange={(e) => setCreateForm({ ...createForm, monto_total: e.target.value })} /></div>
+ <div className="space-y-2"><Label>Dias Crédito</Label><NumericInput value={createForm.dias_credito} onChange={(e) => setCreateForm({ ...createForm, dias_credito: e.target.value })} /></div>
             </div>
             <div className="space-y-2"><Label>Observaciones</Label><Textarea value={createForm.observaciones} onChange={(e) => setCreateForm({ ...createForm, observaciones: e.target.value })} rows={2} /></div>
             <div className="flex justify-end gap-2">
@@ -566,12 +567,12 @@ function RetencionesTab({ companyId }: { companyId: string }) {
             <div className="space-y-2"><Label>Proveedor</Label><Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger><SelectContent>{suppliers.map((s) => (<SelectItem key={s.id} value={s.id}>{s.razon_social}</SelectItem>))}</SelectContent></Select></div>
             <div className="space-y-2"><Label>Fecha Emisión</Label><Input type="date" value={form.fecha_emision} onChange={(e) => setForm({ ...form, fecha_emision: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Base Imponible IVA ($)</Label><Input type="number" value={form.base_imponible_iva} onChange={(e) => setForm({ ...form, base_imponible_iva: e.target.value })} /></div>
-              <div className="space-y-2"><Label>% Retención IVA</Label><Input type="number" value={form.retencion_iva_porcentaje} onChange={(e) => setForm({ ...form, retencion_iva_porcentaje: e.target.value })} /></div>
+ <div className="space-y-2"><Label>Base Imponible IVA ($)</Label><NumericInput value={form.base_imponible_iva} onChange={(e) => setForm({ ...form, base_imponible_iva: e.target.value })} /></div>
+ <div className="space-y-2"><Label>% Retención IVA</Label><NumericInput value={form.retencion_iva_porcentaje} onChange={(e) => setForm({ ...form, retencion_iva_porcentaje: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Base Imponible Renta ($)</Label><Input type="number" value={form.base_imponible_renta} onChange={(e) => setForm({ ...form, base_imponible_renta: e.target.value })} /></div>
-              <div className="space-y-2"><Label>% Retención Renta</Label><Input type="number" value={form.retencion_renta_porcentaje} onChange={(e) => setForm({ ...form, retencion_renta_porcentaje: e.target.value })} /></div>
+ <div className="space-y-2"><Label>Base Imponible Renta ($)</Label><NumericInput value={form.base_imponible_renta} onChange={(e) => setForm({ ...form, base_imponible_renta: e.target.value })} /></div>
+ <div className="space-y-2"><Label>% Retención Renta</Label><NumericInput value={form.retencion_renta_porcentaje} onChange={(e) => setForm({ ...form, retencion_renta_porcentaje: e.target.value })} /></div>
             </div>
             <div className="space-y-2"><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} rows={2} /></div>
             <div className="flex justify-end gap-2">

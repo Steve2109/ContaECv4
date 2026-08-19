@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Landmark,
   ShoppingCart,
@@ -1066,101 +1067,98 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nombre del Banco *</Label>
-                <Input
-                  placeholder="Banco Pichincha"
-                  value={cuentaForm.nombre_banco}
-                  onChange={(e) => setCuentaForm({ ...cuentaForm, nombre_banco: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo de Cuenta</Label>
-                <Select
-                  value={cuentaForm.tipo_cuenta}
-                  onValueChange={(v) => setCuentaForm({ ...cuentaForm, tipo_cuenta: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="corriente">Corriente</SelectItem>
-                    <SelectItem value="ahorros">Ahorros</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Número de Cuenta *</Label>
-                <Input
-                  placeholder="2200001234"
-                  value={cuentaForm.numero_cuenta}
-                  onChange={(e) => setCuentaForm({ ...cuentaForm, numero_cuenta: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>SWIFT/BIC</Label>
-                <Input
-                  placeholder="PICHECEQXXX"
-                  value={cuentaForm.swift_bic || ''}
-                  onChange={(e) => setCuentaForm({ ...cuentaForm, swift_bic: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Banco (Ecuador) - auto-rellena SWIFT/BIC</Label>
-              <Select
-                value={bancoSeleccionado}
-                onValueChange={(v) => {
-                  setBancoSeleccionado(v);
-                  const banco = BANCOS_EC[v];
-                  if (banco) {
-                    setCuentaForm((prev) => ({
-                      ...prev,
-                      nombre_banco: v,
-                      swift_bic: banco.swift_bic || prev.swift_bic || '',
-                    }));
-                  }
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Seleccione un banco" /></SelectTrigger>
-                <SelectContent>
-                  {Object.keys(BANCOS_EC).map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b} {BANCOS_EC[b].manual ? '(ingresar SWIFT/BIC manual)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Titular *</Label>
-                <Input
-                  placeholder="Nombre del titular"
-                  value={cuentaForm.titular}
-                  onChange={(e) => setCuentaForm({ ...cuentaForm, titular: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Moneda</Label>
-                <Select
-                  value={cuentaForm.moneda}
-                  onValueChange={(v) => setCuentaForm({ ...cuentaForm, moneda: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD - Dolar</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Saldo Inicial</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={cuentaForm.saldo_inicial}
-                  onChange={(e) => setCuentaForm({ ...cuentaForm, saldo_inicial: parseFloat(e.target.value) || 0 })}
-                />
+                <NumericInput placeholder="Banco Pichincha"
+ value={cuentaForm.nombre_banco}
+ onChange={(e) => setCuentaForm({ ...cuentaForm, nombre_banco: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>Tipo de Cuenta</Label>
+ <Select
+ value={cuentaForm.tipo_cuenta}
+ onValueChange={(v) => setCuentaForm({ ...cuentaForm, tipo_cuenta: v })}
+ >
+ <SelectTrigger><SelectValue /></SelectTrigger>
+ <SelectContent>
+ <SelectItem value="corriente">Corriente</SelectItem>
+ <SelectItem value="ahorros">Ahorros</SelectItem>
+ </SelectContent>
+ </Select>
+ </div>
+ </div>
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label>Número de Cuenta *</Label>
+ <Input
+ placeholder="2200001234"
+ value={cuentaForm.numero_cuenta}
+ onChange={(e) => setCuentaForm({ ...cuentaForm, numero_cuenta: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>SWIFT/BIC</Label>
+ <Input
+ placeholder="PICHECEQXXX"
+ value={cuentaForm.swift_bic || ''}
+ onChange={(e) => setCuentaForm({ ...cuentaForm, swift_bic: e.target.value })}
+ />
+ </div>
+ </div>
+ <div className="space-y-2">
+ <Label>Banco (Ecuador) - auto-rellena SWIFT/BIC</Label>
+ <Select
+ value={bancoSeleccionado}
+ onValueChange={(v) => {
+ setBancoSeleccionado(v);
+ const banco = BANCOS_EC[v];
+ if (banco) {
+ setCuentaForm((prev) => ({
+ ...prev,
+ nombre_banco: v,
+ swift_bic: banco.swift_bic || prev.swift_bic || '',
+ }));
+ }
+ }}
+ >
+ <SelectTrigger><SelectValue placeholder="Seleccione un banco" /></SelectTrigger>
+ <SelectContent>
+ {Object.keys(BANCOS_EC).map((b) => (
+ <SelectItem key={b} value={b}>
+ {b} {BANCOS_EC[b].manual ? '(ingresar SWIFT/BIC manual)' : ''}
+ </SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+ </div>
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label>Titular *</Label>
+ <Input
+ placeholder="Nombre del titular"
+ value={cuentaForm.titular}
+ onChange={(e) => setCuentaForm({ ...cuentaForm, titular: e.target.value })}
+ />
+ </div>
+ <div className="space-y-2">
+ <Label>Moneda</Label>
+ <Select
+ value={cuentaForm.moneda}
+ onValueChange={(v) => setCuentaForm({ ...cuentaForm, moneda: v })}
+ >
+ <SelectTrigger><SelectValue /></SelectTrigger>
+ <SelectContent>
+ <SelectItem value="USD">USD - Dolar</SelectItem>
+ </SelectContent>
+ </Select>
+ </div>
+ </div>
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label>Saldo Inicial</Label>
+ <Input
+ 
+ value={cuentaForm.saldo_inicial}
+ onChange={(e) => setCuentaForm({ ...cuentaForm, saldo_inicial: parseFloat(e.target.value) || 0 })} />
               </div>
               <div className="space-y-2">
                 <Label>Formato Extracto</Label>

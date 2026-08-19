@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Plus,
   Trash2,
@@ -451,7 +452,7 @@ function CreatePresupuestoDialog({ open, onOpenChange, companyId, companies, onC
             </div>
             <div className="space-y-2">
               <Label>Año</Label>
-              <Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} />
+ <NumericInput value={anio} onChange={(e) => setAnio(e.target.value)} />
             </div>
           </div>
           <div className="space-y-2">
@@ -474,7 +475,7 @@ function CreatePresupuestoDialog({ open, onOpenChange, companyId, companies, onC
                   <div className="col-span-2 space-y-1"><Label className="text-xs">Código</Label><Select value={c.cuenta_codigo} onValueChange={(v) => selectCuentaContable(i, v)}><SelectTrigger><SelectValue placeholder="Seleccione código" /></SelectTrigger><SelectContent className="max-h-64">{(cuentasContables.length > 0 ? cuentasContables : [{ id: '__', codigo: c.cuenta_codigo || '', nombre: c.cuenta_nombre }] as CuentaContable[]).map((cc) => (<SelectItem key={cc.codigo} value={cc.codigo}>{cc.codigo} - {cc.nombre}</SelectItem>))}</SelectContent></Select></div>
                   <div className="col-span-3 space-y-1"><Label className="text-xs">Nombre</Label><Input value={c.cuenta_nombre} onChange={(e) => updateCuenta(i, 'cuenta_nombre', e.target.value)} placeholder="Ventas" /></div>
                   <div className="col-span-3 space-y-1"><Label className="text-xs">Tipo</Label><Select value={c.cuenta_tipo} onValueChange={(v) => updateCuenta(i, 'cuenta_tipo', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ingreso">Ingreso</SelectItem><SelectItem value="egreso">Egreso</SelectItem></SelectContent></Select></div>
-                  <div className="col-span-3 space-y-1"><Label className="text-xs">Monto Anual</Label><Input type="number" value={c.monto_anual || ''} onChange={(e) => updateCuenta(i, 'monto_anual', parseFloat(e.target.value) || 0)} /></div>
+ <div className="col-span-3 space-y-1"><Label className="text-xs">Monto Anual</Label><NumericInput value={c.monto_anual || ''} onChange={(e) => updateCuenta(i, 'monto_anual', parseFloat(e.target.value) || 0)} /></div>
                   <div className="col-span-1">{cuentas.length > 1 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeCuenta(i)}><Trash2 className="h-3.5 w-3.5" /></Button>}</div>
                 </div>
               ))}
@@ -627,7 +628,7 @@ function EjecucionTab({ companyId }: { companyId: string }) {
           <DialogHeader><DialogTitle>Registrar Ejecución Mensual</DialogTitle><DialogDescription>Ingrese el monto ejecutado para el mes seleccionado</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Mes</Label><Select value={ejecucionMes} onValueChange={setEjecucionMes}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{MESES.map((m, i) => (<SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>))}</SelectContent></Select></div>
-            <div className="space-y-2"><Label>Monto Ejecutado ($)</Label><Input type="number" value={ejecucionMonto} onChange={(e) => setEjecucionMonto(e.target.value)} placeholder="0.00" /></div>
+ <div className="space-y-2"><Label>Monto Ejecutado ($)</Label><NumericInput value={ejecucionMonto} onChange={(e) => setEjecucionMonto(e.target.value)} placeholder="0.00" /></div>
             <div className="space-y-2"><Label>Observaciones</Label><Textarea value={ejecucionObs} onChange={(e) => setEjecucionObs(e.target.value)} rows={2} placeholder="Opcional" /></div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowEjecucion(null)}>Cancelar</Button>
@@ -666,7 +667,7 @@ function ComparativoTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Label>Año:</Label>
-        <Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" />
+ <NumericInput value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" />
         <Button variant="outline" size="icon" onClick={loadComparativo}><RefreshCw className="h-4 w-4" /></Button>
       </div>
 
@@ -935,7 +936,7 @@ function CuadroMandoTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Label>Año:</Label>
-        <Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" />
+ <NumericInput value={anio} onChange={(e) => setAnio(e.target.value)} className="w-24" />
         <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
       </div>
 

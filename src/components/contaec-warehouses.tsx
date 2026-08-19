@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Warehouse as WarehouseIcon,
   Loader2,
@@ -563,7 +564,7 @@ function UbicacionesTab({ companyId }: { companyId: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Capacidad Maxima</Label>
-                <Input type="number" value={form.capacidad_maxima} onChange={(e) => setForm({ ...form, capacidad_maxima: e.target.value })} placeholder="100" />
+ <NumericInput value={form.capacidad_maxima} onChange={(e) => setForm({ ...form, capacidad_maxima: e.target.value })} placeholder="100" />
               </div>
               <div className="space-y-2">
                 <Label>Producto (opcional)</Label>
@@ -914,11 +915,11 @@ function TransferenciasTab({ companyId }: { companyId: string }) {
                             </div>
                             <div className="w-20">
                               <Label className="text-[10px]">Cantidad</Label>
-                              <Input type="number" value={item.cantidad} onChange={(e) => updateWizardItem(idx, 'cantidad', e.target.value)} className="h-8 text-xs" />
+ <NumericInput value={item.cantidad} onChange={(e) => updateWizardItem(idx, 'cantidad', e.target.value)} className="h-8 text-xs" />
                             </div>
                             <div className="w-24">
                               <Label className="text-[10px]">Costo Unit.</Label>
-                              <Input type="number" value={item.costo_unitario} onChange={(e) => updateWizardItem(idx, 'costo_unitario', e.target.value)} className="h-8 text-xs" />
+ <NumericInput value={item.costo_unitario} onChange={(e) => updateWizardItem(idx, 'costo_unitario', e.target.value)} className="h-8 text-xs" />
                             </div>
                             <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => removeWizardItem(idx)}>X</Button>
                           </div>

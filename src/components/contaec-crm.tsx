@@ -31,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Kanban,
   Users,
@@ -1182,7 +1183,7 @@ function CreateLeadDialog({ open, onOpenChange, companyId, onCreated }: {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Fuente</Label><Select value={source} onValueChange={setSource}><SelectTrigger><SelectValue placeholder="Seleccione fuente" /></SelectTrigger><SelectContent>{FUENTES.map((f) => (<SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>))}</SelectContent></Select></div>
-            <div className="space-y-2"><Label>Valor Estimado ($)</Label><Input type="number" value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} placeholder="0.00" /></div>
+ <div className="space-y-2"><Label>Valor Estimado ($)</Label><NumericInput value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} placeholder="0.00" /></div>
           </div>
           <div className="space-y-2"><Label>Siguiente Seguimiento</Label><Input type="date" value={nextFollowUp} onChange={(e) => setNextFollowUp(e.target.value)} /></div>
           <div className="space-y-2"><Label>Notas</Label><Textarea className="overflow-y-auto max-h-40" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notas sobre el lead" /></div>
@@ -1267,7 +1268,7 @@ function EditLeadDialog({ lead, open, onOpenChange, onUpdated }: {
             <div className="space-y-2"><Label>Estado</Label><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue placeholder="Seleccione estado" /></SelectTrigger><SelectContent>{ESTADOS_LEAD.map((e) => (<SelectItem key={e.key} value={e.key}>{e.label}</SelectItem>))}</SelectContent></Select></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Valor Estimado ($)</Label><Input type="number" value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} /></div>
+ <div className="space-y-2"><Label>Valor Estimado ($)</Label><NumericInput value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} /></div>
             <div className="space-y-2"><Label>Siguiente Seguimiento</Label><Input type="date" value={nextFollowUp} onChange={(e) => setNextFollowUp(e.target.value)} /></div>
           </div>
           <div className="space-y-2"><Label>Notas</Label><Textarea className="overflow-y-auto max-h-40" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
@@ -1308,7 +1309,7 @@ function ConvertLeadDialog({ lead, open, onOpenChange, onConvert, operating }: {
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2"><Label>Título de la Oportunidad *</Label><Input value={titulo} onChange={(e) => setTitulo(e.target.value)} /></div>
-          <div className="space-y-2"><Label>Valor Estimado ($)</Label><Input type="number" value={valorEstimado} onChange={(e) => setValorEstimado(e.target.value)} placeholder="0.00" /></div>
+ <div className="space-y-2"><Label>Valor Estimado ($)</Label><NumericInput value={valorEstimado} onChange={(e) => setValorEstimado(e.target.value)} placeholder="0.00" /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={() => onConvert(lead, titulo, valorEstimado)} disabled={operating || !titulo}>
@@ -1391,8 +1392,8 @@ function CreateOpportunityDialog({ open, onOpenChange, companyId, clients, pipel
             <div className="space-y-2"><Label>Etapa *</Label><Select value={stageId} onValueChange={setStageId}><SelectTrigger><SelectValue placeholder="Seleccionar etapa" /></SelectTrigger><SelectContent>
               {pipelines.find(p => p.id === pipelineId)?.stages?.sort((a, b) => a.order - b.order).map((s) => (<SelectItem key={s.id} value={s.id}>{s.name} ({s.probability_percentage}%)</SelectItem>))}
             </SelectContent></Select></div>
-            <div className="space-y-2"><Label>Valor Estimado ($)</Label><Input type="number" value={estimatedAmount} onChange={(e) => setEstimatedAmount(e.target.value)} placeholder="0.00" /></div>
-            <div className="space-y-2"><Label>Probabilidad (%)</Label><Input type="number" min="0" max="100" value={probability} onChange={(e) => setProbability(e.target.value)} placeholder="Auto desde etapa" /></div>
+ <div className="space-y-2"><Label>Valor Estimado ($)</Label><NumericInput value={estimatedAmount} onChange={(e) => setEstimatedAmount(e.target.value)} placeholder="0.00" /></div>
+ <div className="space-y-2"><Label>Probabilidad (%)</Label><NumericInput value={probability} onChange={(e) => setProbability(e.target.value)} placeholder="Auto desde etapa" /></div>
             <div className="space-y-2"><Label>Fecha Cierre Estimada</Label><Input type="date" value={expectedCloseDate} onChange={(e) => setExpectedCloseDate(e.target.value)} /></div>
           </div>
           <div className="space-y-2"><Label>Descripción</Label><Textarea className="overflow-y-auto max-h-40" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Descripción de la oportunidad" /></div>
@@ -1468,8 +1469,8 @@ function EditOpportunityDialog({ opportunity, open, onOpenChange, clients, pipel
             <div className="space-y-2"><Label>Etapa</Label><Select value={stageId} onValueChange={setStageId}><SelectTrigger><SelectValue placeholder="Seleccionar etapa" /></SelectTrigger><SelectContent>
               {pipelines.find(p => p.id === pipelineId)?.stages?.sort((a, b) => a.order - b.order).map((s) => (<SelectItem key={s.id} value={s.id}>{s.name} ({s.probability_percentage}%)</SelectItem>))}
             </SelectContent></Select></div>
-            <div className="space-y-2"><Label>Valor Estimado ($)</Label><Input type="number" value={estimatedAmount} onChange={(e) => setEstimatedAmount(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Probabilidad (%)</Label><Input type="number" min="0" max="100" value={probability} onChange={(e) => setProbability(e.target.value)} /></div>
+ <div className="space-y-2"><Label>Valor Estimado ($)</Label><NumericInput value={estimatedAmount} onChange={(e) => setEstimatedAmount(e.target.value)} /></div>
+ <div className="space-y-2"><Label>Probabilidad (%)</Label><NumericInput value={probability} onChange={(e) => setProbability(e.target.value)} /></div>
             <div className="space-y-2"><Label>Fecha Cierre Estimada</Label><Input type="date" value={expectedCloseDate} onChange={(e) => setExpectedCloseDate(e.target.value)} /></div>
           </div>
           <div className="space-y-2"><Label>Descripción</Label><Textarea className="overflow-y-auto max-h-40" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>

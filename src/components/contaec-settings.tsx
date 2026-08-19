@@ -67,6 +67,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   getUserConfig,
   getCompanies,
@@ -757,1128 +758,1126 @@ function ProfileTab({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="profile-name">Nombre Completo</Label>
-                <Input
-                  id="profile-name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Juan Perez"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="profile-phone">Teléfono</Label>
-                <Input
-                  id="profile-phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0991234567"
-                />
-              </div>
-            </div>
+                <NumericInput id="profile-name"
+ value={fullName}
+ onChange={(e) => setFullName(e.target.value)}
+ placeholder="Juan Perez"
+ />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="profile-phone">Teléfono</Label>
+ <Input
+ id="profile-phone"
+ value={phone}
+ onChange={(e) => setPhone(e.target.value)}
+ placeholder="0991234567"
+ />
+ </div>
+ </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="profile-email">Correo Electrónico</Label>
-              <Input id="profile-email" value={config.user.email} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">
-                El correo no puede ser modificado. Contacte al administrador si necesita cambiarlo.
-              </p>
-            </div>
+ <div className="space-y-2">
+ <Label htmlFor="profile-email">Correo Electrónico</Label>
+ <Input id="profile-email" value={config.user.email} disabled className="bg-muted" />
+ <p className="text-xs text-muted-foreground">
+ El correo no puede ser modificado. Contacte al administrador si necesita cambiarlo.
+ </p>
+ </div>
 
-            <Separator />
+ <Separator />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="profile-language">Idioma</Label>
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="es_EC">Espanol (Ecuador)</SelectItem>
-                    <SelectItem value="en_US">English (US)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="profile-theme">Tema</Label>
-                <Select
-                  value={selectedTheme}
-                  onValueChange={(val) => {
-                    setSelectedTheme(val);
-                    setTheme(val);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">Claro</SelectItem>
-                    <SelectItem value="dark">Oscuro</SelectItem>
-                    <SelectItem value="system">Sistema</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label htmlFor="profile-language">Idioma</Label>
+ <Select value={language} onValueChange={setLanguage}>
+ <SelectTrigger className="w-full">
+ <SelectValue />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="es_EC">Espanol (Ecuador)</SelectItem>
+ <SelectItem value="en_US">English (US)</SelectItem>
+ </SelectContent>
+ </Select>
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="profile-theme">Tema</Label>
+ <Select
+ value={selectedTheme}
+ onValueChange={(val) => {
+ setSelectedTheme(val);
+ setTheme(val);
+ }}
+ >
+ <SelectTrigger className="w-full">
+ <SelectValue />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="light">Claro</SelectItem>
+ <SelectItem value="dark">Oscuro</SelectItem>
+ <SelectItem value="system">Sistema</SelectItem>
+ </SelectContent>
+ </Select>
+ </div>
+ </div>
 
-            <div className="flex justify-end pt-2">
-              <Button onClick={handleSaveProfile} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  'Guardar Cambios'
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+ <div className="flex justify-end pt-2">
+ <Button onClick={handleSaveProfile} disabled={saving}>
+ {saving ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ Guardando...
+ </>
+ ) : (
+ 'Guardar Cambios'
+ )}
+ </Button>
+ </div>
+ </CardContent>
+ </Card>
 
-        {/* Company Info Card */}
-        {companyConfig && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-primary" />
-                Datos de la Empresa
-              </CardTitle>
-              <CardDescription>Informacion fiscal de {companyConfig.razon_social}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">RUC</span>
-                <span className="text-sm font-mono font-medium">{companyConfig.ruc}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Razon Social</span>
-                <span className="text-sm font-medium">{companyConfig.razon_social}</span>
-              </div>
-              {companyConfig.nombre_comercial && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Nombre Comercial</span>
-                  <span className="text-sm font-medium">{companyConfig.nombre_comercial}</span>
-                </div>
-              )}
-              {companyConfig.correo && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Correo</span>
-                  <span className="text-sm font-medium">{companyConfig.correo}</span>
-                </div>
-              )}
-              {companyConfig.telefono && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Telefono</span>
-                  <span className="text-sm font-medium">{companyConfig.telefono}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Firma Electronica</span>
-                <Badge variant={companyConfig.firma_electronica_path ? 'default' : 'secondary'} className={companyConfig.firma_electronica_path ? 'bg-emerald-600 text-xs' : 'text-xs'}>
-                  {companyConfig.firma_electronica_path ? 'Configurada' : 'Sin firma'}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+ {/* Company Info Card */}
+ {companyConfig && (
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <Building2 className="h-4 w-4 text-primary" />
+ Datos de la Empresa
+ </CardTitle>
+ <CardDescription>Informacion fiscal de {companyConfig.razon_social}</CardDescription>
+ </CardHeader>
+ <CardContent className="space-y-3">
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">RUC</span>
+ <span className="text-sm font-mono font-medium">{companyConfig.ruc}</span>
+ </div>
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Razon Social</span>
+ <span className="text-sm font-medium">{companyConfig.razon_social}</span>
+ </div>
+ {companyConfig.nombre_comercial && (
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Nombre Comercial</span>
+ <span className="text-sm font-medium">{companyConfig.nombre_comercial}</span>
+ </div>
+ )}
+ {companyConfig.correo && (
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Correo</span>
+ <span className="text-sm font-medium">{companyConfig.correo}</span>
+ </div>
+ )}
+ {companyConfig.telefono && (
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Telefono</span>
+ <span className="text-sm font-medium">{companyConfig.telefono}</span>
+ </div>
+ )}
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Firma Electronica</span>
+ <Badge variant={companyConfig.firma_electronica_path ? 'default' : 'secondary'} className={companyConfig.firma_electronica_path ? 'bg-emerald-600 text-xs' : 'text-xs'}>
+ {companyConfig.firma_electronica_path ? 'Configurada' : 'Sin firma'}
+ </Badge>
+ </div>
+ </CardContent>
+ </Card>
+ )}
 
-        {/* Logo / Avatar Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Upload className="h-4 w-4 text-primary" />
-              Logo de Empresa
-            </CardTitle>
-            <CardDescription>Logo que aparecera en sus comprobantes</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            <div className="w-32 h-32 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/50 overflow-hidden">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt="Logo de empresa"
-                  className="w-full h-full object-contain rounded-lg"
-                />
-              ) : (
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex gap-2">
-              <label htmlFor="logo-upload">
-                <Button variant="outline" size="sm" asChild disabled={uploadingLogo}>
-                  <span>
-                    {uploadingLogo ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Subiendo...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Subir Logo
-                      </>
-                    )}
-                  </span>
-                </Button>
-              </label>
-              {config.company_logo_path && (
-                <Button variant="destructive" size="sm" onClick={() => setConfirmLogoDelete(true)}>
-                  <Trash2 className="mr-1 h-3 w-3" />
-                  Eliminar Logo
-                </Button>
-              )}
-            </div>
-            <label
-              htmlFor="logo-upload"
-              className="w-full rounded-md border border-dashed border-input bg-muted/30 px-3 py-2 text-center text-sm cursor-pointer hover:bg-muted/50 transition-colors"
-            >
-              <span className="block font-medium text-foreground">Seleccionar archivo</span>
-              <span className="block text-xs text-muted-foreground truncate mt-0.5">
-                {logoFileName || 'Ningún archivo seleccionado'}
-              </span>
-            </label>
-            <input
-              id="logo-upload"
-              type="file"
-              accept=".webp"
-              className="hidden"
-              onChange={handleLogoUpload}
-            />
-            <p className="text-xs text-muted-foreground text-center">
-              Formato: <span className="font-medium text-foreground">.webp</span> | Máximo 2MB
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+ {/* Logo / Avatar Card */}
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <Upload className="h-4 w-4 text-primary" />
+ Logo de Empresa
+ </CardTitle>
+ <CardDescription>Logo que aparecera en sus comprobantes</CardDescription>
+ </CardHeader>
+ <CardContent className="flex flex-col items-center gap-4">
+ <div className="w-32 h-32 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/50 overflow-hidden">
+ {logoUrl ? (
+ // eslint-disable-next-line @next/next/no-img-element
+ <img
+ src={logoUrl}
+ alt="Logo de empresa"
+ className="w-full h-full object-contain rounded-lg"
+ />
+ ) : (
+ <Upload className="h-8 w-8 text-muted-foreground" />
+ )}
+ </div>
+ <div className="flex gap-2">
+ <label htmlFor="logo-upload">
+ <Button variant="outline" size="sm" asChild disabled={uploadingLogo}>
+ <span>
+ {uploadingLogo ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ Subiendo...
+ </>
+ ) : (
+ <>
+ <Upload className="mr-2 h-4 w-4" />
+ Subir Logo
+ </>
+ )}
+ </span>
+ </Button>
+ </label>
+ {config.company_logo_path && (
+ <Button variant="destructive" size="sm" onClick={() => setConfirmLogoDelete(true)}>
+ <Trash2 className="mr-1 h-3 w-3" />
+ Eliminar Logo
+ </Button>
+ )}
+ </div>
+ <label
+ htmlFor="logo-upload"
+ className="w-full rounded-md border border-dashed border-input bg-muted/30 px-3 py-2 text-center text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+ >
+ <span className="block font-medium text-foreground">Seleccionar archivo</span>
+ <span className="block text-xs text-muted-foreground truncate mt-0.5">
+ {logoFileName || 'Ningún archivo seleccionado'}
+ </span>
+ </label>
+ <input
+ id="logo-upload"
+ type="file"
+ accept=".webp"
+ className="hidden"
+ onChange={handleLogoUpload}
+ />
+ <p className="text-xs text-muted-foreground text-center">
+ Formato: <span className="font-medium text-foreground">.webp</span> | Máximo 2MB
+ </p>
+ </CardContent>
+ </Card>
+ </div>
 
-      {/* Confirm Delete Logo Dialog */}
-      <Dialog open={confirmLogoDelete} onOpenChange={setConfirmLogoDelete}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <Trash2 className="h-5 w-5" />
-              Eliminar Logo
-            </DialogTitle>
-            <DialogDescription>
-              El logo se eliminará del servidor y dejará de aparecer en sus comprobantes.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setConfirmLogoDelete(false)} disabled={deletingLogo}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteLogo} disabled={deletingLogo}>
-              {deletingLogo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Eliminar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+ {/* Confirm Delete Logo Dialog */}
+ <Dialog open={confirmLogoDelete} onOpenChange={setConfirmLogoDelete}>
+ <DialogContent>
+ <DialogHeader>
+ <DialogTitle className="flex items-center gap-2 text-destructive">
+ <Trash2 className="h-5 w-5" />
+ Eliminar Logo
+ </DialogTitle>
+ <DialogDescription>
+ El logo se eliminará del servidor y dejará de aparecer en sus comprobantes.
+ </DialogDescription>
+ </DialogHeader>
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" onClick={() => setConfirmLogoDelete(false)} disabled={deletingLogo}>
+ Cancelar
+ </Button>
+ <Button variant="destructive" onClick={handleDeleteLogo} disabled={deletingLogo}>
+ {deletingLogo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+ Eliminar
+ </Button>
+ </div>
+ </DialogContent>
+ </Dialog>
+ </div>
+ );
 }
 
 // ─── Digital Signature Tab ──────────────────────────────────────
 function SignatureTab({
-  config,
-  companyConfig,
-  selectedCompanyId,
-  onConfigUpdate,
+ config,
+ companyConfig,
+ selectedCompanyId,
+ onConfigUpdate,
 }: {
-  config: UserConfig;
-  companyConfig: CompanyConfig | null;
-  selectedCompanyId: string;
-  onConfigUpdate: () => void;
+ config: UserConfig;
+ companyConfig: CompanyConfig | null;
+ selectedCompanyId: string;
+ onConfigUpdate: () => void;
 }) {
-  const [sigFile, setSigFile] = useState<File | null>(null);
-  const [sigPassword, setSigPassword] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [validation, setValidation] = useState<SignatureValidation | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [deletingSig, setDeletingSig] = useState(false);
-  const [confirmSigDelete, setConfirmSigDelete] = useState(false);
+ const [sigFile, setSigFile] = useState<File | null>(null);
+ const [sigPassword, setSigPassword] = useState('');
+ const [uploading, setUploading] = useState(false);
+ const [validating, setValidating] = useState(false);
+ const [validation, setValidation] = useState<SignatureValidation | null>(null);
+ const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+ const [showPassword, setShowPassword] = useState(false);
+ const [deletingSig, setDeletingSig] = useState(false);
+ const [confirmSigDelete, setConfirmSigDelete] = useState(false);
 
-  async function handleUpload() {
-    if (!sigFile || !sigPassword) return;
-    setUploading(true);
-    setMessage(null);
-    try {
-      await uploadDigitalSignature(sigFile, sigPassword);
-      // Also update company config if a company is selected
-      if (selectedCompanyId) {
-        try {
-          await updateCompanyConfig(selectedCompanyId, { firma_electronica_path: 'pending' });
-        } catch { /* ignore */ }
-      }
-      setMessage({ type: 'success', text: 'Firma electronica cargada correctamente' });
-      setSigFile(null);
-      setSigPassword('');
-      onConfigUpdate();
-    } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Error al subir firma',
-      });
-    } finally {
-      setUploading(false);
-    }
-  }
+ async function handleUpload() {
+ if (!sigFile || !sigPassword) return;
+ setUploading(true);
+ setMessage(null);
+ try {
+ await uploadDigitalSignature(sigFile, sigPassword);
+ // Also update company config if a company is selected
+ if (selectedCompanyId) {
+ try {
+ await updateCompanyConfig(selectedCompanyId, { firma_electronica_path: 'pending' });
+ } catch { /* ignore */ }
+ }
+ setMessage({ type: 'success', text: 'Firma electronica cargada correctamente' });
+ setSigFile(null);
+ setSigPassword('');
+ onConfigUpdate();
+ } catch (err) {
+ setMessage({
+ type: 'error',
+ text: err instanceof Error ? err.message : 'Error al subir firma',
+ });
+ } finally {
+ setUploading(false);
+ }
+ }
 
-  async function handleValidate() {
-    if (!sigFile || !sigPassword) return;
-    setValidating(true);
-    setMessage(null);
-    try {
-      const result = await validateSignature(sigFile, sigPassword);
-      setValidation(result);
-    } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Error al validar firma',
-      });
-    } finally {
-      setValidating(false);
-    }
-  }
+ async function handleValidate() {
+ if (!sigFile || !sigPassword) return;
+ setValidating(true);
+ setMessage(null);
+ try {
+ const result = await validateSignature(sigFile, sigPassword);
+ setValidation(result);
+ } catch (err) {
+ setMessage({
+ type: 'error',
+ text: err instanceof Error ? err.message : 'Error al validar firma',
+ });
+ } finally {
+ setValidating(false);
+ }
+ }
 
-  async function handleDeleteSignature() {
-    setDeletingSig(true);
-    setMessage(null);
-    try {
-      await deleteDigitalSignature();
-      toast.success('Firma electrónica eliminada correctamente');
-      setConfirmSigDelete(false);
-      onConfigUpdate();
-    } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Error al eliminar firma',
-      });
-    } finally {
-      setDeletingSig(false);
-    }
-  }
+ async function handleDeleteSignature() {
+ setDeletingSig(true);
+ setMessage(null);
+ try {
+ await deleteDigitalSignature();
+ toast.success('Firma electrónica eliminada correctamente');
+ setConfirmSigDelete(false);
+ onConfigUpdate();
+ } catch (err) {
+ setMessage({
+ type: 'error',
+ text: err instanceof Error ? err.message : 'Error al eliminar firma',
+ });
+ } finally {
+ setDeletingSig(false);
+ }
+ }
 
-  function getStatusBadge(status: string) {
-    switch (status) {
-      case 'valid':
-        return (
-          <Badge className="bg-emerald-600 hover:bg-emerald-700">
-            <CheckCircle2 className="mr-1 h-3 w-3" />
-            Valida
-          </Badge>
-        );
-      case 'expired':
-        return (
-          <Badge variant="destructive">
-            <XCircle className="mr-1 h-3 w-3" />
-            Expirada
-          </Badge>
-        );
-      case 'expiring_soon':
-        return (
-          <Badge className="bg-amber-500 hover:bg-amber-600">
-            <Clock className="mr-1 h-3 w-3" />
-            Por expirar
-          </Badge>
-        );
-      case 'uploaded':
-        return (
-          <Badge className="bg-primary">
-            <FileKey className="mr-1 h-3 w-3" />
-            Cargada
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary">
-            <XCircle className="mr-1 h-3 w-3" />
-            Sin firma
-          </Badge>
-        );
-    }
-  }
+ function getStatusBadge(status: string) {
+ switch (status) {
+ case 'valid':
+ return (
+ <Badge className="bg-emerald-600 hover:bg-emerald-700">
+ <CheckCircle2 className="mr-1 h-3 w-3" />
+ Valida
+ </Badge>
+ );
+ case 'expired':
+ return (
+ <Badge variant="destructive">
+ <XCircle className="mr-1 h-3 w-3" />
+ Expirada
+ </Badge>
+ );
+ case 'expiring_soon':
+ return (
+ <Badge className="bg-amber-500 hover:bg-amber-600">
+ <Clock className="mr-1 h-3 w-3" />
+ Por expirar
+ </Badge>
+ );
+ case 'uploaded':
+ return (
+ <Badge className="bg-primary">
+ <FileKey className="mr-1 h-3 w-3" />
+ Cargada
+ </Badge>
+ );
+ default:
+ return (
+ <Badge variant="secondary">
+ <XCircle className="mr-1 h-3 w-3" />
+ Sin firma
+ </Badge>
+ );
+ }
+ }
 
-  return (
-    <div className="space-y-6">
-      {message && (
-        <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-          {message.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <XCircle className="h-4 w-4" />
-          )}
-          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
+ return (
+ <div className="space-y-6">
+ {message && (
+ <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
+ {message.type === 'success' ? (
+ <CheckCircle2 className="h-4 w-4" />
+ ) : (
+ <XCircle className="h-4 w-4" />
+ )}
+ <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
+ <AlertDescription>{message.text}</AlertDescription>
+ </Alert>
+ )}
 
-      {/* Current Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-primary" />
-            Estado de Firma Electrónica
-          </CardTitle>
-          <CardDescription>Estado actual de su firma digital registrada</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {companyConfig?.firma_electronica_path && selectedCompanyId && (
-            <div className="flex items-center gap-2 text-sm text-amber-600">
-              <Building2 className="h-4 w-4" />
-              <span className="font-medium">Usando firma de la empresa seleccionada</span>
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Estado</span>
-            {getStatusBadge(config.signature_status)}
-          </div>
+ {/* Current Status */}
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <KeyRound className="h-4 w-4 text-primary" />
+ Estado de Firma Electrónica
+ </CardTitle>
+ <CardDescription>Estado actual de su firma digital registrada</CardDescription>
+ </CardHeader>
+ <CardContent className="space-y-4">
+ {companyConfig?.firma_electronica_path && selectedCompanyId && (
+ <div className="flex items-center gap-2 text-sm text-amber-600">
+ <Building2 className="h-4 w-4" />
+ <span className="font-medium">Usando firma de la empresa seleccionada</span>
+ </div>
+ )}
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Estado</span>
+ {getStatusBadge(config.signature_status)}
+ </div>
 
-          {config.signature_expiry_date && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Fecha de Expiracion</span>
-              <span className="text-sm font-medium">
-                {new Date(config.signature_expiry_date).toLocaleDateString('es-EC', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </span>
-            </div>
-          )}
+ {config.signature_expiry_date && (
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Fecha de Expiracion</span>
+ <span className="text-sm font-medium">
+ {new Date(config.signature_expiry_date).toLocaleDateString('es-EC', {
+ year: 'numeric',
+ month: 'long',
+ day: 'numeric',
+ })}
+ </span>
+ </div>
+ )}
 
-          {config.signature_days_left !== null && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Dias restantes</span>
-              <span
-                className={`text-sm font-medium ${
-                  config.signature_days_left <= 30
-                    ? config.signature_days_left <= 0
-                      ? 'text-destructive'
-                      : 'text-amber-500'
-                    : 'text-emerald-600'
-                }`}
-              >
-                {config.signature_days_left} dias
-              </span>
-            </div>
-          )}
+ {config.signature_days_left !== null && (
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Dias restantes</span>
+ <span
+ className={`text-sm font-medium ${
+ config.signature_days_left <= 30
+ ? config.signature_days_left <= 0
+ ? 'text-destructive'
+ : 'text-amber-500'
+ : 'text-emerald-600'
+ }`}
+ >
+ {config.signature_days_left} dias
+ </span>
+ </div>
+ )}
 
-          {config.has_digital_signature && (
-            <>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Firma registrada en el servidor</span>
-                <Button variant="destructive" size="sm" onClick={() => setConfirmSigDelete(true)}>
-                  <Trash2 className="mr-1 h-3 w-3" />
-                  Eliminar Firma
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+ {config.has_digital_signature && (
+ <>
+ <Separator />
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Firma registrada en el servidor</span>
+ <Button variant="destructive" size="sm" onClick={() => setConfirmSigDelete(true)}>
+ <Trash2 className="mr-1 h-3 w-3" />
+ Eliminar Firma
+ </Button>
+ </div>
+ </>
+ )}
+ </CardContent>
+ </Card>
 
-      {/* Confirm Delete Signature Dialog */}
-      <Dialog open={confirmSigDelete} onOpenChange={setConfirmSigDelete}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <Trash2 className="h-5 w-5" />
-              Eliminar Firma Electrónica
-            </DialogTitle>
-            <DialogDescription>
-              Se eliminará el archivo .p12/.pfx del servidor y su contraseña. No podrá emitir
-              comprobantes electrónicos hasta cargar una nueva firma. Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Accion irreversible</AlertTitle>
-              <AlertDescription>
-                El archivo de firma se borrará del disco del servidor.
-              </AlertDescription>
-            </Alert>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setConfirmSigDelete(false)} disabled={deletingSig}>
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={handleDeleteSignature} disabled={deletingSig}>
-                {deletingSig ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Eliminar Permanentemente
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+ {/* Confirm Delete Signature Dialog */}
+ <Dialog open={confirmSigDelete} onOpenChange={setConfirmSigDelete}>
+ <DialogContent>
+ <DialogHeader>
+ <DialogTitle className="flex items-center gap-2 text-destructive">
+ <Trash2 className="h-5 w-5" />
+ Eliminar Firma Electrónica
+ </DialogTitle>
+ <DialogDescription>
+ Se eliminará el archivo .p12/.pfx del servidor y su contraseña. No podrá emitir
+ comprobantes electrónicos hasta cargar una nueva firma. Esta acción no se puede deshacer.
+ </DialogDescription>
+ </DialogHeader>
+ <div className="space-y-4">
+ <Alert variant="destructive">
+ <AlertTriangle className="h-4 w-4" />
+ <AlertTitle>Accion irreversible</AlertTitle>
+ <AlertDescription>
+ El archivo de firma se borrará del disco del servidor.
+ </AlertDescription>
+ </Alert>
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" onClick={() => setConfirmSigDelete(false)} disabled={deletingSig}>
+ Cancelar
+ </Button>
+ <Button variant="destructive" onClick={handleDeleteSignature} disabled={deletingSig}>
+ {deletingSig ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+ Eliminar Permanentemente
+ </Button>
+ </div>
+ </div>
+ </DialogContent>
+ </Dialog>
 
-      {/* Expiring Soon Warning */}
-      {config.signature_status === 'expiring_soon' && (
-        <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <AlertTitle className="text-amber-700 dark:text-amber-400">Firma por expirar</AlertTitle>
-          <AlertDescription className="text-amber-600 dark:text-amber-400">
-            Su firma electronica expira en {config.signature_days_left} dias. Renueve su firma con
-            el Banco Central del Ecuador para evitar interrupciones en la emision de comprobantes.
-          </AlertDescription>
-        </Alert>
-      )}
+ {/* Expiring Soon Warning */}
+ {config.signature_status === 'expiring_soon' && (
+ <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+ <AlertTriangle className="h-4 w-4 text-amber-500" />
+ <AlertTitle className="text-amber-700 dark:text-amber-400">Firma por expirar</AlertTitle>
+ <AlertDescription className="text-amber-600 dark:text-amber-400">
+ Su firma electronica expira en {config.signature_days_left} dias. Renueve su firma con
+ el Banco Central del Ecuador para evitar interrupciones en la emision de comprobantes.
+ </AlertDescription>
+ </Alert>
+ )}
 
-      {config.signature_status === 'expired' && (
-        <Alert variant="destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertTitle>Firma expirada</AlertTitle>
-          <AlertDescription>
-            Su firma electronica ha expirado. No podra emitir comprobantes electronicos hasta que
-            cargue una nueva firma valida.
-          </AlertDescription>
-        </Alert>
-      )}
+ {config.signature_status === 'expired' && (
+ <Alert variant="destructive">
+ <XCircle className="h-4 w-4" />
+ <AlertTitle>Firma expirada</AlertTitle>
+ <AlertDescription>
+ Su firma electronica ha expirado. No podra emitir comprobantes electronicos hasta que
+ cargue una nueva firma valida.
+ </AlertDescription>
+ </Alert>
+ )}
 
-      {/* Upload New Signature */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Upload className="h-4 w-4 text-primary" />
-            Cargar Nueva Firma
-          </CardTitle>
-          <CardDescription>
-            Suba su archivo de firma electronica (.p12 o .pfx) con su contrasena
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="sig-file">Archivo de Firma (.p12 / .pfx)</Label>
-            <label
-              htmlFor="sig-file"
-              className="block w-full rounded-md border border-dashed border-input bg-muted/30 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
-            >
-              <span className="block font-medium text-foreground">Seleccionar archivo .p12</span>
-              <span className="block text-xs text-muted-foreground truncate mt-0.5">
-                {sigFile ? sigFile.name : 'Ningún archivo seleccionado'}
-              </span>
-            </label>
-            <input
-              id="sig-file"
-              type="file"
-              accept=".p12,.pfx"
-              className="hidden"
-              onChange={(e) => setSigFile(e.target.files?.[0] || null)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Formato: <span className="font-medium text-foreground">.p12 / .pfx</span> | Máximo 5MB
-            </p>
-          </div>
+ {/* Upload New Signature */}
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <Upload className="h-4 w-4 text-primary" />
+ Cargar Nueva Firma
+ </CardTitle>
+ <CardDescription>
+ Suba su archivo de firma electronica (.p12 o .pfx) con su contrasena
+ </CardDescription>
+ </CardHeader>
+ <CardContent className="space-y-4">
+ <div className="space-y-2">
+ <Label htmlFor="sig-file">Archivo de Firma (.p12 / .pfx)</Label>
+ <label
+ htmlFor="sig-file"
+ className="block w-full rounded-md border border-dashed border-input bg-muted/30 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+ >
+ <span className="block font-medium text-foreground">Seleccionar archivo .p12</span>
+ <span className="block text-xs text-muted-foreground truncate mt-0.5">
+ {sigFile ? sigFile.name : 'Ningún archivo seleccionado'}
+ </span>
+ </label>
+ <input
+ id="sig-file"
+ type="file"
+ accept=".p12,.pfx"
+ className="hidden"
+ onChange={(e) => setSigFile(e.target.files?.[0] || null)}
+ />
+ <p className="text-xs text-muted-foreground">
+ Formato: <span className="font-medium text-foreground">.p12 / .pfx</span> | Máximo 5MB
+ </p>
+ </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sig-password">Contraseña de la Firma</Label>
-            <div className="relative">
-              <Input
-                id="sig-password"
-                type={showPassword ? 'text' : 'password'}
-                value={sigPassword}
-                onChange={(e) => setSigPassword(e.target.value)}
-                placeholder="Ingrese la contrasena de la firma"
-                className="pr-10"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-full px-3"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Eye className="h-4 w-4 text-muted-foreground" />
-                )}
-              </Button>
-            </div>
-          </div>
+ <div className="space-y-2">
+ <Label htmlFor="sig-password">Contraseña de la Firma</Label>
+ <div className="relative">
+ <Input
+ id="sig-password"
+ type={showPassword ? 'text' : 'password'}
+ value={sigPassword}
+ onChange={(e) => setSigPassword(e.target.value)}
+ placeholder="Ingrese la contrasena de la firma"
+ className="pr-10"
+ />
+ <Button
+ type="button"
+ variant="ghost"
+ size="icon"
+ className="absolute right-0 top-0 h-full px-3"
+ onClick={() => setShowPassword(!showPassword)}
+ >
+ {showPassword ? (
+ <EyeOff className="h-4 w-4 text-muted-foreground" />
+ ) : (
+ <Eye className="h-4 w-4 text-muted-foreground" />
+ )}
+ </Button>
+ </div>
+ </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={handleValidate}
-              disabled={!sigFile || !sigPassword || validating}
-            >
-              {validating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Validando...
-                </>
-              ) : (
-                <>
-                  <TestTube className="mr-2 h-4 w-4" />
-                  Validar Firma
-                </>
-              )}
-            </Button>
-            <Button onClick={handleUpload} disabled={!sigFile || !sigPassword || uploading}>
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Subiendo...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Subir y Guardar
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+ <div className="flex flex-wrap gap-2">
+ <Button
+ variant="outline"
+ onClick={handleValidate}
+ disabled={!sigFile || !sigPassword || validating}
+ >
+ {validating ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ Validando...
+ </>
+ ) : (
+ <>
+ <TestTube className="mr-2 h-4 w-4" />
+ Validar Firma
+ </>
+ )}
+ </Button>
+ <Button onClick={handleUpload} disabled={!sigFile || !sigPassword || uploading}>
+ {uploading ? (
+ <>
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ Subiendo...
+ </>
+ ) : (
+ <>
+ <Upload className="mr-2 h-4 w-4" />
+ Subir y Guardar
+ </>
+ )}
+ </Button>
+ </div>
+ </CardContent>
+ </Card>
 
-      {/* Validation Results */}
-      {validation && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2
-                className={`h-4 w-4 ${
-                  validation.is_valid ? 'text-emerald-600' : 'text-destructive'
-                }`}
-              />
-              Resultado de Validación
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-xs text-muted-foreground">Valida</span>
-                {validation.is_valid ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                ) : (
-                  <XCircle className="h-4 w-4 text-destructive" />
-                )}
-              </div>
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-xs text-muted-foreground">Expirada</span>
-                {validation.is_expired ? (
-                  <XCircle className="h-4 w-4 text-destructive" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                )}
-              </div>
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-xs text-muted-foreground">Firma EC</span>
-                {validation.is_ec_signature ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                )}
-              </div>
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-xs text-muted-foreground">Clave Privada</span>
-                {validation.has_private_key ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                ) : (
-                  <XCircle className="h-4 w-4 text-destructive" />
-                )}
-              </div>
-              {validation.days_until_expiry !== null && (
-                <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Dias rest.</span>
-                  <span
-                    className={`text-xs font-medium ${
-                      validation.days_until_expiry <= 30
-                        ? validation.days_until_expiry <= 0
-                          ? 'text-destructive'
-                          : 'text-amber-500'
-                        : 'text-emerald-600'
-                    }`}
-                  >
-                    {validation.days_until_expiry}
-                  </span>
-                </div>
-              )}
-            </div>
+ {/* Validation Results */}
+ {validation && (
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <CheckCircle2
+ className={`h-4 w-4 ${
+ validation.is_valid ? 'text-emerald-600' : 'text-destructive'
+ }`}
+ />
+ Resultado de Validación
+ </CardTitle>
+ </CardHeader>
+ <CardContent className="space-y-4">
+ <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Valida</span>
+ {validation.is_valid ? (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ ) : (
+ <XCircle className="h-4 w-4 text-destructive" />
+ )}
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Expirada</span>
+ {validation.is_expired ? (
+ <XCircle className="h-4 w-4 text-destructive" />
+ ) : (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ )}
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Firma EC</span>
+ {validation.is_ec_signature ? (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ ) : (
+ <AlertTriangle className="h-4 w-4 text-amber-500" />
+ )}
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Clave Privada</span>
+ {validation.has_private_key ? (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ ) : (
+ <XCircle className="h-4 w-4 text-destructive" />
+ )}
+ </div>
+ {validation.days_until_expiry !== null && (
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Dias rest.</span>
+ <span
+ className={`text-xs font-medium ${
+ validation.days_until_expiry <= 30
+ ? validation.days_until_expiry <= 0
+ ? 'text-destructive'
+ : 'text-amber-500'
+ : 'text-emerald-600'
+ }`}
+ >
+ {validation.days_until_expiry}
+ </span>
+ </div>
+ )}
+ </div>
 
-            <Separator />
+ <Separator />
 
-            {/* Subject & Issuer Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-sm font-medium mb-2">Sujeto</h4>
-                <div className="space-y-1 text-xs">
-                  {Object.entries(validation.subject).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="text-muted-foreground">{key}</span>
-                      <span className="font-medium truncate ml-2">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium mb-2">Emisor</h4>
-                <div className="space-y-1 text-xs">
-                  {Object.entries(validation.issuer).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="text-muted-foreground">{key}</span>
-                      <span className="font-medium truncate ml-2">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+ {/* Subject & Issuer Info */}
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+ <div>
+ <h4 className="text-sm font-medium mb-2">Sujeto</h4>
+ <div className="space-y-1 text-xs">
+ {Object.entries(validation.subject).map(([key, value]) => (
+ <div key={key} className="flex justify-between">
+ <span className="text-muted-foreground">{key}</span>
+ <span className="font-medium truncate ml-2">{value}</span>
+ </div>
+ ))}
+ </div>
+ </div>
+ <div>
+ <h4 className="text-sm font-medium mb-2">Emisor</h4>
+ <div className="space-y-1 text-xs">
+ {Object.entries(validation.issuer).map(([key, value]) => (
+ <div key={key} className="flex justify-between">
+ <span className="text-muted-foreground">{key}</span>
+ <span className="font-medium truncate ml-2">{value}</span>
+ </div>
+ ))}
+ </div>
+ </div>
+ </div>
 
-            <Separator />
+ <Separator />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Número de Serie</span>
-                <span className="font-mono font-medium">{validation.serial_number}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Emisor (CN)</span>
-                <span className="font-medium truncate ml-2">{validation.issuer_cn}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Valida Desde</span>
-                <span className="font-medium">
-                  {new Date(validation.not_before).toLocaleDateString('es-EC')}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Valida Hasta</span>
-                <span className="font-medium">
-                  {new Date(validation.not_after).toLocaleDateString('es-EC')}
-                </span>
-              </div>
-            </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+ <div className="flex justify-between">
+ <span className="text-muted-foreground">Número de Serie</span>
+ <span className="font-mono font-medium">{validation.serial_number}</span>
+ </div>
+ <div className="flex justify-between">
+ <span className="text-muted-foreground">Emisor (CN)</span>
+ <span className="font-medium truncate ml-2">{validation.issuer_cn}</span>
+ </div>
+ <div className="flex justify-between">
+ <span className="text-muted-foreground">Valida Desde</span>
+ <span className="font-medium">
+ {new Date(validation.not_before).toLocaleDateString('es-EC')}
+ </span>
+ </div>
+ <div className="flex justify-between">
+ <span className="text-muted-foreground">Valida Hasta</span>
+ <span className="font-medium">
+ {new Date(validation.not_after).toLocaleDateString('es-EC')}
+ </span>
+ </div>
+ </div>
 
-            {/* Warnings */}
-            {validation.warnings.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                    Advertencias
-                  </h4>
-                  <ul className="space-y-1">
-                    {validation.warnings.map((w, i) => (
-                      <li key={i} className="text-xs text-amber-600 dark:text-amber-400">
-                        &bull; {w}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
+ {/* Warnings */}
+ {validation.warnings.length > 0 && (
+ <>
+ <Separator />
+ <div>
+ <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+ <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+ Advertencias
+ </h4>
+ <ul className="space-y-1">
+ {validation.warnings.map((w, i) => (
+ <li key={i} className="text-xs text-amber-600 dark:text-amber-400">
+ &bull; {w}
+ </li>
+ ))}
+ </ul>
+ </div>
+ </>
+ )}
+ </CardContent>
+ </Card>
+ )}
+ </div>
+ );
 }
 
 // ─── Environment Tab ────────────────────────────────────────────
 function EnvironmentTab({
-  config,
-  companyConfig: _companyConfig,
-  selectedCompanyId: _selectedCompanyId,
-  onConfigUpdate,
+ config,
+ companyConfig: _companyConfig,
+ selectedCompanyId: _selectedCompanyId,
+ onConfigUpdate,
 }: {
-  config: UserConfig;
-  companyConfig: CompanyConfig | null;
-  selectedCompanyId: string;
-  onConfigUpdate: () => void;
+ config: UserConfig;
+ companyConfig: CompanyConfig | null;
+ selectedCompanyId: string;
+ onConfigUpdate: () => void;
 }) {
-  const [switching, setSwitching] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingMode, setPendingMode] = useState<'sandbox' | 'production' | null>(null);
+ const [switching, setSwitching] = useState(false);
+ const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+ const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+ const [pendingMode, setPendingMode] = useState<'sandbox' | 'production' | null>(null);
 
-  // Mensaje de advertencia segun el estado real de la firma electronica.
-  // El backend solo bloquea produccion sin firma o con firma expirada;
-  // si la firma esta 'uploaded' (sin fecha de expiracion) el cambio si procede.
-  const signatureWarning =
-    config.signature_status === 'expired'
-      ? 'Su firma electronica esta expirada. El SRI rechazara los comprobantes emitidos en produccion hasta que renueve la firma en la pestana Firma Electronica.'
-      : config.signature_status === 'uploaded'
-        ? 'Su firma electronica no tiene informacion de expiracion registrada. Verifique que este vigente antes de operar en produccion, ya que el SRI podria rechazar los comprobantes.'
-        : 'No tiene una firma electronica registrada. Para operar en produccion, el SRI requiere una firma electronica valida. Registre su firma en la pestana Firma Electronica antes de emitir comprobantes.';
+ // Mensaje de advertencia segun el estado real de la firma electronica.
+ // El backend solo bloquea produccion sin firma o con firma expirada;
+ // si la firma esta 'uploaded' (sin fecha de expiracion) el cambio si procede.
+ const signatureWarning =
+ config.signature_status === 'expired'
+ ? 'Su firma electronica esta expirada. El SRI rechazara los comprobantes emitidos en produccion hasta que renueve la firma en la pestana Firma Electronica.'
+ : config.signature_status === 'uploaded'
+ ? 'Su firma electronica no tiene informacion de expiracion registrada. Verifique que este vigente antes de operar en produccion, ya que el SRI podria rechazar los comprobantes.'
+ : 'No tiene una firma electronica registrada. Para operar en produccion, el SRI requiere una firma electronica valida. Registre su firma en la pestana Firma Electronica antes de emitir comprobantes.';
 
-  async function handleSwitchMode(mode: 'sandbox' | 'production') {
-    if (mode === 'production' && config.signature_status !== 'valid') {
-      setPendingMode(mode);
-      setShowConfirmDialog(true);
-      return;
-    }
-    await doSwitchMode(mode);
-  }
+ async function handleSwitchMode(mode: 'sandbox' | 'production') {
+ if (mode === 'production' && config.signature_status !== 'valid') {
+ setPendingMode(mode);
+ setShowConfirmDialog(true);
+ return;
+ }
+ await doSwitchMode(mode);
+ }
 
-  async function doSwitchMode(mode: 'sandbox' | 'production') {
-    setSwitching(true);
-    setMessage(null);
-    setShowConfirmDialog(false);
-    try {
-      await switchEnvironmentMode(mode);
-      setMessage({
-        type: 'success',
-        text: `Ambiente cambiado a ${mode === 'sandbox' ? 'Pruebas' : 'Producción'} correctamente`,
-      });
-      onConfigUpdate();
-    } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Error al cambiar ambiente',
-      });
-    } finally {
-      setSwitching(false);
-      setPendingMode(null);
-    }
-  }
+ async function doSwitchMode(mode: 'sandbox' | 'production') {
+ setSwitching(true);
+ setMessage(null);
+ setShowConfirmDialog(false);
+ try {
+ await switchEnvironmentMode(mode);
+ setMessage({
+ type: 'success',
+ text: `Ambiente cambiado a ${mode === 'sandbox' ? 'Pruebas' : 'Producción'} correctamente`,
+ });
+ onConfigUpdate();
+ } catch (err) {
+ setMessage({
+ type: 'error',
+ text: err instanceof Error ? err.message : 'Error al cambiar ambiente',
+ });
+ } finally {
+ setSwitching(false);
+ setPendingMode(null);
+ }
+ }
 
-  return (
-    <div className="space-y-6">
-      {message && (
-        <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-          {message.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <XCircle className="h-4 w-4" />
-          )}
-          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
+ return (
+ <div className="space-y-6">
+ {message && (
+ <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
+ {message.type === 'success' ? (
+ <CheckCircle2 className="h-4 w-4" />
+ ) : (
+ <XCircle className="h-4 w-4" />
+ )}
+ <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
+ <AlertDescription>{message.text}</AlertDescription>
+ </Alert>
+ )}
 
-      {/* Current Mode */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Globe className="h-4 w-4 text-primary" />
-            Modo de Ambiente Actual
-          </CardTitle>
-          <CardDescription>
-            Ambiente en el que se emiten los comprobantes electronicos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Modo Actual</span>
-            <Badge
-              className={
-                config.environment_mode === 'production'
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-amber-500 hover:bg-amber-600'
-              }
-            >
-              {config.environment_mode === 'sandbox' ? 'Pruebas' : 'Producción'}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+ {/* Current Mode */}
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <Globe className="h-4 w-4 text-primary" />
+ Modo de Ambiente Actual
+ </CardTitle>
+ <CardDescription>
+ Ambiente en el que se emiten los comprobantes electronicos
+ </CardDescription>
+ </CardHeader>
+ <CardContent>
+ <div className="flex items-center justify-between">
+ <span className="text-sm text-muted-foreground">Modo Actual</span>
+ <Badge
+ className={
+ config.environment_mode === 'production'
+ ? 'bg-emerald-600 hover:bg-emerald-700'
+ : 'bg-amber-500 hover:bg-amber-600'
+ }
+ >
+ {config.environment_mode === 'sandbox' ? 'Pruebas' : 'Producción'}
+ </Badge>
+ </div>
+ </CardContent>
+ </Card>
 
-      {/* Mode Selection Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Sandbox Card */}
-        <Card
-          className={`cursor-pointer transition-all ${
-            config.environment_mode === 'sandbox'
-              ? 'ring-2 ring-amber-500 border-amber-500'
-              : 'hover:border-amber-300'
-          }`}
-          onClick={() => handleSwitchMode('sandbox')}
-        >
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <TestTube className="h-4 w-4 text-amber-500" />
-                Pruebas (Sandbox)
-              </CardTitle>
-              {config.environment_mode === 'sandbox' && (
-                <Badge className="bg-amber-500">Activo</Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Los comprobantes se envian al SRI de pruebas. No tienen validez fiscal.
-            </p>
-            <ul className="space-y-1.5 text-xs text-muted-foreground">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-amber-500" />
-                Ideal para desarrollo y pruebas
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-amber-500" />
-                No requiere firma electronica
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-amber-500" />
-                Sin impacto fiscal
-              </li>
-            </ul>
-            <Button
-              variant={config.environment_mode === 'sandbox' ? 'default' : 'outline'}
-              size="sm"
-              className="w-full"
-              disabled={config.environment_mode === 'sandbox' || switching}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSwitchMode('sandbox');
-              }}
-            >
-              {switching ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Cambiar a Pruebas
-            </Button>
-          </CardContent>
-        </Card>
+ {/* Mode Selection Cards */}
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+ {/* Sandbox Card */}
+ <Card
+ className={`cursor-pointer transition-all ${
+ config.environment_mode === 'sandbox'
+ ? 'ring-2 ring-amber-500 border-amber-500'
+ : 'hover:border-amber-300'
+ }`}
+ onClick={() => handleSwitchMode('sandbox')}
+ >
+ <CardHeader className="pb-3">
+ <div className="flex items-center justify-between">
+ <CardTitle className="text-base flex items-center gap-2">
+ <TestTube className="h-4 w-4 text-amber-500" />
+ Pruebas (Sandbox)
+ </CardTitle>
+ {config.environment_mode === 'sandbox' && (
+ <Badge className="bg-amber-500">Activo</Badge>
+ )}
+ </div>
+ </CardHeader>
+ <CardContent className="space-y-3">
+ <p className="text-sm text-muted-foreground">
+ Los comprobantes se envian al SRI de pruebas. No tienen validez fiscal.
+ </p>
+ <ul className="space-y-1.5 text-xs text-muted-foreground">
+ <li className="flex items-center gap-1.5">
+ <CheckCircle2 className="h-3 w-3 text-amber-500" />
+ Ideal para desarrollo y pruebas
+ </li>
+ <li className="flex items-center gap-1.5">
+ <CheckCircle2 className="h-3 w-3 text-amber-500" />
+ No requiere firma electronica
+ </li>
+ <li className="flex items-center gap-1.5">
+ <CheckCircle2 className="h-3 w-3 text-amber-500" />
+ Sin impacto fiscal
+ </li>
+ </ul>
+ <Button
+ variant={config.environment_mode === 'sandbox' ? 'default' : 'outline'}
+ size="sm"
+ className="w-full"
+ disabled={config.environment_mode === 'sandbox' || switching}
+ onClick={(e) => {
+ e.stopPropagation();
+ handleSwitchMode('sandbox');
+ }}
+ >
+ {switching ? (
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ ) : null}
+ Cambiar a Pruebas
+ </Button>
+ </CardContent>
+ </Card>
 
-        {/* Production Card */}
-        <Card
-          className={`cursor-pointer transition-all ${
-            config.environment_mode === 'production'
-              ? 'ring-2 ring-emerald-500 border-emerald-500'
-              : 'hover:border-emerald-300'
-          }`}
-          onClick={() => handleSwitchMode('production')}
-        >
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Globe className="h-4 w-4 text-emerald-600" />
-                Producción
-              </CardTitle>
-              {config.environment_mode === 'production' && (
-                <Badge className="bg-emerald-600">Activo</Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Los comprobantes se envian al SRI de produccion. Tienen validez fiscal. Requiere firma
-              electronica valida.
-            </p>
-            <ul className="space-y-1.5 text-xs text-muted-foreground">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                Comprobantes con validez fiscal
-              </li>
-              <li className="flex items-center gap-1.5">
-                <AlertTriangle className="h-3 w-3 text-amber-500" />
-                Requiere firma electronica valida
-              </li>
-              <li className="flex items-center gap-1.5">
-                <AlertTriangle className="h-3 w-3 text-amber-500" />
-                No se pueden eliminar comprobantes
-              </li>
-            </ul>
-            <Button
-              variant={config.environment_mode === 'production' ? 'default' : 'outline'}
-              size="sm"
-              className="w-full"
-              disabled={config.environment_mode === 'production' || switching}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSwitchMode('production');
-              }}
-            >
-              {switching ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Cambiar a Producción
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+ {/* Production Card */}
+ <Card
+ className={`cursor-pointer transition-all ${
+ config.environment_mode === 'production'
+ ? 'ring-2 ring-emerald-500 border-emerald-500'
+ : 'hover:border-emerald-300'
+ }`}
+ onClick={() => handleSwitchMode('production')}
+ >
+ <CardHeader className="pb-3">
+ <div className="flex items-center justify-between">
+ <CardTitle className="text-base flex items-center gap-2">
+ <Globe className="h-4 w-4 text-emerald-600" />
+ Producción
+ </CardTitle>
+ {config.environment_mode === 'production' && (
+ <Badge className="bg-emerald-600">Activo</Badge>
+ )}
+ </div>
+ </CardHeader>
+ <CardContent className="space-y-3">
+ <p className="text-sm text-muted-foreground">
+ Los comprobantes se envian al SRI de produccion. Tienen validez fiscal. Requiere firma
+ electronica valida.
+ </p>
+ <ul className="space-y-1.5 text-xs text-muted-foreground">
+ <li className="flex items-center gap-1.5">
+ <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+ Comprobantes con validez fiscal
+ </li>
+ <li className="flex items-center gap-1.5">
+ <AlertTriangle className="h-3 w-3 text-amber-500" />
+ Requiere firma electronica valida
+ </li>
+ <li className="flex items-center gap-1.5">
+ <AlertTriangle className="h-3 w-3 text-amber-500" />
+ No se pueden eliminar comprobantes
+ </li>
+ </ul>
+ <Button
+ variant={config.environment_mode === 'production' ? 'default' : 'outline'}
+ size="sm"
+ className="w-full"
+ disabled={config.environment_mode === 'production' || switching}
+ onClick={(e) => {
+ e.stopPropagation();
+ handleSwitchMode('production');
+ }}
+ >
+ {switching ? (
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ ) : null}
+ Cambiar a Producción
+ </Button>
+ </CardContent>
+ </Card>
+ </div>
 
-      {/* Confirmation Dialog for switching to production without valid signature */}
-      {showConfirmDialog && pendingMode === 'production' && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Verifique su firma electronica</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <p>{signatureWarning}</p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowConfirmDialog(false);
-                  setPendingMode(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => doSwitchMode('production')}
-                disabled={switching}
-              >
-                {switching ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Intentar de todos modos
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
-  );
+ {/* Confirmation Dialog for switching to production without valid signature */}
+ {showConfirmDialog && pendingMode === 'production' && (
+ <Alert variant="destructive">
+ <AlertTriangle className="h-4 w-4" />
+ <AlertTitle>Verifique su firma electronica</AlertTitle>
+ <AlertDescription className="space-y-2">
+ <p>{signatureWarning}</p>
+ <div className="flex gap-2">
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => {
+ setShowConfirmDialog(false);
+ setPendingMode(null);
+ }}
+ >
+ Cancelar
+ </Button>
+ <Button
+ variant="destructive"
+ size="sm"
+ onClick={() => doSwitchMode('production')}
+ disabled={switching}
+ >
+ {switching ? (
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ ) : null}
+ Intentar de todos modos
+ </Button>
+ </div>
+ </AlertDescription>
+ </Alert>
+ )}
+ </div>
+ );
 }
 
 // ─── SMTP Tab ───────────────────────────────────────────────────
 function SMTPTab({
-  config,
-  companyConfig: _companyConfig,
-  selectedCompanyId,
-  onConfigUpdate,
+ config,
+ companyConfig: _companyConfig,
+ selectedCompanyId,
+ onConfigUpdate,
 }: {
-  config: UserConfig;
-  companyConfig: CompanyConfig | null;
-  selectedCompanyId: string;
-  onConfigUpdate: () => void;
+ config: UserConfig;
+ companyConfig: CompanyConfig | null;
+ selectedCompanyId: string;
+ onConfigUpdate: () => void;
 }) {
-  const [smtpHost, setSmtpHost] = useState(config.smtp_host || '');
-  const [smtpPort, setSmtpPort] = useState(config.smtp_port?.toString() || '587');
-  const [smtpUser, setSmtpUser] = useState(config.smtp_user || '');
-  const [smtpPassword, setSmtpPassword] = useState('');
-  const [smtpProtocol, setSmtpProtocol] = useState(config.smtp_protocol || 'TLS');
-  const [smtpSsl, setSmtpSsl] = useState(config.smtp_ssl);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+ const [smtpHost, setSmtpHost] = useState(config.smtp_host || '');
+ const [smtpPort, setSmtpPort] = useState(config.smtp_port?.toString() || '587');
+ const [smtpUser, setSmtpUser] = useState(config.smtp_user || '');
+ const [smtpPassword, setSmtpPassword] = useState('');
+ const [smtpProtocol, setSmtpProtocol] = useState(config.smtp_protocol || 'TLS');
+ const [smtpSsl, setSmtpSsl] = useState(config.smtp_ssl);
+ const [saving, setSaving] = useState(false);
+ const [testing, setTesting] = useState(false);
+ const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+ const [showPassword, setShowPassword] = useState(false);
 
-  function applyPreset(preset: string) {
-    const p = SMTP_PRESETS[preset];
-    if (p) {
-      setSmtpHost(p.host);
-      setSmtpPort(p.port.toString());
-      setSmtpProtocol(p.protocol);
-      setSmtpSsl(p.ssl);
-    }
-  }
+ function applyPreset(preset: string) {
+ const p = SMTP_PRESETS[preset];
+ if (p) {
+ setSmtpHost(p.host);
+ setSmtpPort(p.port.toString());
+ setSmtpProtocol(p.protocol);
+ setSmtpSsl(p.ssl);
+ }
+ }
 
-  async function handleSaveSMTP() {
-    setSaving(true);
-    setMessage(null);
-    try {
-      await configureSMTP({
-        smtp_host: smtpHost,
-        smtp_port: parseInt(smtpPort, 10),
-        smtp_user: smtpUser,
-        smtp_password: smtpPassword,
-        smtp_protocol: smtpProtocol,
-        smtp_ssl: smtpSsl,
-      });
-      setMessage({ type: 'success', text: 'Configuración SMTP guardada correctamente' });
-      onConfigUpdate();
-    } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Error al guardar configuracion SMTP',
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
+ async function handleSaveSMTP() {
+ setSaving(true);
+ setMessage(null);
+ try {
+ await configureSMTP({
+ smtp_host: smtpHost,
+ smtp_port: parseInt(smtpPort, 10),
+ smtp_user: smtpUser,
+ smtp_password: smtpPassword,
+ smtp_protocol: smtpProtocol,
+ smtp_ssl: smtpSsl,
+ });
+ setMessage({ type: 'success', text: 'Configuración SMTP guardada correctamente' });
+ onConfigUpdate();
+ } catch (err) {
+ setMessage({
+ type: 'error',
+ text: err instanceof Error ? err.message : 'Error al guardar configuracion SMTP',
+ });
+ } finally {
+ setSaving(false);
+ }
+ }
 
-  async function handleTestSMTP() {
-    setTesting(true);
-    setMessage(null);
-    try {
-      const result = await testSMTP(selectedCompanyId || undefined);
-      if (result.success !== false) {
-        setMessage({ type: 'success', text: result.message || 'Prueba de correo exitosa. Revise su bandeja.' });
-      } else {
-        setMessage({ type: 'error', text: result.message || 'La prueba de correo fallo.' });
-      }
-    } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Error al probar configuracion SMTP',
-      });
-    } finally {
-      setTesting(false);
-    }
-  }
+ async function handleTestSMTP() {
+ setTesting(true);
+ setMessage(null);
+ try {
+ const result = await testSMTP(selectedCompanyId || undefined);
+ if (result.success !== false) {
+ setMessage({ type: 'success', text: result.message || 'Prueba de correo exitosa. Revise su bandeja.' });
+ } else {
+ setMessage({ type: 'error', text: result.message || 'La prueba de correo fallo.' });
+ }
+ } catch (err) {
+ setMessage({
+ type: 'error',
+ text: err instanceof Error ? err.message : 'Error al probar configuracion SMTP',
+ });
+ } finally {
+ setTesting(false);
+ }
+ }
 
-  return (
-    <div className="space-y-6">
-      {message && (
-        <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-          {message.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <XCircle className="h-4 w-4" />
-          )}
-          <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
+ return (
+ <div className="space-y-6">
+ {message && (
+ <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
+ {message.type === 'success' ? (
+ <CheckCircle2 className="h-4 w-4" />
+ ) : (
+ <XCircle className="h-4 w-4" />
+ )}
+ <AlertTitle>{message.type === 'success' ? 'Éxito' : 'Error'}</AlertTitle>
+ <AlertDescription>{message.text}</AlertDescription>
+ </Alert>
+ )}
 
-      {/* Quick Presets */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Mail className="h-4 w-4 text-primary" />
-            Proveedores Preconfigurados
-          </CardTitle>
-          <CardDescription>Seleccione un proveedor para configurar automaticamente</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {Object.keys(SMTP_PRESETS).map((preset) => (
-              <Button
-                key={preset}
-                variant="outline"
-                size="sm"
-                onClick={() => applyPreset(preset)}
-                className="capitalize"
-              >
-                {preset === 'office365' ? 'Office 365' : preset.charAt(0).toUpperCase() + preset.slice(1)}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+ {/* Quick Presets */}
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <Mail className="h-4 w-4 text-primary" />
+ Proveedores Preconfigurados
+ </CardTitle>
+ <CardDescription>Seleccione un proveedor para configurar automaticamente</CardDescription>
+ </CardHeader>
+ <CardContent>
+ <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+ {Object.keys(SMTP_PRESETS).map((preset) => (
+ <Button
+ key={preset}
+ variant="outline"
+ size="sm"
+ onClick={() => applyPreset(preset)}
+ className="capitalize"
+ >
+ {preset === 'office365' ? 'Office 365' : preset.charAt(0).toUpperCase() + preset.slice(1)}
+ </Button>
+ ))}
+ </div>
+ </CardContent>
+ </Card>
 
-      {/* SMTP Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Server className="h-4 w-4 text-primary" />
-            Configuración SMTP
-          </CardTitle>
-          <CardDescription>
-            Configure el servidor de correo para el envio de comprobantes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="smtp-host">Servidor SMTP</Label>
-              <Input
-                id="smtp-host"
-                value={smtpHost}
-                onChange={(e) => setSmtpHost(e.target.value)}
-                placeholder="smtp.gmail.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="smtp-port">Puerto</Label>
-              <Input
-                id="smtp-port"
-                type="number"
-                value={smtpPort}
-                onChange={(e) => setSmtpPort(e.target.value)}
-                placeholder="587"
-              />
+ {/* SMTP Configuration */}
+ <Card>
+ <CardHeader>
+ <CardTitle className="text-base flex items-center gap-2">
+ <Server className="h-4 w-4 text-primary" />
+ Configuración SMTP
+ </CardTitle>
+ <CardDescription>
+ Configure el servidor de correo para el envio de comprobantes
+ </CardDescription>
+ </CardHeader>
+ <CardContent className="space-y-4">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <Label htmlFor="smtp-host">Servidor SMTP</Label>
+ <Input
+ id="smtp-host"
+ value={smtpHost}
+ onChange={(e) => setSmtpHost(e.target.value)}
+ placeholder="smtp.gmail.com"
+ />
+ </div>
+ <div className="space-y-2">
+ <Label htmlFor="smtp-port">Puerto</Label>
+ <Input
+ id="smtp-port"
+ 
+ value={smtpPort}
+ onChange={(e) => setSmtpPort(e.target.value)}
+ placeholder="587" />
             </div>
           </div>
 
