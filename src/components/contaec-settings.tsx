@@ -222,13 +222,17 @@ function RegularUserSettings() {
     loadConfig();
   }, [loadConfig]);
 
-  // Load company config when selected company changes
+  // Reload both user-config and company-config when selected company changes
   useEffect(() => {
-    if (selectedCompanyId) {
-      getCompanyConfig(selectedCompanyId)
-        .then(cc => setCompanyConfig(cc))
-        .catch(() => setCompanyConfig(null));
-    }
+    if (!selectedCompanyId) return;
+    // Reload user config (has company-level fallback for firma/logo)
+    getUserConfig()
+      .then(ud => setConfig(ud))
+      .catch(() => {});
+    // Reload company-specific config
+    getCompanyConfig(selectedCompanyId)
+      .then(cc => setCompanyConfig(cc))
+      .catch(() => setCompanyConfig(null));
   }, [selectedCompanyId]);
 
   if (loading) {
@@ -276,31 +280,39 @@ function RegularUserSettings() {
         </div>
       </div>
 
-      {/* Company Selector */}
-      {companies.length > 1 && (
-        <Card>
+      {/* Company Selector - siempre visible */}
+      {companies.length > 0 && (
+        <Card className="border-primary/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Building2 className="h-4 w-4 text-primary" />
-              Empresa Activa
+              Empresa Seleccionada
             </CardTitle>
             <CardDescription>
-              Seleccione la empresa para la cual desea configurar los ajustes
+              Todas las configuraciones de esta seccion aplican a la empresa seleccionada
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Seleccione una empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.razon_social} ({c.ruc})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-4">
+              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                <SelectTrigger className="w-full max-w-md">
+                  <SelectValue placeholder="Seleccione una empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.razon_social} ({c.ruc})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {companyConfig && (
+                <Badge variant="outline" className="text-xs whitespace-nowrap">
+                  <CheckCircle2 className="mr-1 h-3 w-3 text-emerald-600" />
+                  {companyConfig.environment_mode === 'production' ? 'Produccion' : 'Pruebas (Sandbox)'}
+                </Badge>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -338,7 +350,7 @@ function RegularUserSettings() {
         </TabsList>
 
         <TabsContent value="profile">
-          <ProfileTab config={config} onConfigUpdate={loadConfig} />
+          <ProfileTab config={config} companyConfig={companyConfig} selectedCompanyId={selectedCompanyId} onConfigUpdate={loadConfig} />
         </TabsContent>
 
         <TabsContent value="signature">
@@ -608,9 +620,13 @@ function SubAccountsTab() {
 // ─── Profile Tab ────────────────────────────────────────────────
 function ProfileTab({
   config,
+  companyConfig,
+  selectedCompanyId,
   onConfigUpdate,
 }: {
   config: UserConfig;
+  companyConfig: CompanyConfig | null;
+  selectedCompanyId: string;
   onConfigUpdate: () => void;
 }) {
   const { theme: appliedTheme, setTheme } = useTheme();
@@ -817,6 +833,53 @@ function ProfileTab({
             </div>
           </CardContent>
         </Card>
+
+        {/* Company Info Card */}
+        {companyConfig && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                Datos de la Empresa
+              </CardTitle>
+              <CardDescription>Informacion fiscal de {companyConfig.razon_social}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">RUC</span>
+                <span className="text-sm font-mono font-medium">{companyConfig.ruc}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Razon Social</span>
+                <span className="text-sm font-medium">{companyConfig.razon_social}</span>
+              </div>
+              {companyConfig.nombre_comercial && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Nombre Comercial</span>
+                  <span className="text-sm font-medium">{companyConfig.nombre_comercial}</span>
+                </div>
+              )}
+              {companyConfig.correo && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Correo</span>
+                  <span className="text-sm font-medium">{companyConfig.correo}</span>
+                </div>
+              )}
+              {companyConfig.telefono && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Telefono</span>
+                  <span className="text-sm font-medium">{companyConfig.telefono}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Firma Electronica</span>
+                <Badge variant={companyConfig.firma_electronica_path ? 'default' : 'secondary'} className={companyConfig.firma_electronica_path ? 'bg-emerald-600 text-xs' : 'text-xs'}>
+                  {companyConfig.firma_electronica_path ? 'Configurada' : 'Sin firma'}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Logo / Avatar Card */}
         <Card>
