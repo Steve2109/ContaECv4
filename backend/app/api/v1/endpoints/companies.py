@@ -23,6 +23,8 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User, UserConfig
 from app.models.company import Company, Establishment
+
+settings = get_settings()
 from app.models.client import Client, TipoIdentificacion
 from app.models.ruc_cache import RucCache
 from app.schemas.company import (
@@ -197,7 +199,34 @@ async def create_company(
             user_cfg = UserConfig(user_id=current_user.id)
             db.add(user_cfg)
         user_cfg.company_logo_path = company_data.logo_path
-        await db.flush()
+
+    # Sincronizar firma: copiar archivo a signatures dir y guardar cifrado en UserConfig
+    if company_data.firma_electronica_path and company_data.firma_electronica_password:
+        try:
+            from app.core.encryption import encrypt_field
+            base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
+            src_file = (base_dir / company_data.firma_electronica_path.lstrip('/')).resolve()
+            if src_file.is_file():
+                sig_dir = Path(settings.SIGNATURES_DIR) / str(current_user.id)
+                sig_dir.mkdir(parents=True, exist_ok=True)
+                dest = sig_dir / f"firma_{datetime.now().strftime('%Y%m%d%H%M%S')}{src_file.suffix}"
+                import shutil
+                shutil.copy2(str(src_file), str(dest))
+                user_cfg.digital_signature_path = encrypt_field(str(dest), settings.ENCRYPTION_KEY)
+                user_cfg.digital_signature_password = encrypt_field(company_data.firma_electronica_password, settings.ENCRYPTION_KEY)
+                # Extraer fecha de expiracion del certificado
+                try:
+                    from cryptography.hazmat.primitives.serialization import pkcs12
+                    cert_content = src_file.read_bytes()
+                    _, certificate, _ = pkcs12.load_key_and_certificates(cert_content, company_data.firma_electronica_password.encode())
+                    if certificate:
+                        user_cfg.signature_expiry_date = certificate.not_valid_after_utc
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"No se pudo sincronizar firma a UserConfig: {e}")
+
+    await db.flush()
 
     # ── Sincronizar telefono del usuario si esta vacio
     if company_data.telefono and not current_user.phone:

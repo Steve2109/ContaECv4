@@ -3,6 +3,7 @@ ContaEC - Endpoints de Configuración de Usuario
 Firma electrónica, SMTP, modo sandbox/producción, VirusTotal, perfil
 """
 import os
+import uuid
 import logging
 import asyncio
 import smtplib
@@ -76,18 +77,88 @@ async def get_user_config(
         db.add(config)
         await db.flush()
 
-    # Estado de la firma electrónica
+    # ── Fallback a datos de la empresa si UserConfig no tiene firma/logo ──
+    from app.models.company import Company
+    from app.core.permissions import effective_owner_id
+    owner_id = effective_owner_id(current_user)
+    comp_result = await db.execute(
+        select(Company).where(Company.user_id == owner_id, Company.is_active == True)
+    )
+    companies_list = comp_result.scalars().all()
+    active_company = None
+    for c in companies_list:
+        if c.firma_electronica_path:
+            active_company = c
+            break
+    if not active_company and companies_list:
+        active_company = companies_list[0]
+
+    # Firma: priorizar UserConfig; si esta vacia, usar Company
+    signature_path = config.digital_signature_path
+    signature_expiry = config.signature_expiry_date
+
+    if not signature_path and active_company and active_company.firma_electronica_path:
+        try:
+            from app.core.encryption import encrypt_field as _enc
+            _base = Path(__file__).resolve().parent.parent.parent.parent.parent
+            _src = (_base / active_company.firma_electronica_path.lstrip('/')).resolve()
+            if _src.is_file():
+                _sig_dir = Path(settings.SIGNATURES_DIR) / str(current_user.id)
+                _sig_dir.mkdir(parents=True, exist_ok=True)
+                _dest = _sig_dir / f"firma_{datetime.now().strftime('%Y%m%d%H%M%S')}{_src.suffix}"
+                import shutil
+                shutil.copy2(str(_src), str(_dest))
+                config.digital_signature_path = _enc(str(_dest), settings.ENCRYPTION_KEY)
+                if active_company.firma_electronica_password:
+                    from app.core.encryption import decrypt_field as _dec
+                    try:
+                        _plain_pw = _dec(active_company.firma_electronica_password, settings.ENCRYPTION_KEY)
+                    except Exception:
+                        _plain_pw = active_company.firma_electronica_password
+                    config.digital_signature_password = _enc(_plain_pw, settings.ENCRYPTION_KEY)
+                try:
+                    from cryptography.hazmat.primitives.serialization import pkcs12 as _pkcs12
+                    _cert_data = _src.read_bytes()
+                    _pw = ''
+                    if config.digital_signature_password:
+                        try:
+                            _pw = _dec(config.digital_signature_password, settings.ENCRYPTION_KEY)
+                        except Exception:
+                            pass
+                    if _pw:
+                        try:
+                            _, _cert, _ = _pkcs12.load_key_and_certificates(_cert_data, _pw.encode())
+                            if _cert:
+                                config.signature_expiry_date = _cert.not_valid_after_utc
+                                signature_expiry = _cert.not_valid_after_utc
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                await db.flush()
+                signature_path = config.digital_signature_path
+        except Exception as e:
+            logger.warning(f"No se pudo sincronizar firma de Company a UserConfig: {e}")
+
+    # Fallback logo: si UserConfig no tiene, usar Company.logo_path
+    logo_path = config.company_logo_path
+    if not logo_path and active_company and active_company.logo_path:
+        logo_path = active_company.logo_path
+        config.company_logo_path = logo_path
+        await db.flush()
+
+    # Estado de la firma electronica
     signature_status = "none"
     signature_days_left = None
-    if config.digital_signature_path:
-        if config.signature_expiry_date:
-            if config.signature_expiry_date > datetime.now(timezone.utc):
+    if signature_path:
+        if signature_expiry:
+            if signature_expiry > datetime.now(timezone.utc):
                 signature_status = "valid"
-                signature_days_left = (config.signature_expiry_date - datetime.now(timezone.utc)).days
+                signature_days_left = (signature_expiry - datetime.now(timezone.utc)).days
             else:
                 signature_status = "expired"
         else:
-            signature_status = "uploaded"  # Sin info de expiración
+            signature_status = "uploaded"
 
     return {
         "id": str(config.id),
@@ -95,10 +166,10 @@ async def get_user_config(
         "environment_mode": config.environment_mode,
         "virustotal_enabled": config.virustotal_enabled,
         # Firma digital
-        "has_digital_signature": bool(config.digital_signature_path),
+        "has_digital_signature": bool(signature_path),
         "has_backup_key": bool(current_user.backup_encryption_key),
         "signature_status": signature_status,
-        "signature_expiry_date": config.signature_expiry_date.isoformat() if config.signature_expiry_date else None,
+        "signature_expiry_date": signature_expiry.isoformat() if signature_expiry else None,
         "signature_days_left": signature_days_left,
         # SMTP
         "has_smtp_config": bool(config.smtp_host),
@@ -108,7 +179,7 @@ async def get_user_config(
         "smtp_ssl": config.smtp_ssl,
         "smtp_protocol": config.smtp_protocol,
         # Logo
-        "company_logo_path": config.company_logo_path,
+        "company_logo_path": logo_path,
         # Perfil
         "user": {
             "id": str(current_user.id),
@@ -275,6 +346,25 @@ async def upload_digital_signature(
     old_config.signature_expiry_date = expiry_date
 
     await db.flush()
+
+    # Sync firma to Company record as well
+    from app.models.company import Company
+    from app.core.permissions import effective_owner_id
+    owner_id = effective_owner_id(current_user)
+    comp_result = await db.execute(
+        select(Company).where(Company.user_id == owner_id, Company.is_active == True)
+    )
+    for comp in comp_result.scalars().all():
+        if not comp.firma_electronica_path:
+            company_upload_dir = os.path.join(settings.UPLOAD_DIR, "companies")
+            os.makedirs(company_upload_dir, exist_ok=True)
+            company_firma = os.path.join(company_upload_dir, f"firma_{uuid.uuid4().hex}{ext}")
+            import shutil as _shutil
+            _shutil.copy2(file_path, company_firma)
+            comp.firma_electronica_path = f"/uploads/companies/{os.path.basename(company_firma)}"
+            comp.firma_electronica_password = encrypt_field(password, settings.ENCRYPTION_KEY)
+            await db.flush()
+            break
 
     # Limpiar firmas anteriores (huérfanas) del usuario: solo queda el archivo nuevo
     _remove_old_files(upload_dir, keep_path=file_path)
@@ -731,6 +821,48 @@ async def set_backup_encryption_key(
     return {"message": "Clave de backup configurada exitosamente."}
 
 
+@router.get("/company-logo")
+async def get_company_logo(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Descargar el logo de la empresa del usuario actual"""
+    from fastapi.responses import FileResponse
+    from app.models.company import Company
+    from app.core.permissions import effective_owner_id
+
+    result = await db.execute(
+        select(UserConfig).where(UserConfig.user_id == current_user.id)
+    )
+    config = result.scalars().first()
+    logo_path = config.company_logo_path if config else None
+
+    if not logo_path:
+        owner_id = effective_owner_id(current_user)
+        comp_result = await db.execute(
+            select(Company).where(Company.user_id == owner_id, Company.is_active == True)
+        )
+        for c in comp_result.scalars().all():
+            if c.logo_path:
+                logo_path = c.logo_path
+                if config:
+                    config.company_logo_path = logo_path
+                    await db.flush()
+                break
+
+    if not logo_path or not os.path.isfile(logo_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay logo registrado.",
+        )
+
+    return FileResponse(
+        path=logo_path,
+        media_type="image/webp",
+        filename=os.path.basename(logo_path),
+    )
+
+
 @router.post("/company-logo")
 async def upload_company_logo(
     file: UploadFile = File(...),
@@ -781,6 +913,19 @@ async def upload_company_logo(
 
     config.company_logo_path = file_path
     await db.flush()
+
+    # Sync logo to Company record as well
+    from app.models.company import Company
+    from app.core.permissions import effective_owner_id
+    owner_id = effective_owner_id(current_user)
+    comp_result = await db.execute(
+        select(Company).where(Company.user_id == owner_id, Company.is_active == True)
+    )
+    for comp in comp_result.scalars().all():
+        if not comp.logo_path:
+            comp.logo_path = file_path
+            await db.flush()
+            break
 
     # Limpiar logos anteriores (huérfanos) del usuario: solo queda el archivo nuevo
     _remove_old_files(upload_dir, keep_path=file_path)
