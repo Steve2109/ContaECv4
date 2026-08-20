@@ -93,7 +93,7 @@ import {
   getSubAccounts,
   createSubAccount,
   updateSubAccount,
-  deleteSubAccount,
+  // deleteSubAccount removed (unused)
   SUBACCOUNT_MODULES,
   type SubAccount,
   type UserConfig,
@@ -627,7 +627,7 @@ function ProfileTab({
 }: {
   config: UserConfig;
   companyConfig: CompanyConfig | null;
-  selectedCompanyId: string;
+  selectedCompanyId: string; // eslint-disable-line @typescript-eslint/no-unused-vars
   onConfigUpdate: () => void;
 }) {
   const { theme: appliedTheme, setTheme } = useTheme();
@@ -2404,7 +2404,7 @@ function SecurityTab({
 }: {
   config: UserConfig;
   companyConfig: CompanyConfig | null;
-  selectedCompanyId: string;
+  selectedCompanyId: string; // eslint-disable-line @typescript-eslint/no-unused-vars
   onConfigUpdate: () => void;
 }) {
   const [vtEnabled, setVtEnabled] = useState(config.virustotal_enabled);

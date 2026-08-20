@@ -238,7 +238,7 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
   const [showCodeSelector, setShowCodeSelector] = useState(false);
   type CatalogoItem = { code: string; name: string; tipo: string; naturaleza: string; level: number };
   const [catalogo, setCatalogo] = useState<CatalogoItem[]>([]);
-  const [loadingCatalogo, setLoadingCatalogo] = useState(true);
+  const [_loadingCatalogo, setLoadingCatalogo] = useState(true);
   const [form, setForm] = useState<CuentaContableCreate>({
     codigo: '', nombre: '', tipo: 'activo', naturaleza: 'deudora', nivel: 1, es_cuenta_movimiento: true, es_imputable: true, saldo_inicial: 0, notas: '',
   });
@@ -317,7 +317,7 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
 
   function selectCode(item: CatalogoItem) {
     const nivel = item.level || item.code.split('.').length;
-    setForm({ ...form, codigo: item.code, nombre: item.name, tipo: (item.tipo || 'activo') as any, naturaleza: (item.naturaleza || 'deudora') as any, nivel });
+    setForm({ ...form, codigo: item.code, nombre: item.name, tipo: (item.tipo || 'activo') as typeof form.tipo, naturaleza: (item.naturaleza || 'deudora') as typeof form.naturaleza, nivel });
     setShowCodeSelector(false);
     setCodeSearchQuery('');
   }

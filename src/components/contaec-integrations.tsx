@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
+// Textarea removed (unused)
 import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Landmark,
@@ -75,7 +75,7 @@ import {
   updateEcommerceConnector,
   deleteEcommerceConnector,
   testEcommerceConnection,
-  syncEcommerceConnector,
+  // syncEcommerceConnector removed (unused)
   syncEcommerceProducts,
   syncEcommerceOrders,
   syncEcommerceInventory,

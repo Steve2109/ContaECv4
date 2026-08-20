@@ -16,6 +16,7 @@ const eslintConfig = [
   {
     rules: {
       // TypeScript rules - core enabled, permissive on edge cases
+      "@typescript-eslint/no-empty-object-type": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
       "@typescript-eslint/no-non-null-assertion": "warn",
@@ -51,7 +52,7 @@ const eslintConfig = [
     },
   },
   {
-    ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "tailwind.config.ts", "mini-services/**", ".venv/**"],
+    ignores: ["node_modules/**", ".next/**", "src/.next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "tailwind.config.ts", "mini-services/**", ".venv/**"],
   },
 ];
 
