@@ -4063,7 +4063,9 @@ function ProformasTab({ companyId, onNewProforma }: { companyId: string; onNewPr
  variant="outline"
  onClick={async () => {
  try {
- const blob = await downloadProformaPDF(detailDialog.data!.id);
+ const id = detailDialog.data?.id;
+ if (!id) return;
+ const blob = await downloadProformaPDF(id);
  const url = window.URL.createObjectURL(blob);
  window.open(url, '_blank');
  setTimeout(() => window.URL.revokeObjectURL(url), 30000);

@@ -4064,7 +4064,7 @@ export function translateToEnglish(input: string): string {
     if (matchedPhrase) {
       const len = matchedPhrase.length;
       const original = trimmed.slice(i, i + len);
-      const phraseValue = PHRASE_MAP.get(matchedPhrase)!;
+      const phraseValue = PHRASE_MAP.get(matchedPhrase) ?? matchedPhrase;
       // Aplicar mayúsculas palabra por palabra (Título -> Title Case)
       const origWords = original.split(' ');
       const valWords = phraseValue.split(' ');

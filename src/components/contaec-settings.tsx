@@ -622,12 +622,12 @@ function SubAccountsTab() {
 function ProfileTab({
   config,
   companyConfig,
-  selectedCompanyId,
+  selectedCompanyId: _selectedCompanyId,
   onConfigUpdate,
 }: {
   config: UserConfig;
   companyConfig: CompanyConfig | null;
-  selectedCompanyId: string; // eslint-disable-line @typescript-eslint/no-unused-vars
+  selectedCompanyId: string;
   onConfigUpdate: () => void;
 }) {
   const { theme: appliedTheme, setTheme } = useTheme();
@@ -2399,12 +2399,12 @@ function BackupsTab({ config, selectedCompanyId }: { config: UserConfig; selecte
 function SecurityTab({
   config,
   companyConfig: _companyConfig,
-  selectedCompanyId: _selectedCompanyId,
+  selectedCompanyId: _selectedCompanyId2,
   onConfigUpdate,
 }: {
   config: UserConfig;
   companyConfig: CompanyConfig | null;
-  selectedCompanyId: string; // eslint-disable-line @typescript-eslint/no-unused-vars
+  selectedCompanyId: string;
   onConfigUpdate: () => void;
 }) {
   const [vtEnabled, setVtEnabled] = useState(config.virustotal_enabled);

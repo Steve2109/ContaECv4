@@ -14,7 +14,8 @@ interface NumericInputProps {
   id?: string;
   ref?: React.Ref<HTMLInputElement>;
   value: number | string;
-  onChange: (...args: any[]) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onChange: (...args: any[]) => void; // Accepts both (e) => e.target.value and (v) => v
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   placeholder?: string;
