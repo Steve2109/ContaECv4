@@ -4480,6 +4480,10 @@ async function seedPlanCuentasDefault(companyId: string): Promise<{ detail: stri
   return apiPost<{ detail: string }>(`/v1/accounting/cuentas-contables/seed-default/${companyId}`, {});
 }
 
+async function getCatalogoOficial(): Promise<{ code: string; name: string; tipo: string; naturaleza: string; level: number }[]> {
+  return apiGet(`/v1/accounting/catalogo-oficial`);
+}
+
 async function getAsientosContables(companyId?: string, estado?: string, skip?: number, limit?: number): Promise<AsientoContable[]> {
   const params: string[] = [];
   if (companyId) params.push(`company_id=${companyId}`);
@@ -5397,6 +5401,7 @@ export {
   updateCuentaContable,
   deleteCuentaContable,
   seedPlanCuentasDefault,
+  getCatalogoOficial,
   getAsientosContables,
   createAsientoContable,
   aprobarAsiento,

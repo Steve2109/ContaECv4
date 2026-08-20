@@ -61,3 +61,5 @@ handoff.md
 backend/.env.production
 *.md
 backend/test_firma_electronica.py
+backend/data/catalogo_cuentas_ecuador_2026.csv
+backend/data/catalogo_cuentas_ecuador_2026.txt

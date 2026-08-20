@@ -2,6 +2,8 @@
 ContaEC - API Endpoints de Contabilidad Core
 Plan de Cuentas, Asientos Contables, Cuentas por Cobrar, Pagos, Períodos Fiscales
 """
+import json
+import os
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
@@ -238,13 +240,46 @@ async def eliminar_cuenta_contable(
     return {"detail": "Cuenta contable desactivada"}
 
 
+def _load_catalogo_oficial() -> list[dict]:
+    """Carga el catálogo oficial de cuentas contables Ecuador 2026 desde JSON."""
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+    json_path = os.path.join(data_dir, "catalogo_cuentas_ecuador_2026.json")
+    if not os.path.exists(json_path):
+        # Try relative to backend root
+        json_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "catalogo_cuentas_ecuador_2026.json")
+    if not os.path.exists(json_path):
+        raise HTTPException(
+            status_code=500,
+            detail="Archivo de catálogo oficial no encontrado. Contacte al administrador."
+        )
+    with open(json_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@router.get("/catalogo-oficial")
+async def catalogo_oficial(
+    user: User = Depends(get_current_user),
+):
+    """Devuelve el catálogo oficial de cuentas contables Ecuador 2026.
+
+    Retorna todas las cuentas del catálogo del MEF para usar como
+    selector al crear cuentas contables manualmente.
+    """
+    return _load_catalogo_oficial()
+
+
 @router.post("/cuentas-contables/seed-default/{company_id}")
 async def seed_plan_cuentas_default(
     company_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Genera el Plan de Cuentas por defecto para una empresa"""
+    """Genera el Plan de Cuentas por defecto para una empresa.
+
+    Carga el Catálogo General de Cuentas Contables del Sector Público
+    No Financiero del Ecuador (Enero 2026) desde el archivo oficial.
+    Total: ~3,633 cuentas contables.
+    """
     company_id = validate_uuid(company_id, "company_id")
     _check_company_access(user, company_id)
 
@@ -255,99 +290,30 @@ async def seed_plan_cuentas_default(
     if count > 0:
         raise HTTPException(status_code=400, detail="La empresa ya tiene cuentas contables")
 
-    default_accounts = [
-        # Activos
-        ("1", "Activos", "activo", "deudora", 1),
-        ("1.1", "Activos Corrientes", "activo", "deudora", 2),
-        ("1.1.01", "Efectivo y Equivalentes", "activo", "deudora", 3),
-        ("1.1.01.01", "Caja General", "activo", "deudora", 4),
-        ("1.1.01.02", "Caja Chica", "activo", "deudora", 4),
-        ("1.1.02", "Bancos", "activo", "deudora", 3),
-        ("1.1.02.01", "Banco Cuenta Corriente", "activo", "deudora", 4),
-        ("1.1.02.02", "Banco Cuenta Ahorro", "activo", "deudora", 4),
-        ("1.1.03", "Cuentas por Cobrar", "activo", "deudora", 3),
-        ("1.1.03.01", "Clientes Nacionales", "activo", "deudora", 4),
-        ("1.1.03.02", "Clientes del Exterior", "activo", "deudora", 4),
-        ("1.1.03.03", "Anticipo a Proveedores", "activo", "deudora", 4),
-        ("1.1.04", "Inventarios", "activo", "deudora", 3),
-        ("1.1.04.01", "Mercadería", "activo", "deudora", 4),
-        ("1.1.04.02", "Materia Prima", "activo", "deudora", 4),
-        ("1.1.04.03", "Suministros", "activo", "deudora", 4),
-        ("1.1.05", "Gastos Pagados por Anticipado", "activo", "deudora", 3),
-        ("1.1.05.01", "Seguros Pagados por Anticipado", "activo", "deudora", 4),
-        ("1.1.05.02", "Intereses Pagados por Anticipado", "activo", "deudora", 4),
-        ("1.2", "Activos No Corrientes", "activo", "deudora", 2),
-        ("1.2.01", "Propiedad, Planta y Equipo", "activo", "deudora", 3),
-        ("1.2.01.01", "Terrenos", "activo", "deudora", 4),
-        ("1.2.01.02", "Edificios", "activo", "deudora", 4),
-        ("1.2.01.03", "Mobiliario y Enseres", "activo", "deudora", 4),
-        ("1.2.01.04", "Equipo de Computación", "activo", "deudora", 4),
-        ("1.2.01.05", "Vehículos", "activo", "deudora", 4),
-        ("1.2.01.99", "Depreciación Acumulada", "activo", "deudora", 4),
-        # Pasivos
-        ("2", "Pasivos", "pasivo", "acreedora", 1),
-        ("2.1", "Pasivos Corrientes", "pasivo", "acreedora", 2),
-        ("2.1.01", "Cuentas por Pagar", "pasivo", "acreedora", 3),
-        ("2.1.01.01", "Proveedores Nacionales", "pasivo", "acreedora", 4),
-        ("2.1.01.02", "Proveedores del Exterior", "pasivo", "acreedora", 4),
-        ("2.1.01.03", "Anticipo de Clientes", "pasivo", "acreedora", 4),
-        ("2.1.02", "Obligaciones con Instituciones Financieras", "pasivo", "acreedora", 3),
-        ("2.1.02.01", "Préstamos Bancarios CP", "pasivo", "acreedora", 4),
-        ("2.1.03", "Obligaciones con el Estado", "pasivo", "acreedora", 3),
-        ("2.1.03.01", "IVA por Pagar", "pasivo", "acreedora", 4),
-        ("2.1.03.02", "Retención Renta por Pagar", "pasivo", "acreedora", 4),
-        ("2.1.03.03", "Retención IVA por Pagar", "pasivo", "acreedora", 4),
-        ("2.1.04", "Remuneraciones por Pagar", "pasivo", "acreedora", 3),
-        ("2.1.04.01", "Sueldos por Pagar", "pasivo", "acreedora", 4),
-        ("2.1.04.02", "IESS por Pagar", "pasivo", "acreedora", 4),
-        ("2.1.04.03", "Décimos por Pagar", "pasivo", "acreedora", 4),
-        ("2.2", "Pasivos No Corrientes", "pasivo", "acreedora", 2),
-        ("2.2.01", "Préstamos Bancarios LP", "pasivo", "acreedora", 3),
-        # Patrimonio
-        ("3", "Patrimonio", "patrimonio", "acreedora", 1),
-        ("3.1", "Capital", "patrimonio", "acreedora", 2),
-        ("3.1.01", "Capital Social", "patrimonio", "acreedora", 3),
-        ("3.1.02", "Reserva Legal", "patrimonio", "acreedora", 3),
-        ("3.2", "Resultados", "patrimonio", "acreedora", 2),
-        ("3.2.01", "Resultado del Ejercicio", "patrimonio", "acreedora", 3),
-        ("3.2.02", "Resultados Acumulados", "patrimonio", "acreedora", 3),
-        # Ingresos
-        ("4", "Ingresos", "ingreso", "acreedora", 1),
-        ("4.1", "Ingresos de Actividad Ordinaria", "ingreso", "acreedora", 2),
-        ("4.1.01", "Ventas", "ingreso", "acreedora", 3),
-        ("4.1.01.01", "Ventas de Bienes", "ingreso", "acreedora", 4),
-        ("4.1.01.02", "Ventas de Servicios", "ingreso", "acreedora", 4),
-        ("4.1.02", "Otros Ingresos Operacionales", "ingreso", "acreedora", 3),
-        ("4.1.02.01", "Ingresos por Comisiones", "ingreso", "acreedora", 4),
-        ("4.2", "Ingresos No Operacionales", "ingreso", "acreedora", 2),
-        ("4.2.01", "Ingresos Financieros", "ingreso", "acreedora", 3),
-        ("4.2.01.01", "Intereses Ganados", "ingreso", "acreedora", 4),
-        ("4.2.02", "Otros Ingresos", "ingreso", "acreedora", 3),
-        # Gastos
-        ("5", "Gastos", "gasto", "deudora", 1),
-        ("5.1", "Gastos de Actividad Ordinaria", "gasto", "deudora", 2),
-        ("5.1.01", "Gastos de Personal", "gasto", "deudora", 3),
-        ("5.1.01.01", "Sueldos y Salarios", "gasto", "deudora", 4),
-        ("5.1.01.02", "Aportes Patronales", "gasto", "deudora", 4),
-        ("5.1.02", "Gastos Generales", "gasto", "deudora", 3),
-        ("5.1.02.01", "Arriendos", "gasto", "deudora", 4),
-        ("5.1.02.02", "Servicios Básicos", "gasto", "deudora", 4),
-        ("5.1.02.03", "Suministros de Oficina", "gasto", "deudora", 4),
-        ("5.1.02.04", "Gastos de Transporte", "gasto", "deudora", 4),
-        ("5.1.03", "Gastos Financieros", "gasto", "deudora", 3),
-        ("5.1.03.01", "Intereses Pagados", "gasto", "deudora", 4),
-        ("5.1.03.02", "Comisiones Bancarias", "gasto", "deudora", 4),
-        # Costos
-        ("6", "Costos", "costo", "deudora", 1),
-        ("6.1", "Costo de Ventas", "costo", "deudora", 2),
-        ("6.1.01", "Costo de Bienes Vendidos", "costo", "deudora", 3),
-        ("6.1.01.01", "Costo de Mercadería Vendida", "costo", "deudora", 4),
-        ("6.2", "Costo de Servicios", "costo", "deudora", 2),
-        ("6.2.01", "Costo de Servicios Prestados", "costo", "deudora", 3),
-    ]
+    # Load official catalog from JSON
+    catalogo = _load_catalogo_oficial()
 
+    # Build a lookup for parent accounts (code -> CuentaContable)
+    parent_map: dict[str, CuentaContable] = {}
     cuentas_creadas = []
-    for codigo, nombre, tipo, naturaleza, nivel in default_accounts:
+
+    # Sort by code to ensure parents are created before children
+    catalogo.sort(key=lambda a: [int(x) for x in a["code"].split(".")])
+
+    for entry in catalogo:
+        codigo = entry["code"]
+        nombre = entry["name"]
+        tipo = entry.get("tipo", "activo")
+        naturaleza = entry.get("naturaleza", "deudora")
+        nivel = entry.get("level", 1)
+
+        # Determine parent code (everything except the last segment)
+        parts = codigo.split(".")
+        if len(parts) > 1:
+            parent_code = ".".join(parts[:-1])
+        else:
+            parent_code = None
+
         cuenta = CuentaContable(
             company_id=company_id,
             codigo=codigo,
@@ -355,6 +321,7 @@ async def seed_plan_cuentas_default(
             tipo=tipo,
             naturaleza=naturaleza,
             nivel=nivel,
+            cuenta_padre_id=parent_map[parent_code].id if parent_code and parent_code in parent_map else None,
             es_cuenta_movimiento=(nivel >= 3),
             es_imputable=(nivel >= 3),
             saldo_inicial=Decimal("0"),
@@ -363,10 +330,12 @@ async def seed_plan_cuentas_default(
             total_creditos=Decimal("0"),
         )
         db.add(cuenta)
+        parent_map[codigo] = cuenta
         cuentas_creadas.append(cuenta)
 
+    await db.flush()  # Flush to get IDs for parent references in subsequent batches
     await db.commit()
-    return {"detail": f"Se crearon {len(cuentas_creadas)} cuentas contables por defecto"}
+    return {"detail": f"Se crearon {len(cuentas_creadas)} cuentas contables del catálogo oficial del Ecuador 2026"}
 
 
 # ==========================================

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { useToast } from '@/hooks/use-toast';
 import {
-  getContabilidadStats, getCuentasContables, createCuentaContable, deleteCuentaContable, seedPlanCuentasDefault,
+  getContabilidadStats, getCuentasContables, createCuentaContable, deleteCuentaContable, seedPlanCuentasDefault, getCatalogoOficial,
   getAsientosContables, createAsientoContable, aprobarAsiento, anularAsiento,
   getCuentasPorCobrar, createCuentaPorCobrar, getEnvejecimientoCartera,
   getPagos, createPago, confirmarPago, anularPago,
@@ -46,141 +46,9 @@ const TIPOS_CUENTA = ['activo', 'pasivo', 'patrimonio', 'ingreso', 'gasto', 'cos
 const TIPOS_ASIENTO = ['ordinario', 'apertura', 'cierre', 'ajuste'];
 const TIPOS_PAGO = ['cobro', 'pago'];
 
-// ─── Catálogo completo del Plan de Cuentas ecuatoriano ──────────
-const PLAN_CUENTAS_EC: { codigo: string; nombre: string; tipo: string; naturaleza: string }[] = [
-  // ACTIVOS
-  { codigo: '1', nombre: 'Activos', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1', nombre: 'Activos Corrientes', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.01', nombre: 'Efectivo y Equivalentes', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.01.01', nombre: 'Caja General', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.01.02', nombre: 'Caja Chica', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.02', nombre: 'Bancos', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.02.01', nombre: 'Banco Cuenta Corriente', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.02.02', nombre: 'Banco Cuenta Ahorro', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.02.03', nombre: 'Banco Movil', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.03', nombre: 'Cuentas por Cobrar', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.03.01', nombre: 'Clientes Nacionales', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.03.02', nombre: 'Clientes del Exterior', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.03.03', nombre: 'Anticipo a Proveedores', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.04', nombre: 'Inventarios', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.04.01', nombre: 'Mercaderia', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.04.02', nombre: 'Materia Prima', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.04.03', nombre: 'Suministros', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.05', nombre: 'Gastos Pagados por Anticipado', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.05.01', nombre: 'Seguros Pagados por Anticipado', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.05.02', nombre: 'Intereses Pagados por Anticipado', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.05.03', nombre: 'Alquileres Pagados por Anticipado', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.06', nombre: 'IVA Pagado (Credito Tributario)', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.1.07', nombre: 'Retenciones por Pagar', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2', nombre: 'Activos No Corrientes', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.01', nombre: 'Propiedad, Planta y Equipo', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.01.01', nombre: 'Terrenos', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.01.02', nombre: 'Edificios', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.01.03', nombre: 'Maquinaria y Equipo', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.01.04', nombre: 'Mobiliario y Enseres', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.01.05', nombre: 'Equipo de Computacion', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.01.06', nombre: 'Vehiculos', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.02', nombre: 'Depreciacion Acumulada', tipo: 'activo', naturaleza: 'acreedora' },
-  { codigo: '1.2.02.01', nombre: 'Dep. Acum. Edificios', tipo: 'activo', naturaleza: 'acreedora' },
-  { codigo: '1.2.02.02', nombre: 'Dep. Acum. Maquinaria', tipo: 'activo', naturaleza: 'acreedora' },
-  { codigo: '1.2.02.03', nombre: 'Dep. Acum. Mobiliario', tipo: 'activo', naturaleza: 'acreedora' },
-  { codigo: '1.2.02.04', nombre: 'Dep. Acum. Equipo Computacion', tipo: 'activo', naturaleza: 'acreedora' },
-  { codigo: '1.2.02.05', nombre: 'Dep. Acum. Vehiculos', tipo: 'activo', naturaleza: 'acreedora' },
-  { codigo: '1.2.03', nombre: 'Activos Intangibles', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.03.01', nombre: 'Marcas y Patentes', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.03.02', nombre: 'Licencias', tipo: 'activo', naturaleza: 'deudora' },
-  { codigo: '1.2.04', nombre: 'Depreciacion Intangibles', tipo: 'activo', naturaleza: 'acreedora' },
-  // PASIVOS
-  { codigo: '2', nombre: 'Pasivos', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1', nombre: 'Pasivos Corrientes', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.01', nombre: 'Proveedores', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.01.01', nombre: 'Proveedores Nacionales', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.01.02', nombre: 'Proveedores del Exterior', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02', nombre: 'Cuentas por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.01', nombre: 'Cuentas por Pagar Comerciales', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.02', nombre: 'Sueldos por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.03', nombre: 'Vacaciones por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.04', nombre: 'Decimo Tercer Sueldo por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.05', nombre: 'Decimo Cuarto Sueldo por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.06', nombre: 'Fondos de Reserva por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.07', nombre: 'Aporte IEE por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.08', nombre: 'Aportes SECAP por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.02.09', nombre: 'Anticipos de Sueldo por Descontar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.03', nombre: 'IVA cobrado', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.04', nombre: 'Retenciones en la Fuente', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.04.01', nombre: 'Ret. IVA por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.04.02', nombre: 'Ret. Fuente IR por Pagar', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.1.05', nombre: 'Deudas Bancarias a Corto Plazo', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.2', nombre: 'Pasivos No Corrientes', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.2.01', nombre: 'Deudas Largo Plazo', tipo: 'pasivo', naturaleza: 'acreedora' },
-  { codigo: '2.2.01.01', nombre: 'Prestamos Bancarios Largo Plazo', tipo: 'pasivo', naturaleza: 'acreedora' },
-  // PATRIMONIO
-  { codigo: '3', nombre: 'Patrimonio', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.1', nombre: 'Capital Social', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.1.01', nombre: 'Capital Suscrito y Pagado', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.2', nombre: 'Reservas', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.2.01', nombre: 'Reserva Legal', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.2.02', nombre: 'Otras Reservas', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.3', nombre: 'Resultados', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.3.01', nombre: 'Resultados Acumulados', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.3.02', nombre: 'Resultado del Ejercicio', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  { codigo: '3.4', nombre: 'Dividendos por Distribuir', tipo: 'patrimonio', naturaleza: 'acreedora' },
-  // INGRESOS
-  { codigo: '4', nombre: 'Ingresos', tipo: 'ingreso', naturaleza: 'acreedora' },
-  { codigo: '4.1', nombre: 'Ingresos por Ventas', tipo: 'ingreso', naturaleza: 'acreedora' },
-  { codigo: '4.1.01', nombre: 'Ventas de Mercaderia', tipo: 'ingreso', naturaleza: 'acreedora' },
-  { codigo: '4.1.02', nombre: 'Ventas de Servicios', tipo: 'ingreso', naturaleza: 'acreedora' },
-  { codigo: '4.1.03', nombre: 'Descuentos y Bonificaciones', tipo: 'ingreso', naturaleza: 'deudora' },
-  { codigo: '4.2', nombre: 'Otros Ingresos', tipo: 'ingreso', naturaleza: 'acreedora' },
-  { codigo: '4.2.01', nombre: 'Ingresos Financieros', tipo: 'ingreso', naturaleza: 'acreedora' },
-  { codigo: '4.2.02', nombre: 'Ingresos por Diferencia de Cambio', tipo: 'ingreso', naturaleza: 'acreedora' },
-  { codigo: '4.2.03', nombre: 'Otros Ingresos Operacionales', tipo: 'ingreso', naturaleza: 'acreedora' },
-  // GASTOS
-  { codigo: '5', nombre: 'Gastos', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1', nombre: 'Gastos de Administracion', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.01', nombre: 'Sueldos y Salarios', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.02', nombre: 'Decimo Tercer Sueldo', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.03', nombre: 'Decimo Cuarto Sueldo', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.04', nombre: 'Vacaciones', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.05', nombre: 'Fondos de Reserva', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.06', nombre: 'Aportes IEE', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.07', nombre: 'Aportes SECAP', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.08', nombre: 'Aportes IESS', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.09', nombre: 'Seguro Social', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.10', nombre: 'Servicios Basicos', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.10.01', nombre: 'Servicio Electrico', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.10.02', nombre: 'Servicio de Agua', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.10.03', nombre: 'Servicio Telefonico e Internet', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.10.04', nombre: 'Servicio de Television', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.11', nombre: 'Alquileres', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.12', nombre: 'Mantenimiento y Reparaciones', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.13', nombre: 'Materiales y Suministros', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.14', nombre: 'Depreciaciones', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.15', nombre: 'Gastos de Personal', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.16', nombre: 'Gastos de Oficina', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.17', nombre: 'Gastos de Publicidad y Propaganda', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.18', nombre: 'Gastos de Viaje', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.19', nombre: 'Gastos de Asesorias', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.1.20', nombre: 'Seguros', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.2', nombre: 'Gastos de Ventas', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.2.01', nombre: 'Comisiones por Ventas', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.2.02', nombre: 'Fletes y Acarreos', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.2.03', nombre: 'Publicidad y Marketing', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.3', nombre: 'Gastos Financieros', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.3.01', nombre: 'Intereses Bancarios', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.3.02', nombre: 'Comisiones Bancarias', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.3.03', nombre: 'Diferencia en Cambio', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.3.04', nombre: 'Gastos por Impuestos', tipo: 'gasto', naturaleza: 'deudora' },
-  { codigo: '5.3.04.01', nombre: 'Impuesto a la Renta', tipo: 'gasto', naturaleza: 'deudora' },
-  // COSTOS
-  { codigo: '6', nombre: 'Costos', tipo: 'costo', naturaleza: 'deudora' },
-  { codigo: '6.1', nombre: 'Costo de Ventas', tipo: 'costo', naturaleza: 'deudora' },
-  { codigo: '6.1.01', nombre: 'Costo de Mercaderia Vendida', tipo: 'costo', naturaleza: 'deudora' },
-  { codigo: '6.2', nombre: 'Costos de Produccion', tipo: 'costo', naturaleza: 'deudora' },
-  { codigo: '6.2.01', nombre: 'Materia Prima Directa', tipo: 'costo', naturaleza: 'deudora' },
-  { codigo: '6.2.02', nombre: 'Mano de Obra Directa', tipo: 'costo', naturaleza: 'deudora' },
-  { codigo: '6.2.03', nombre: 'Costos Indirectos de Fabricacion', tipo: 'costo', naturaleza: 'deudora' },
-];
+// Catálogo se carga dinámicamente desde el backend (3,633 cuentas del MEF)
+// El tipo CatalogoItem se define dentro de PlanCuentasTab
+
 
 const NIVEL_OPTIONS = [
   { value: 1, label: 'Nivel 1 - Grupo' },
@@ -368,9 +236,26 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
   const [creating, setCreating] = useState(false);
   const [codeSearchQuery, setCodeSearchQuery] = useState('');
   const [showCodeSelector, setShowCodeSelector] = useState(false);
+  type CatalogoItem = { code: string; name: string; tipo: string; naturaleza: string; level: number };
+  const [catalogo, setCatalogo] = useState<CatalogoItem[]>([]);
+  const [loadingCatalogo, setLoadingCatalogo] = useState(true);
   const [form, setForm] = useState<CuentaContableCreate>({
     codigo: '', nombre: '', tipo: 'activo', naturaleza: 'deudora', nivel: 1, es_cuenta_movimiento: true, es_imputable: true, saldo_inicial: 0, notas: '',
   });
+
+  const loadCatalogo = useCallback(async () => {
+    try {
+      const data = await getCatalogoOficial();
+      setCatalogo(data);
+    } catch {
+      // Fallback vacío si falla
+      setCatalogo([]);
+    } finally {
+      setLoadingCatalogo(false);
+    }
+  }, []);
+
+  useEffect(() => { loadCatalogo(); }, [loadCatalogo]);
 
   const loadData = useCallback(async () => {
     if (!companyId) return;
@@ -430,17 +315,17 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
     }
   }
 
-  function selectCode(item: typeof PLAN_CUENTAS_EC[0]) {
-    const nivel = item.codigo.split('.').length;
-    setForm({ ...form, codigo: item.codigo, nombre: item.nombre, tipo: item.tipo as any, naturaleza: item.naturaleza as any, nivel });
+  function selectCode(item: CatalogoItem) {
+    const nivel = item.level || item.code.split('.').length;
+    setForm({ ...form, codigo: item.code, nombre: item.name, tipo: (item.tipo || 'activo') as any, naturaleza: (item.naturaleza || 'deudora') as any, nivel });
     setShowCodeSelector(false);
     setCodeSearchQuery('');
   }
 
-  const filteredCodes = PLAN_CUENTAS_EC.filter(c =>
+  const filteredCodes = catalogo.filter(c =>
     codeSearchQuery === '' ||
-    c.codigo.toLowerCase().includes(codeSearchQuery.toLowerCase()) ||
-    c.nombre.toLowerCase().includes(codeSearchQuery.toLowerCase())
+    c.code.toLowerCase().includes(codeSearchQuery.toLowerCase()) ||
+    c.name.toLowerCase().includes(codeSearchQuery.toLowerCase())
   );
 
   return (
@@ -528,7 +413,7 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
             {filteredCodes.length > 0 ? (
               <div className="divide-y">
                 {filteredCodes.map((item, idx) => {
-                  const depth = item.codigo.split('.').length;
+                  const depth = (item.level || item.code.split('.').length);
                   return (
                     <button
                       key={idx}
@@ -536,10 +421,10 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
                       style={{ paddingLeft: `${12 + depth * 16}px` }}
                       onClick={() => selectCode(item)}
                     >
-                      <span className="font-mono text-xs text-primary font-medium min-w-[80px]">{item.codigo}</span>
-                      <span className="text-sm flex-1">{item.nombre}</span>
+                      <span className="font-mono text-xs text-primary font-medium min-w-[80px]">{item.code}</span>
+                      <span className="text-sm flex-1">{item.name}</span>
                       <Badge variant="outline" className="text-[10px]">
-                        {NIVEL_OPTIONS.find(n => n.value === depth)?.label || `Nivel ${depth}`}
+                        {NIVEL_OPTIONS.find(n => n.value === (item.level || depth))?.label || `Nivel ${item.level || depth}`}
                       </Badge>
                     </button>
                   );
