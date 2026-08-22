@@ -189,32 +189,6 @@ sudo systemctl status postgresql@17-main
 sudo ss -tlnp | grep 5432
 pg_isready -h localhost -p 5432
 ```
-### Locale del sistema (o configuración de locales)
-# # 1. Instalar el paquete locales
-# sudo apt-get install locales
-# # 2. Generar el locale es_EC.UTF-8
-# sudo locale-gen es_EC.UTF-8
-# # 3. Reconfigurar locales
-# sudo dpkg-reconfigure locales
-# # 4. Selecciona es_EC.UTF-8 como default
-# sudo locale-gen es_EC.UTF-8
-# # 5. Verificar que se instaló
-# locale -a | grep es_EC
-# # 6. Verificar el locale disponible
-# locale -a | grep UTF-8
-# # 7. Configurar permanentemente
-# sudo sed -i 's/^# *es_EC.UTF-8 UTF-8/es_EC.UTF-8 UTF-8/' /etc/locale.gen
-# sudo locale-gen
-# # 8. Validación de la configuración
-# nl /etc/default/locale
-# locale -a | grep es_EC
-# # 9. Reinicia el shell o ejecuta:
-# bash
-# # 10. Luego verifica:
-# locale
-# # 11. Verifica que ya no aparezca el error
-# perl -v
-
 ---
 
 ### 4.3 Configuración de la Base de Datos
