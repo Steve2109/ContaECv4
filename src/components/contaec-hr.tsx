@@ -682,13 +682,18 @@ function CargasFamiliaresTab({ companyId }: { companyId: string }) {
   useEffect(() => { loadCargas(); }, [loadCargas]);
 
   async function handleAdd() {
-    if (!form.nombres || !form.apellidos) { toast.error('Complete nombres y apellidos'); return; }
+    const missing: string[] = [];
+    if (!selectedEmployee) missing.push('Empleado');
+    if (!form.nombres.trim()) missing.push('Nombres');
+    if (!form.apellidos.trim()) missing.push('Apellidos');
+    if (!form.parentesco) missing.push('Parentesco');
+    if (missing.length) { toast.error(`Complete los campos requeridos: ${missing.join(', ')}`); return; }
     setSaving(true);
     try {
       await createCargaFamiliar({
         employee_id: selectedEmployee,
-        nombres: form.nombres,
-        apellidos: form.apellidos,
+        nombres: form.nombres.trim(),
+        apellidos: form.apellidos.trim(),
         parentesco: form.parentesco,
         fecha_nacimiento: form.fecha_nacimiento || undefined,
         discapacidad: form.discapacidad,
@@ -904,7 +909,7 @@ function AsistenciaTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
-        <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" /> Registrar Asistencia</Button>
+        <Button onClick={async () => { try { const empData = await getEmployees({ company_id: companyId }); setEmployees(empData); } catch { /* keep existing */ } setShowCreate(true); }}><Plus className="mr-2 h-4 w-4" /> Registrar Asistencia</Button>
       </div>
 
       {records.length > 0 ? (
@@ -1065,7 +1070,7 @@ function LiquidacionesTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
-        <Button onClick={() => setShowCalculate(true)}><Calculator className="mr-2 h-4 w-4" /> Calcular Liquidación</Button>
+        <Button onClick={async () => { const empData = await getEmployees({ company_id: companyId }); setEmployees(empData); setShowCalculate(true); }}><Calculator className="mr-2 h-4 w-4" /> Calcular Liquidación</Button>
       </div>
 
       {liquidaciones.length > 0 ? (
@@ -1195,16 +1200,19 @@ function UtilidadesTab({ companyId }: { companyId: string }) {
   useEffect(() => { loadData(); }, [loadData]);
 
   async function handleCalculate() {
+    if (!companyId) { toast.error('Seleccione una empresa'); return; }
     if (!totalUtilidades || Number(totalUtilidades) <= 0) {
       toast.error('Ingrese el total de utilidades de la empresa');
       return;
     }
     setCalculating(true);
     try {
+      const numAnio = Number(anio) || new Date().getFullYear();
+      const numTotal = Number(totalUtilidades);
       const data = await calcularUtilidades({
         company_id: companyId,
-        anio: Number(anio),
-        total_utilidades: Number(totalUtilidades),
+        anio: numAnio,
+        total_utilidades: numTotal,
       });
       setUtilidades(data);
       toast.success('Utilidades calculadas');

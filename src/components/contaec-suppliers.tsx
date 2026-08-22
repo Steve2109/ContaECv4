@@ -292,7 +292,7 @@ export function ContaECSuppliers({ user: _user, companies }: ContaECSuppliersPro
             <div className="space-y-4 pr-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Tipo Identificación</Label><Select value={form.tipo_identificacion} onValueChange={(v) => setForm({ ...form, tipo_identificacion: v })}><SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger><SelectContent><SelectItem value="04">RUC</SelectItem><SelectItem value="05">Cédula</SelectItem><SelectItem value="06">Pasaporte</SelectItem><SelectItem value="08">Exterior</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Identificación</Label><Input value={form.identificacion} onChange={(e) => setForm({ ...form, identificacion: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Identificación</Label><Input value={form.identificacion} onChange={(e) => setForm({ ...form, identificacion: e.target.value.replace(/\D/g, '').slice(0, 13) })} maxLength={13} inputMode="numeric" placeholder="1790000000001" /></div>
               </div>
               <div className="space-y-2"><Label>Razón Social</Label><Input value={form.razon_social} onChange={(e) => setForm({ ...form, razon_social: e.target.value })} /></div>
               <div className="space-y-2"><Label>Nombre Comercial</Label><Input value={form.nombre_comercial} onChange={(e) => setForm({ ...form, nombre_comercial: e.target.value })} /></div>

@@ -9,6 +9,7 @@ import asyncio
 import smtplib
 import aiofiles
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 from typing import Optional
 
@@ -849,6 +850,25 @@ async def get_company_logo(
                     config.company_logo_path = logo_path
                     await db.flush()
                 break
+
+    # Resolve relative paths like "/uploads/companies/..." to absolute
+    def _resolve_logo(p: str) -> str:
+        if os.path.isfile(p):
+            return p
+        # Try resolving relative to project root
+        project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+        candidates = [
+            project_root / p.lstrip('/'),  # /uploads/... → {root}/uploads/...
+            Path(settings.UPLOAD_DIR) / p.replace('/uploads/', ''),
+        ]
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved.is_file():
+                return str(resolved)
+        return p  # fallback
+
+    if logo_path:
+        logo_path = _resolve_logo(logo_path)
 
     if not logo_path or not os.path.isfile(logo_path):
         raise HTTPException(

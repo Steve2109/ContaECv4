@@ -268,6 +268,7 @@ function POSTerminalView({
     banco: '',
     titular: '',
     ultimos4: '',
+    autorizacion: '',
   });
   const [creating, setCreating] = useState(false);
   const [lastTicket, setLastTicket] = useState<POSTicket | null>(null);
@@ -337,7 +338,11 @@ function POSTerminalView({
 
   // Barcode scan handler
   async function handleBarcodeScan() {
-    if (!barcodeInput.trim()) return;
+    if (!barcodeInput.trim()) {
+      barcodeRef.current?.focus();
+      toast.info('Escanee el código de barras o escriba el código del producto');
+      return;
+    }
     try {
       const results = await searchProductByBarcode(barcodeInput.trim(), companyId);
       if (results.length > 0) {
@@ -420,7 +425,7 @@ function POSTerminalView({
     setPropina('');
     setUseCustomClient(false);
     setCustomClient({ tipo_identificacion: '05', identificacion: '', nombre: '', direccion: '', telefono: '', email: '' });
-    setCardData({ tipo: 'credito', marca: 'visa', banco: '', titular: '', ultimos4: '' });
+    setCardData({ tipo: 'credito', marca: 'visa', banco: '', titular: '', ultimos4: '', autorizacion: '' });
   }
 
   // Cart calculations
@@ -484,13 +489,19 @@ function POSTerminalView({
     }
     const usaTarjeta = tipoVenta === 'tarjeta' || tipoVenta === 'mixto';
     const esConsumidorFinal = useCustomClient && customClient.tipo_identificacion === '07';
-    if (tipoVenta === 'tarjeta' && cardData.ultimos4.length !== 4) {
-      toast.error('Ingrese los 4 ultimos digitos de la tarjeta');
-      return;
-    }
-    if (tipoVenta === 'tarjeta' && !cardData.titular.trim()) {
-      toast.error('Ingrese el nombre del titular de la tarjeta');
-      return;
+    if (tipoVenta === 'tarjeta') {
+      if (cardData.ultimos4.length !== 4) {
+        toast.error('Ingrese los 4 ultimos digitos de la tarjeta');
+        return;
+      }
+      if (!cardData.titular.trim()) {
+        toast.error('Ingrese el nombre del titular de la tarjeta');
+        return;
+      }
+      if (!cardData.autorizacion.trim()) {
+        toast.error('Ingrese el código de autorización de la transacción');
+        return;
+      }
     }
     if (tipoVenta === 'mixto') {
       const efectivoMixto = Number(montoEfectivoMixto) || 0;
@@ -499,9 +510,19 @@ function POSTerminalView({
         toast.error('Los montos no cubren el total');
         return;
       }
-      if (tarjetaMixto > 0 && cardData.ultimos4.length !== 4) {
-        toast.error('Ingrese los 4 ultimos digitos de la tarjeta');
-        return;
+      if (tarjetaMixto > 0) {
+        if (cardData.ultimos4.length !== 4) {
+          toast.error('Ingrese los 4 ultimos digitos de la tarjeta');
+          return;
+        }
+        if (!cardData.titular.trim()) {
+          toast.error('Ingrese el nombre del titular de la tarjeta');
+          return;
+        }
+        if (!cardData.autorizacion.trim()) {
+          toast.error('Ingrese el código de autorización de la transacción');
+          return;
+        }
       }
     }
     if (useCustomClient && !esConsumidorFinal && (!customClient.nombre.trim() || !customClient.identificacion.trim())) {
@@ -538,6 +559,7 @@ function POSTerminalView({
         tarjeta_marca: usaTarjeta ? cardData.marca : undefined,
         tarjeta_banco: usaTarjeta && cardData.banco.trim() ? cardData.banco.trim() : undefined,
         tarjeta_titular: usaTarjeta ? cardData.titular.trim() : undefined,
+        referencia_pago: usaTarjeta && cardData.autorizacion.trim() ? cardData.autorizacion.trim() : undefined,
       };
 
       if (tipoVenta === 'efectivo') {
@@ -656,9 +678,9 @@ function POSTerminalView({
           <div className="flex gap-2">
             <div className="relative flex-1">
               <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600" />
-              <NumericInput ref={barcodeRef}
+              <Input ref={barcodeRef}
  className="pl-10 h-12 text-base"
- placeholder="Escanear codigo de barras..."
+ placeholder="Escanear codigo de barras o buscar..."
  value={barcodeInput}
  onChange={(e) => setBarcodeInput(e.target.value)}
  onKeyDown={(e) => { if (e.key === 'Enter') handleBarcodeScan(); }}
@@ -667,6 +689,7 @@ function POSTerminalView({
  </div>
  <Button size="lg" className="h-12 bg-emerald-600 hover:bg-emerald-700 min-w-[80px]" onClick={handleBarcodeScan}>
  <ScanLine className="h-5 w-5" />
+ <span className="ml-1 hidden sm:inline">Escanear</span>
  </Button>
  </div>
 
@@ -764,8 +787,7 @@ function POSTerminalView({
  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateCartItemQty(item.productId, 1)}>
  <Plus className="h-3 w-3" />
  </Button>
- <Input
- className="h-7 w-16 text-xs"
+ <NumericInput integer className="h-7 w-16 text-xs"
  
  placeholder="Desc%"
  value={item.descuento || ''}
@@ -839,11 +861,12 @@ function POSTerminalView({
                       </SelectContent>
                     </Select>
                     {customClient.tipo_identificacion !== '07' && (
-                      <NumericInput className="h-9 text-sm"
+                      <Input className="h-9 text-sm"
  placeholder="Identificación * (cédula / RUC / pasaporte)"
  value={customClient.identificacion}
- onChange={(e) => setCustomClient({ ...customClient, identificacion: e.target.value })}
+ onChange={(e) => setCustomClient({ ...customClient, identificacion: e.target.value.replace(/\D/g, '').slice(0, 13) })}
  maxLength={13}
+ inputMode="numeric"
  />
  )}
  {customClient.tipo_identificacion !== '07' && (
@@ -1039,8 +1062,8 @@ function CardPaymentFields({
   cardData,
   setCardData,
 }: {
-  cardData: { tipo: string; marca: string; banco: string; titular: string; ultimos4: string };
-  setCardData: React.Dispatch<React.SetStateAction<{ tipo: string; marca: string; banco: string; titular: string; ultimos4: string }>>;
+  cardData: { tipo: string; marca: string; banco: string; titular: string; ultimos4: string; autorizacion: string };
+  setCardData: React.Dispatch<React.SetStateAction<{ tipo: string; marca: string; banco: string; titular: string; ultimos4: string; autorizacion: string }>>;
 }) {
   const MARCAS_TARJETA = [
     { key: 'visa', label: 'Visa' },
@@ -1078,30 +1101,44 @@ function CardPaymentFields({
           </Select>
         </div>
       </div>
-      <NumericInput className="h-9 text-sm"
- placeholder="Banco emisor (ej: Banco Pichincha)"
- value={cardData.banco}
- onChange={(e) => setCardData({ ...cardData, banco: e.target.value })}
- />
- <Input
- className="h-9 text-sm"
- placeholder="Nombre del titular *"
- value={cardData.titular}
- onChange={(e) => setCardData({ ...cardData, titular: e.target.value })}
- />
- <div>
- <Label className="text-xs">Últimos 4 dígitos de la tarjeta *</Label>
- <Input
- className="h-10 text-base tracking-[0.3em]"
- maxLength={4}
- inputMode="numeric"
- value={cardData.ultimos4}
- onChange={(e) => setCardData({ ...cardData, ultimos4: e.target.value.replace(/\D/g, '') })}
- placeholder="•••• 0000"
- />
- </div>
- </div>
- );
+      <Input
+        className="h-9 text-sm"
+        placeholder="Banco emisor (ej: Banco Pichincha)"
+        value={cardData.banco}
+        onChange={(e) => setCardData({ ...cardData, banco: e.target.value })}
+      />
+      <Input
+        className="h-9 text-sm"
+        placeholder="Nombre del titular de la tarjeta *"
+        value={cardData.titular}
+        onChange={(e) => setCardData({ ...cardData, titular: e.target.value })}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">Últimos 4 dígitos *</Label>
+          <Input
+            className="h-9 text-sm tracking-[0.3em]"
+            maxLength={4}
+            inputMode="numeric"
+            value={cardData.ultimos4}
+            onChange={(e) => setCardData({ ...cardData, ultimos4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+            placeholder="0000"
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Código de autorización *</Label>
+          <Input
+            className="h-9 text-sm"
+            maxLength={6}
+            inputMode="numeric"
+            value={cardData.autorizacion}
+            onChange={(e) => setCardData({ ...cardData, autorizacion: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+            placeholder="000000"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ChangeDialog({
@@ -1518,7 +1555,7 @@ function SesionesTab({ companyId, companies }: { companyId: string; companies: C
  </div>
  <div className="space-y-2">
  <Label>Monto de Apertura ($)</Label>
- <Input value={sessionForm.monto_apertura} onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })} placeholder="0.00" />
+ <NumericInput value={sessionForm.monto_apertura} onChange={(e) => setSessionForm({ ...sessionForm, monto_apertura: e.target.value })} placeholder="0.00" />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowOpenDialog(false)}>Cancelar</Button>

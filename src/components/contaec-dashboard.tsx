@@ -844,11 +844,12 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                   <div className="col-span-2 space-y-2">
                     <Label htmlFor="nc-ruc">RUC <span className="text-red-500">*</span></Label>
                     <div className="flex gap-2">
-                      <NumericInput id="nc-ruc"
+                      <Input id="nc-ruc"
  placeholder="1790000000001"
  value={newCompany.ruc}
  onChange={(e) => setNewCompany({ ...newCompany, ruc: e.target.value.replace(/\D/g, '').slice(0, 13) })}
  maxLength={13}
+ inputMode="numeric"
  />
  <Button
  type="button"
@@ -1018,7 +1019,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
  <div className="grid grid-cols-2 gap-3">
  {/* Logo Empresa */}
  <div className="space-y-2">
- <Label htmlFor="nc-logo">Logo Empresa <span className="text-xs text-muted-foreground">(.webp)</span></Label>
+ <Label htmlFor="nc-logo">Logo Empresa (.webp)</Label>
  <label
  htmlFor="nc-logo"
  className="flex flex-col items-center justify-center w-full h-24 rounded-md border border-dashed border-input bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -1026,7 +1027,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
  <Upload className="h-5 w-5 text-muted-foreground mb-1" />
  <span className="text-sm font-medium text-foreground">Subir Archivo</span>
  </label>
- <input id="nc-logo" type="file" accept=".webp" ref={logoInputRef} className="hidden" />
+ <input id="nc-logo" type="file" accept="image/webp,.webp" ref={logoInputRef} className="hidden" />
  </div>
  {/* Firma Electronica */}
  <div className="space-y-2">

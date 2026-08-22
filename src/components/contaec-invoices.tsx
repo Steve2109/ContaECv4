@@ -1602,8 +1602,7 @@ function EditarComprobanteDialog({
  </div>
  <div className="space-y-1">
  <Label className="text-xs">Cantidad</Label>
- <Input
- className="h-8 text-sm"
+ <NumericInput integer className="h-8 text-sm"
  
  value={item.cantidad}
  onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })} />
@@ -2028,7 +2027,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
  </div>
  <div className="space-y-2">
  <Label htmlFor="base-imponible">Base Imponible</Label>
- <Input
+ <NumericInput
  id="base-imponible"
  
  placeholder="0.00"
@@ -2520,8 +2519,10 @@ function ClientSelector({
  <Label>Identificación</Label>
  <Input
  value={newClient.identificacion}
- onChange={(e) => setNewClient({ ...newClient, identificacion: e.target.value })}
+ onChange={(e) => setNewClient({ ...newClient, identificacion: e.target.value.replace(/\D/g, '').slice(0, 13) })}
  placeholder="1712345678"
+ maxLength={13}
+ inputMode="numeric"
  />
  </div>
  </div>
@@ -2777,7 +2778,7 @@ function ItemsEditor({
  </div>
  <div className="space-y-1">
  <Label className="text-xs">Cantidad</Label>
- <Input
+ <NumericInput integer
  
  value={item.cantidad}
  onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })}
@@ -3211,7 +3212,7 @@ function ProductosTab({ companyId }: { companyId: string }) {
  <div className="grid grid-cols-2 gap-4">
  <div className="space-y-2">
  <Label>Precio Unitario</Label>
- <Input
+ <NumericInput
  
  value={form.precio_unitario}
  onChange={(e) => setForm({ ...form, precio_unitario: parseFloat(e.target.value) || 0 })} />
@@ -3599,9 +3600,9 @@ function ClientesTab({ companyId }: { companyId: string }) {
  <Label>Identificación</Label>
  <Input
  value={form.identificacion}
- onChange={(e) => setForm({ ...form, identificacion: e.target.value })}
+ onChange={(e) => setForm({ ...form, identificacion: e.target.value.replace(/\D/g, '').slice(0, 13) })}
  placeholder="1712345678"
- pattern="[0-9]*"
+ maxLength={13}
  inputMode="numeric"
  />
  </div>
@@ -4798,7 +4799,7 @@ function ProformaItemsEditor({
  </div>
  <div className="space-y-1">
  <Label className="text-xs">Cantidad</Label>
- <Input
+ <NumericInput integer
  
  value={item.cantidad}
  onChange={(e) => updateItem(i, { cantidad: parseFloat(e.target.value) || 0 })}

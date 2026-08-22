@@ -310,7 +310,7 @@ function RegularUserSettings() {
               {companyConfig && (
                 <Badge variant="outline" className="text-xs whitespace-nowrap">
                   <CheckCircle2 className="mr-1 h-3 w-3 text-emerald-600" />
-                  {companyConfig.environment_mode === 'production' ? 'Produccion' : 'Pruebas (Sandbox)'}
+                  {companyConfig?.environment_mode === 'production' ? 'Produccion' : 'Pruebas (Sandbox)'}
                 </Badge>
               )}
             </div>
@@ -632,7 +632,14 @@ function ProfileTab({
 }) {
   const { theme: appliedTheme, setTheme } = useTheme();
   const [fullName, setFullName] = useState(config.user.full_name);
-  const [phone, setPhone] = useState(config.user.phone || '');
+  const [phone, setPhone] = useState(config.user.phone || companyConfig?.telefono || '');
+
+  // Sync phone from config when it changes (e.g. after company creation syncs phone to user)
+  useEffect(() => {
+    if (!phone && (config.user.phone || companyConfig?.telefono)) {
+      setPhone(config.user.phone || companyConfig?.telefono || '');
+    }
+  }, [config.user.phone, companyConfig?.telefono]);
   const [language, setLanguage] = useState(config.user.language || 'es_EC');
   // El select de tema se inicializa y se mantiene sincronizado con el tema
   // realmente aplicado (incluido el toggle de la parte superior). Así no se
@@ -704,11 +711,17 @@ function ProfileTab({
       return;
     }
     setLogoFileName(file.name);
+    // Show immediate preview from the local file
+    const previewUrl = URL.createObjectURL(file);
+    setLogoUrl(previewUrl);
     setUploadingLogo(true);
     try {
       await uploadCompanyLogo(file);
       toast.success('Logo actualizado correctamente');
-      onConfigUpdate();
+      // Reload config and then refresh the blob URL from the server
+      await onConfigUpdate();
+      const serverUrl = await getCompanyLogoBlobUrl();
+      if (serverUrl) setLogoUrl(serverUrl);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al subir logo');
     } finally {
@@ -940,7 +953,7 @@ function ProfileTab({
  <input
  id="logo-upload"
  type="file"
- accept=".webp"
+ accept="image/webp,.webp"
  className="hidden"
  onChange={handleLogoUpload}
  />
@@ -1123,18 +1136,32 @@ function SignatureTab({
  Estado de Firma Electrónica
  </CardTitle>
  <CardDescription>Estado actual de su firma digital registrada</CardDescription>
- </CardHeader>
- <CardContent className="space-y-4">
- {companyConfig?.firma_electronica_path && selectedCompanyId && (
- <div className="flex items-center gap-2 text-sm text-amber-600">
- <Building2 className="h-4 w-4" />
- <span className="font-medium">Usando firma de la empresa seleccionada</span>
- </div>
- )}
- <div className="flex items-center justify-between">
- <span className="text-sm text-muted-foreground">Estado</span>
- {getStatusBadge(config.signature_status)}
- </div>
+ </CardHeader> <CardContent className="space-y-4">
+        {/* Firma from companyConfig when UserConfig doesn't have it */}
+        {companyConfig?.firma_electronica_path && selectedCompanyId && !config.has_digital_signature && (
+          <Alert className="border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/20">
+            <Building2 className="h-4 w-4 text-emerald-600" />
+            <AlertTitle className="text-emerald-700 dark:text-emerald-400">Firma disponible en la empresa</AlertTitle>
+            <AlertDescription className="text-emerald-600 dark:text-emerald-400">
+              La empresa seleccionada tiene una firma electrónica registrada. La sincronización con su perfil se realizará automáticamente al cargar la página.
+            </AlertDescription>
+          </Alert>
+        )}
+        {companyConfig?.firma_electronica_path && selectedCompanyId && config.has_digital_signature && (
+          <div className="flex items-center gap-2 text-sm text-amber-600">
+            <Building2 className="h-4 w-4" />
+            <span className="font-medium">Usando firma de la empresa seleccionada</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Estado</span>
+          {config.has_digital_signature
+            ? getStatusBadge(config.signature_status)
+            : companyConfig?.firma_electronica_path
+              ? <Badge variant="secondary"><Clock className="mr-1 h-3 w-3" />Pendiente de sincronizar</Badge>
+              : getStatusBadge(config.signature_status)
+          }
+        </div>
 
  {config.signature_expiry_date && (
  <div className="flex items-center justify-between">
@@ -1481,61 +1508,67 @@ function SignatureTab({
 
 // ─── Environment Tab ────────────────────────────────────────────
 function EnvironmentTab({
- config,
- companyConfig: _companyConfig,
- selectedCompanyId: _selectedCompanyId,
- onConfigUpdate,
+  config,
+  companyConfig,
+  selectedCompanyId,
+  onConfigUpdate,
 }: {
- config: UserConfig;
- companyConfig: CompanyConfig | null;
- selectedCompanyId: string;
- onConfigUpdate: () => void;
+  config: UserConfig;
+  companyConfig: CompanyConfig | null;
+  selectedCompanyId: string;
+  onConfigUpdate: () => void;
 }) {
- const [switching, setSwitching] = useState(false);
- const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
- const [showConfirmDialog, setShowConfirmDialog] = useState(false);
- const [pendingMode, setPendingMode] = useState<'sandbox' | 'production' | null>(null);
+  const [switching, setSwitching] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingMode, setPendingMode] = useState<'sandbox' | 'production' | null>(null);
 
- // Mensaje de advertencia segun el estado real de la firma electronica.
- // El backend solo bloquea produccion sin firma o con firma expirada;
- // si la firma esta 'uploaded' (sin fecha de expiracion) el cambio si procede.
- const signatureWarning =
- config.signature_status === 'expired'
- ? 'Su firma electronica esta expirada. El SRI rechazara los comprobantes emitidos en produccion hasta que renueve la firma en la pestana Firma Electronica.'
- : config.signature_status === 'uploaded'
- ? 'Su firma electronica no tiene informacion de expiracion registrada. Verifique que este vigente antes de operar en produccion, ya que el SRI podria rechazar los comprobantes.'
- : 'No tiene una firma electronica registrada. Para operar en produccion, el SRI requiere una firma electronica valida. Registre su firma en la pestana Firma Electronica antes de emitir comprobantes.';
+  // Use company-level environment mode when available, fallback to user-level
+  const currentMode = (companyConfig?.environment_mode || config.environment_mode) as 'sandbox' | 'production';
 
- async function handleSwitchMode(mode: 'sandbox' | 'production') {
- if (mode === 'production' && config.signature_status !== 'valid') {
- setPendingMode(mode);
- setShowConfirmDialog(true);
- return;
- }
- await doSwitchMode(mode);
- }
+  // Mensaje de advertencia segun el estado real de la firma electronica.
+  const signatureWarning =
+    config.signature_status === 'expired'
+      ? 'Su firma electronica esta expirada. El SRI rechazara los comprobantes emitidos en produccion hasta que renueve la firma en la pestana Firma Electronica.'
+      : config.signature_status === 'uploaded'
+        ? 'Su firma electronica no tiene informacion de expiracion registrada. Verifique que este vigente antes de operar en produccion, ya que el SRI podria rechazar los comprobantes.'
+        : 'No tiene una firma electronica registrada. Para operar en produccion, el SRI requiere una firma electronica valida. Registre su firma en la pestana Firma Electronica antes de emitir comprobantes.';
 
- async function doSwitchMode(mode: 'sandbox' | 'production') {
- setSwitching(true);
- setMessage(null);
- setShowConfirmDialog(false);
- try {
- await switchEnvironmentMode(mode);
- setMessage({
- type: 'success',
- text: `Ambiente cambiado a ${mode === 'sandbox' ? 'Pruebas' : 'Producción'} correctamente`,
- });
- onConfigUpdate();
- } catch (err) {
- setMessage({
- type: 'error',
- text: err instanceof Error ? err.message : 'Error al cambiar ambiente',
- });
- } finally {
- setSwitching(false);
- setPendingMode(null);
- }
- }
+  async function handleSwitchMode(mode: 'sandbox' | 'production') {
+    if (mode === 'production' && config.signature_status !== 'valid') {
+      setPendingMode(mode);
+      setShowConfirmDialog(true);
+      return;
+    }
+    await doSwitchMode(mode);
+  }
+
+  async function doSwitchMode(mode: 'sandbox' | 'production') {
+    setSwitching(true);
+    setMessage(null);
+    setShowConfirmDialog(false);
+    try {
+      // Save to company config (per-company setting)
+      if (selectedCompanyId) {
+        await updateCompanyConfig(selectedCompanyId, { environment_mode: mode } as Partial<CompanyConfig>);
+      }
+      // Also sync to user config for backwards compatibility
+      await switchEnvironmentMode(mode);
+      setMessage({
+        type: 'success',
+        text: `Ambiente cambiado a ${mode === 'sandbox' ? 'Pruebas' : 'Produccion'} correctamente`,
+      });
+      onConfigUpdate();
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Error al cambiar ambiente',
+      });
+    } finally {
+      setSwitching(false);
+      setPendingMode(null);
+    }
+  }
 
  return (
  <div className="space-y-6">
@@ -1567,12 +1600,12 @@ function EnvironmentTab({
  <span className="text-sm text-muted-foreground">Modo Actual</span>
  <Badge
  className={
- config.environment_mode === 'production'
+ currentMode === 'production'
  ? 'bg-emerald-600 hover:bg-emerald-700'
  : 'bg-amber-500 hover:bg-amber-600'
  }
  >
- {config.environment_mode === 'sandbox' ? 'Pruebas' : 'Producción'}
+ {currentMode === 'sandbox' ? 'Pruebas' : 'Producción'}
  </Badge>
  </div>
  </CardContent>
@@ -1583,7 +1616,7 @@ function EnvironmentTab({
  {/* Sandbox Card */}
  <Card
  className={`cursor-pointer transition-all ${
- config.environment_mode === 'sandbox'
+ currentMode === 'sandbox'
  ? 'ring-2 ring-amber-500 border-amber-500'
  : 'hover:border-amber-300'
  }`}
@@ -1595,7 +1628,7 @@ function EnvironmentTab({
  <TestTube className="h-4 w-4 text-amber-500" />
  Pruebas (Sandbox)
  </CardTitle>
- {config.environment_mode === 'sandbox' && (
+ {currentMode === 'sandbox' && (
  <Badge className="bg-amber-500">Activo</Badge>
  )}
  </div>
@@ -1619,10 +1652,10 @@ function EnvironmentTab({
  </li>
  </ul>
  <Button
- variant={config.environment_mode === 'sandbox' ? 'default' : 'outline'}
+ variant={currentMode === 'sandbox' ? 'default' : 'outline'}
  size="sm"
  className="w-full"
- disabled={config.environment_mode === 'sandbox' || switching}
+ disabled={currentMode === 'sandbox' || switching}
  onClick={(e) => {
  e.stopPropagation();
  handleSwitchMode('sandbox');
@@ -1639,7 +1672,7 @@ function EnvironmentTab({
  {/* Production Card */}
  <Card
  className={`cursor-pointer transition-all ${
- config.environment_mode === 'production'
+ currentMode === 'production'
  ? 'ring-2 ring-emerald-500 border-emerald-500'
  : 'hover:border-emerald-300'
  }`}
@@ -1651,7 +1684,7 @@ function EnvironmentTab({
  <Globe className="h-4 w-4 text-emerald-600" />
  Producción
  </CardTitle>
- {config.environment_mode === 'production' && (
+ {currentMode === 'production' && (
  <Badge className="bg-emerald-600">Activo</Badge>
  )}
  </div>
@@ -1676,10 +1709,10 @@ function EnvironmentTab({
  </li>
  </ul>
  <Button
- variant={config.environment_mode === 'production' ? 'default' : 'outline'}
+ variant={currentMode === 'production' ? 'default' : 'outline'}
  size="sm"
  className="w-full"
- disabled={config.environment_mode === 'production' || switching}
+ disabled={currentMode === 'production' || switching}
  onClick={(e) => {
  e.stopPropagation();
  handleSwitchMode('production');
@@ -1733,22 +1766,23 @@ function EnvironmentTab({
 
 // ─── SMTP Tab ───────────────────────────────────────────────────
 function SMTPTab({
- config,
- companyConfig: _companyConfig,
- selectedCompanyId,
- onConfigUpdate,
+  config,
+  companyConfig,
+  selectedCompanyId,
+  onConfigUpdate,
 }: {
- config: UserConfig;
- companyConfig: CompanyConfig | null;
- selectedCompanyId: string;
- onConfigUpdate: () => void;
+  config: UserConfig;
+  companyConfig: CompanyConfig | null;
+  selectedCompanyId: string;
+  onConfigUpdate: () => void;
 }) {
- const [smtpHost, setSmtpHost] = useState(config.smtp_host || '');
- const [smtpPort, setSmtpPort] = useState(config.smtp_port?.toString() || '587');
- const [smtpUser, setSmtpUser] = useState(config.smtp_user || '');
- const [smtpPassword, setSmtpPassword] = useState('');
- const [smtpProtocol, setSmtpProtocol] = useState(config.smtp_protocol || 'TLS');
- const [smtpSsl, setSmtpSsl] = useState(config.smtp_ssl);
+  // Load SMTP settings from company config first, then fallback to user config
+  const [smtpHost, setSmtpHost] = useState(companyConfig?.smtp_host || config.smtp_host || '');
+  const [smtpPort, setSmtpPort] = useState((companyConfig?.smtp_port || config.smtp_port || 587).toString());
+  const [smtpUser, setSmtpUser] = useState(companyConfig?.smtp_user || config.smtp_user || '');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpProtocol, setSmtpProtocol] = useState(companyConfig?.smtp_protocol || config.smtp_protocol || 'TLS');
+  const [smtpSsl, setSmtpSsl] = useState(companyConfig?.smtp_ssl ?? config.smtp_ssl ?? true);
  const [saving, setSaving] = useState(false);
  const [testing, setTesting] = useState(false);
  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -1762,22 +1796,26 @@ function SMTPTab({
  setSmtpProtocol(p.protocol);
  setSmtpSsl(p.ssl);
  }
- }
-
- async function handleSaveSMTP() {
- setSaving(true);
- setMessage(null);
- try {
- await configureSMTP({
- smtp_host: smtpHost,
- smtp_port: parseInt(smtpPort, 10),
- smtp_user: smtpUser,
- smtp_password: smtpPassword,
- smtp_protocol: smtpProtocol,
- smtp_ssl: smtpSsl,
- });
- setMessage({ type: 'success', text: 'Configuración SMTP guardada correctamente' });
- onConfigUpdate();
+ }  async function handleSaveSMTP() {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const smtpData = {
+        smtp_host: smtpHost,
+        smtp_port: parseInt(smtpPort, 10),
+        smtp_user: smtpUser,
+        smtp_password: smtpPassword,
+        smtp_protocol: smtpProtocol,
+        smtp_ssl: smtpSsl,
+      };
+      // Save to company config when a company is selected
+      if (selectedCompanyId) {
+        await updateCompanyConfig(selectedCompanyId, smtpData as Partial<CompanyConfig>);
+      }
+      // Also save to user config for backwards compatibility
+      await configureSMTP(smtpData);
+      setMessage({ type: 'success', text: 'Configuracion SMTP guardada correctamente' });
+      onConfigUpdate();
  } catch (err) {
  setMessage({
  type: 'error',
@@ -2398,8 +2436,8 @@ function BackupsTab({ config, selectedCompanyId }: { config: UserConfig; selecte
 // ─── Security Tab ───────────────────────────────────────────────
 function SecurityTab({
   config,
-  companyConfig: _companyConfig,
-  selectedCompanyId: _selectedCompanyId2,
+  companyConfig,
+  selectedCompanyId,
   onConfigUpdate,
 }: {
   config: UserConfig;
@@ -2407,7 +2445,8 @@ function SecurityTab({
   selectedCompanyId: string;
   onConfigUpdate: () => void;
 }) {
-  const [vtEnabled, setVtEnabled] = useState(config.virustotal_enabled);
+  // Use company-level VirusTotal when available, fallback to user-level
+  const [vtEnabled, setVtEnabled] = useState(companyConfig?.virustotal_enabled ?? config.virustotal_enabled);
   const [vtToggling, setVtToggling] = useState(false);
   const [clamavAvailable, setClamavAvailable] = useState(config.clamav_available);
   const [virustotalAvailable] = useState(config.virustotal_available);
@@ -2455,6 +2494,11 @@ function SecurityTab({
   async function handleToggleVirusTotal(enabled: boolean) {
     setVtToggling(true);
     try {
+      // Save to company config when a company is selected
+      if (selectedCompanyId) {
+        await updateCompanyConfig(selectedCompanyId, { virustotal_enabled: enabled } as Partial<CompanyConfig>);
+      }
+      // Also save to user config for backwards compatibility
       await toggleVirusTotal(enabled);
       setVtEnabled(enabled);
       setMessage({

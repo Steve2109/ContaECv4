@@ -1155,9 +1155,9 @@ export function ContaECIntegrations({ user: _user, companies }: ContaECIntegrati
  <div className="grid grid-cols-2 gap-4">
  <div className="space-y-2">
  <Label>Saldo Inicial</Label>
- <Input
+ <NumericInput
  
- value={cuentaForm.saldo_inicial}
+ value={cuentaForm.saldo_inicial || 0}
  onChange={(e) => setCuentaForm({ ...cuentaForm, saldo_inicial: parseFloat(e.target.value) || 0 })} />
               </div>
               <div className="space-y-2">

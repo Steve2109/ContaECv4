@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NumericInput } from '@/components/ui/numeric-input';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   getContabilidadStats, getCuentasContables, createCuentaContable, deleteCuentaContable, seedPlanCuentasDefault, getCatalogoOficial,
   getAsientosContables, createAsientoContable, aprobarAsiento, anularAsiento,
@@ -120,7 +120,7 @@ interface ContaECAccountingProps {
 }
 
 export function ContaECAccounting({ companyId }: ContaECAccountingProps) {
-  const { toast } = useToast();
+
   const [stats, setStats] = useState<ContabilidadStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -131,11 +131,11 @@ export function ContaECAccounting({ companyId }: ContaECAccountingProps) {
       const s = await getContabilidadStats(companyId);
       setStats(s);
     } catch {
-      toast({ title: 'Error', description: 'No se pudieron cargar las estadísticas', variant: 'destructive' });
+      toast.error('No se pudieron cargar las estadísticas');
     } finally {
       setLoadingStats(false);
     }
-  }, [companyId, toast]);
+  }, [companyId]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
 
@@ -226,7 +226,7 @@ export function ContaECAccounting({ companyId }: ContaECAccountingProps) {
 // ─── 1. Plan de Cuentas ─────────────────────────────────────────
 
 function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh: () => void }) {
-  const { toast } = useToast();
+
   const [cuentas, setCuentas] = useState<CuentaContable[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -264,41 +264,45 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
       const data = await getCuentasContables(companyId, filterTipo !== 'all' ? filterTipo : undefined, search || undefined);
       setCuentas(data.sort((a, b) => a.codigo.localeCompare(b.codigo)));
     } catch {
-      toast({ title: 'Error', description: 'No se pudieron cargar las cuentas', variant: 'destructive' });
+      toast.error('No se pudieron cargar las cuentas');
     } finally {
       setLoading(false);
     }
-  }, [companyId, filterTipo, search, toast]);
+  }, [companyId, filterTipo, search]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const hasAccounts = cuentas.length > 0;
+
   async function handleSeed() {
+    if (!companyId) { toast.error('Seleccione una empresa primero'); return; }
+    if (hasAccounts) { toast.error('La empresa ya tiene cuentas contables. El plan por defecto solo se genera en empresas sin cuentas.'); return; }
     setSeeding(true);
     try {
-      await seedPlanCuentasDefault(companyId);
-      toast({ title: 'Plan generado', description: 'Plan de cuentas por defecto creado exitosamente' });
+      const res = await seedPlanCuentasDefault(companyId);
+      toast.success(res?.detail || 'Plan de cuentas por defecto creado exitosamente');
       loadData();
       onRefresh();
     } catch (err) {
-      toast({ title: 'Error al generar plan', description: err instanceof Error ? err.message : 'No se pudo generar el plan. Intente de nuevo.', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo generar el plan. Intente de nuevo.');
     } finally {
       setSeeding(false);
     }
   }
 
   async function handleCreate() {
-    if (!form.codigo.trim()) { toast({ title: 'Validacion', description: 'El codigo es obligatorio', variant: 'destructive' }); return; }
-    if (!form.nombre.trim()) { toast({ title: 'Validacion', description: 'El nombre es obligatorio', variant: 'destructive' }); return; }
+    if (!form.codigo.trim()) { toast.error('El código es obligatorio'); return; }
+    if (!form.nombre.trim()) { toast.error('El nombre es obligatorio'); return; }
     setCreating(true);
     try {
       await createCuentaContable(form, companyId);
-      toast({ title: 'Cuenta creada', description: `${form.codigo} - ${form.nombre}` });
+      toast.success(`Cuenta creada: ${form.codigo} - ${form.nombre}`);
       setShowCreate(false);
       setForm({ codigo: '', nombre: '', tipo: 'activo', naturaleza: 'deudora', nivel: 1, es_cuenta_movimiento: true, es_imputable: true, saldo_inicial: 0, notas: '' });
       loadData();
       onRefresh();
     } catch (err) {
-      toast({ title: 'Error al crear cuenta', description: err instanceof Error ? err.message : 'No se pudo crear la cuenta. Verifique los datos e intente de nuevo.', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo crear la cuenta. Verifique los datos e intente de nuevo.');
     } finally {
       setCreating(false);
     }
@@ -307,11 +311,11 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
   async function handleDelete(id: string) {
     try {
       await deleteCuentaContable(id);
-      toast({ title: 'Cuenta eliminada' });
+      toast.success('Cuenta eliminada');
       loadData();
       onRefresh();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo eliminar', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo eliminar');
     }
   }
 
@@ -341,13 +345,15 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
         </Select>
         <Button variant="outline" size="icon" onClick={loadData}><RefreshCw className="h-4 w-4" /></Button>
         <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" /> Nueva Cuenta</Button>
-        <Button variant="outline" onClick={handleSeed} disabled={seeding} className="border-primary/30">
-          {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
-          Generar Plan por Defecto
-        </Button>
+        {!hasAccounts && (
+          <Button variant="default" onClick={handleSeed} disabled={seeding || !companyId} className="bg-primary">
+            {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
+            Generar Plan por Defecto
+          </Button>
+        )}
       </div>
-      {cuentas.length > 0 && (
-        <p className="text-xs text-muted-foreground">El plan por defecto solo se genera cuando la empresa no tiene cuentas.</p>
+      {hasAccounts && (
+        <p className="text-xs text-muted-foreground">La empresa ya tiene {cuentas.length} cuentas contables. El plan por defecto no se puede generar si ya existen cuentas.</p>
       )}
 
       {loading ? (
@@ -392,7 +398,11 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
           <CardContent className="py-12 text-center">
             <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
             <h3 className="text-lg font-medium">Sin cuentas contables</h3>
-            <p className="text-muted-foreground text-sm mt-1">Genere el plan por defecto o cree cuentas manualmente</p>
+            <p className="text-muted-foreground text-sm mt-1 mb-4">Genere el plan por defecto o cree cuentas manualmente</p>
+            <Button onClick={handleSeed} disabled={seeding || !companyId} className="mt-2">
+              {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
+              Generar Plan de Cuentas del Ecuador (3,633 cuentas)
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -500,7 +510,7 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
 // ─── 2. Asientos Contables ──────────────────────────────────────
 
 function AsientosTab({ companyId, onRefresh }: { companyId: string; onRefresh: () => void }) {
-  const { toast } = useToast();
+
   const [asientos, setAsientos] = useState<AsientoContable[]>([]);
   const [cuentas, setCuentas] = useState<CuentaContable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -524,11 +534,11 @@ function AsientosTab({ companyId, onRefresh }: { companyId: string; onRefresh: (
       setAsientos(as);
       setCuentas(cu.sort((a, b) => a.codigo.localeCompare(b.codigo)));
     } catch {
-      toast({ title: 'Error', description: 'No se pudieron cargar asientos', variant: 'destructive' });
+      toast.error('No se pudieron cargar asientos');
     } finally {
       setLoading(false);
     }
-  }, [companyId, filterEstado, toast]);
+  }, [companyId, filterEstado]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -545,10 +555,10 @@ function AsientosTab({ companyId, onRefresh }: { companyId: string; onRefresh: (
   }
 
   async function handleCreate() {
-    if (!form.concepto.trim()) { toast({ title: 'Validación', description: 'Ingrese un concepto', variant: 'destructive' }); return; }
-    if (!cuadrado) { toast({ title: 'Validación', description: 'Débitos y créditos deben ser iguales', variant: 'destructive' }); return; }
+    if (!form.concepto.trim()) { toast.error('Ingrese un concepto'); return; }
+    if (!cuadrado) { toast.error('Débitos y créditos deben ser iguales'); return; }
     const lineasValidas = detalles.filter(d => d.cuenta_contable_id && (Number(d.debito) > 0 || Number(d.credito) > 0));
-    if (lineasValidas.length < 2) { toast({ title: 'Validación', description: 'Mínimo 2 líneas de detalle', variant: 'destructive' }); return; }
+    if (lineasValidas.length < 2) { toast.error('Mínimo 2 líneas de detalle'); return; }
 
     setCreating(true);
     try {
@@ -563,14 +573,14 @@ function AsientosTab({ companyId, onRefresh }: { companyId: string; onRefresh: (
         })),
       };
       await createAsientoContable(data, companyId);
-      toast({ title: 'Asiento creado', description: `Concepto: ${form.concepto}` });
+      toast.success(`Asiento creado: ${form.concepto}`);
       setShowCreate(false);
       setForm({ fecha: new Date().toISOString().slice(0, 10), tipo: 'ordinario', concepto: '' });
       setDetalles([{ cuenta_contable_id: '', debito: '0', credito: '0' }, { cuenta_contable_id: '', debito: '0', credito: '0' }]);
       loadData();
       onRefresh();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo crear el asiento', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo crear el asiento');
     } finally {
       setCreating(false);
     }
@@ -579,22 +589,22 @@ function AsientosTab({ companyId, onRefresh }: { companyId: string; onRefresh: (
   async function handleAprobar(id: string) {
     try {
       await aprobarAsiento(id);
-      toast({ title: 'Asiento aprobado' });
+      toast.success('Asiento aprobado');
       loadData();
       onRefresh();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo aprobar', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo aprobar');
     }
   }
 
   async function handleAnular(id: string) {
     try {
       await anularAsiento(id);
-      toast({ title: 'Asiento anulado' });
+      toast.success('Asiento anulado');
       loadData();
       onRefresh();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo anular', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo anular');
     }
   }
 
@@ -752,7 +762,7 @@ function AsientosTab({ companyId, onRefresh }: { companyId: string; onRefresh: (
 // ─── 3. Cuentas por Cobrar ──────────────────────────────────────
 
 function CxCTab({ companyId }: { companyId: string }) {
-  const { toast } = useToast();
+
   const [cxc, setCxc] = useState<CuentaPorCobrar[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterEstado, setFilterEstado] = useState<string>('all');
@@ -769,11 +779,11 @@ function CxCTab({ companyId }: { companyId: string }) {
       const data = await getCuentasPorCobrar(companyId, filterEstado !== 'all' ? filterEstado : undefined);
       setCxc(data);
     } catch {
-      toast({ title: 'Error', description: 'No se pudieron cargar CxC', variant: 'destructive' });
+      toast.error('No se pudieron cargar CxC');
     } finally {
       setLoading(false);
     }
-  }, [companyId, filterEstado, toast]);
+  }, [companyId, filterEstado]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -782,16 +792,16 @@ function CxCTab({ companyId }: { companyId: string }) {
   const totalPagada = cxc.filter(c => c.estado === 'pagada').reduce((s, c) => s + c.monto_pagado, 0);
 
   async function handleCreate() {
-    if (!form.monto_total || form.monto_total <= 0) { toast({ title: 'Validación', description: 'Monto total requerido', variant: 'destructive' }); return; }
+    if (!form.monto_total || form.monto_total <= 0) { toast.error('Monto total requerido'); return; }
     setCreating(true);
     try {
       await createCuentaPorCobrar(form, companyId);
-      toast({ title: 'CxC creada', description: fmtMoney(form.monto_total) });
+      toast.success(`CxC creada: ${fmtMoney(form.monto_total)}`);
       setShowCreate(false);
       setForm({ fecha_emision: new Date().toISOString().slice(0, 10), monto_total: 0, dias_credito: 30 });
       loadData();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo crear', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo crear');
     } finally {
       setCreating(false);
     }
@@ -897,7 +907,7 @@ function CxCTab({ companyId }: { companyId: string }) {
 // ─── 4. Pagos / Cobros ──────────────────────────────────────────
 
 function PagosTab({ companyId }: { companyId: string }) {
-  const { toast } = useToast();
+
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [cxc, setCxc] = useState<CuentaPorCobrar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -917,25 +927,25 @@ function PagosTab({ companyId }: { companyId: string }) {
       setPagos(p);
       setCxc(c.filter(x => x.estado !== 'pagada'));
     } catch {
-      toast({ title: 'Error', description: 'No se pudieron cargar pagos', variant: 'destructive' });
+      toast.error('No se pudieron cargar pagos');
     } finally {
       setLoading(false);
     }
-  }, [companyId, filterTipo, toast]);
+  }, [companyId, filterTipo]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   async function handleCreate() {
-    if (!form.monto || form.monto <= 0) { toast({ title: 'Validación', description: 'Monto requerido', variant: 'destructive' }); return; }
+    if (!form.monto || form.monto <= 0) { toast.error('Monto requerido'); return; }
     setCreating(true);
     try {
       await createPago(form, companyId);
-      toast({ title: 'Pago registrado', description: `${form.tipo === 'cobro' ? 'Cobro' : 'Pago'} por ${fmtMoney(form.monto)}` });
+      toast.success(`${form.tipo === 'cobro' ? 'Cobro' : 'Pago'} por ${fmtMoney(form.monto)}`);
       setShowCreate(false);
       setForm({ tipo: 'cobro', fecha: new Date().toISOString().slice(0, 10), monto: 0, forma_pago: 'efectivo' });
       loadData();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo registrar', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo registrar');
     } finally {
       setCreating(false);
     }
@@ -944,20 +954,20 @@ function PagosTab({ companyId }: { companyId: string }) {
   async function handleConfirmar(id: string) {
     try {
       await confirmarPago(id);
-      toast({ title: 'Pago confirmado' });
+      toast.success('Pago confirmado');
       loadData();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo confirmar', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo confirmar');
     }
   }
 
   async function handleAnular(id: string) {
     try {
       await anularPago(id);
-      toast({ title: 'Pago anulado' });
+      toast.success('Pago anulado');
       loadData();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo anular', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo anular');
     }
   }
 
@@ -1093,7 +1103,7 @@ function PagosTab({ companyId }: { companyId: string }) {
 // ─── 5. Períodos Fiscales ───────────────────────────────────────
 
 function PeriodosTab({ companyId }: { companyId: string }) {
-  const { toast } = useToast();
+
   const [periodos, setPeriodos] = useState<PeriodoFiscal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -1111,27 +1121,27 @@ function PeriodosTab({ companyId }: { companyId: string }) {
       const data = await getPeriodosFiscales(companyId, filterEstado !== 'all' ? filterEstado : undefined);
       setPeriodos(data);
     } catch {
-      toast({ title: 'Error', description: 'No se pudieron cargar períodos', variant: 'destructive' });
+      toast.error('No se pudieron cargar períodos');
     } finally {
       setLoading(false);
     }
-  }, [companyId, filterEstado, toast]);
+  }, [companyId, filterEstado]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   async function handleCreate() {
     if (!form.nombre || !form.fecha_inicio || !form.fecha_fin) {
-      toast({ title: 'Validación', description: 'Complete todos los campos', variant: 'destructive' }); return;
+      toast.error('Complete todos los campos'); return;
     }
     setCreating(true);
     try {
       await createPeriodoFiscal(form, companyId);
-      toast({ title: 'Período creado', description: form.nombre });
+      toast.success(`Período creado: ${form.nombre}`);
       setShowCreate(false);
       setForm({ nombre: '', anio: new Date().getFullYear(), mes: new Date().getMonth() + 1, fecha_inicio: '', fecha_fin: '' });
       loadData();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo crear', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo crear');
     } finally {
       setCreating(false);
     }
@@ -1140,20 +1150,20 @@ function PeriodosTab({ companyId }: { companyId: string }) {
   async function handleCerrar(id: string) {
     try {
       await cerrarPeriodoFiscal(id);
-      toast({ title: 'Período cerrado' });
+      toast.success('Período cerrado');
       loadData();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo cerrar', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo cerrar');
     }
   }
 
   async function handleReabrir(id: string) {
     try {
       await reabrirPeriodoFiscal(id);
-      toast({ title: 'Período reabierto' });
+      toast.success('Período reabierto');
       loadData();
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo reabrir', variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : 'No se pudo reabrir');
     }
   }
 
@@ -1265,7 +1275,7 @@ function PeriodosTab({ companyId }: { companyId: string }) {
 // ─── 6. Balance de Comprobación ─────────────────────────────────
 
 function BalanceTab({ companyId }: { companyId: string }) {
-  const { toast } = useToast();
+
   const [balance, setBalance] = useState<BalanceComprobacionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [anio, setAnio] = useState(new Date().getFullYear());
@@ -1277,11 +1287,11 @@ function BalanceTab({ companyId }: { companyId: string }) {
       const data = await getBalanceComprobacion(companyId, anio);
       setBalance(data);
     } catch {
-      toast({ title: 'Error', description: 'No se pudo cargar el balance', variant: 'destructive' });
+      toast.error('No se pudo cargar el balance');
     } finally {
       setLoading(false);
     }
-  }, [companyId, anio, toast]);
+  }, [companyId, anio]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -1355,7 +1365,7 @@ function BalanceTab({ companyId }: { companyId: string }) {
 // ─── 7. Envejecimiento de Cartera ───────────────────────────────
 
 function EnvejecimientoTab({ companyId }: { companyId: string }) {
-  const { toast } = useToast();
+
   const [data, setData] = useState<EnvejecimientoCarteraResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -1366,11 +1376,11 @@ function EnvejecimientoTab({ companyId }: { companyId: string }) {
       const resp = await getEnvejecimientoCartera(companyId);
       setData(resp);
     } catch {
-      toast({ title: 'Error', description: 'No se pudo cargar envejecimiento', variant: 'destructive' });
+      toast.error('No se pudo cargar envejecimiento');
     } finally {
       setLoading(false);
     }
-  }, [companyId, toast]);
+  }, [companyId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

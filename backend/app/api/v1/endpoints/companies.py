@@ -189,15 +189,17 @@ async def create_company(
     # Crear cliente Consumidor Final por defecto
     await ensure_consumidor_final(db, str(company.id))
 
+    # ── Obtener o crear UserConfig (necesario para logo Y firma) ──
+    result_cfg = await db.execute(
+        select(UserConfig).where(UserConfig.user_id == current_user.id)
+    )
+    user_cfg = result_cfg.scalars().first()
+    if not user_cfg:
+        user_cfg = UserConfig(user_id=current_user.id)
+        db.add(user_cfg)
+
     # ── Sincronizar logo con UserConfig (para que aparezca en Configuracion → Perfil)
     if company_data.logo_path:
-        result_cfg = await db.execute(
-            select(UserConfig).where(UserConfig.user_id == current_user.id)
-        )
-        user_cfg = result_cfg.scalars().first()
-        if not user_cfg:
-            user_cfg = UserConfig(user_id=current_user.id)
-            db.add(user_cfg)
         user_cfg.company_logo_path = company_data.logo_path
 
     # Sincronizar firma: copiar archivo a signatures dir y guardar cifrado en UserConfig
@@ -228,9 +230,13 @@ async def create_company(
 
     await db.flush()
 
-    # ── Sincronizar telefono del usuario si esta vacio
-    if company_data.telefono and not current_user.phone:
+    # ── Sincronizar telefono y nombre del usuario si estan vacios ──
+    # Cuando se crea la empresa con datos, propagarlos al perfil del usuario
+    if company_data.telefono and not (current_user.phone or '').strip():
         current_user.phone = company_data.telefono
+        await db.flush()
+    if company_data.razon_social and not (current_user.full_name or '').strip():
+        current_user.full_name = company_data.razon_social
         await db.flush()
 
     logger.info(f"Nueva empresa creada: {company.ruc} - {company.razon_social}")
