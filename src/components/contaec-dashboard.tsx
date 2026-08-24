@@ -431,6 +431,9 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
   // acceso premium se restrinja automáticamente cuando la prueba expire.
   const isTrialActive = !!(license?.trial_active || licenseData?.trial_active);
 
+  // Fallback: use hook's license, or local licenseData from loadDashboardData
+
+
   // Módulo de cada item del menú para restringir sub-cuentas
   const NAV_MODULE: Partial<Record<NavItem, string>> = {
     dashboard: 'dashboard',
@@ -736,7 +739,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
               {activeNav === 'dashboard' && (
                 <DashboardView
                   user={user}
-                  license={licenseData}
+                  license={license || licenseData}
                   licenseExpiring={licenseExpiring}
                   companies={companies}
                   invoiceStats={invoiceStats}
@@ -760,7 +763,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
                 />
               )}
               {activeNav === 'license' && (
-                <LicenseView license={licenseData} licenseExpiring={licenseExpiring} user={user} />
+                <LicenseView license={license || licenseData} licenseExpiring={licenseExpiring} user={user} />
               )}
               {activeNav === 'invoices' && (
                 <ContaECInvoices user={user} companies={companies} />
@@ -1259,28 +1262,26 @@ function DashboardView({
  {t('dash.license_expiring_desc')}
  </AlertDescription>
  </Alert>
- )}
-
- {/* Trial Status Banner */}
- {license?.is_trial && license.trial_days_remaining !== null && (
- <Alert variant={license.trial_days_remaining <= 3 ? 'destructive' : 'default'}>
- <Clock className="h-4 w-4" />
- <AlertTitle>
- {license.trial_days_remaining <= 0
- ? t('dash.trial_ended')
- : license.trial_days_remaining <= 3
- ? t('dash.trial_expiring')
- : t('dash.trial_active')}
- </AlertTitle>
- <AlertDescription>
- {license.trial_days_remaining <= 0
- ? t('dash.trial_ended_desc')
- : license.trial_days_remaining <= 3
- ? t('dash.trial_days_left', { days: license.trial_days_remaining })
- : t('dash.trial_remaining', { days: license.trial_days_remaining })}
- {license.trial_end_date && (
- <span className="block mt-1 text-xs">
- {t('dash.expires')} {new Date(license.trial_end_date).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
+ )}              {/* Trial Status Banner */}
+              {license?.is_trial && license.trial_days_remaining !== null && (
+                <Alert variant={license.trial_days_remaining <= 3 ? 'destructive' : 'default'}>
+                  <Clock className="h-4 w-4" />
+                  <AlertTitle>
+                    {license.trial_days_remaining <= 0
+                      ? t('dash.trial_ended')
+                      : license.trial_days_remaining <= 3
+                      ? t('dash.trial_expiring')
+                      : t('dash.trial_active')}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {license.trial_days_remaining <= 0
+                      ? t('dash.trial_ended_desc')
+                      : license.trial_days_remaining <= 3
+                      ? t('dash.trial_days_left', { days: license.trial_days_remaining })
+                      : t('dash.trial_remaining', { days: license.trial_days_remaining })}
+                    {license.trial_end_date && (
+                      <span className="block mt-1 text-xs">
+                        {t('dash.expires')} {new Date(license.trial_end_date).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
  </span>
  )}
  </AlertDescription>
@@ -1342,11 +1343,10 @@ function DashboardView({
  <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
  </CardTitle>
  </CardHeader>
- <CardContent>
- {license ? (
- <div className="space-y-3">
- {/* Trial Activo */}
- {license.trial_active ? (
+ <CardContent>{license ? (
+            <div className="space-y-3">
+              {/* Trial Activo */}
+              {license.trial_active ? (
  <>
  <div className="flex items-center justify-between">
  <span className="text-sm text-muted-foreground">{t('common.status')}</span>
@@ -1354,14 +1354,13 @@ function DashboardView({
  </div>
  <div className="flex items-center justify-between">
  <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
- <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} {t('license.days')}</span>
+ <span className="text-sm font-bold text-amber-600">              {license.trial_days_remaining} {t('license.days')}</span>
  </div>
  <Separator />
  <div className="flex items-center justify-between">
  <span className="text-sm text-muted-foreground">{t('dash.trial_end')}</span>
- <span className="text-sm font-medium">
- {license.trial_end_date
- ? new Date(license.trial_end_date).toLocaleDateString('es-EC')
+ <span className="text-sm font-medium">              {license.trial_end_date
+                ? new Date(license.trial_end_date).toLocaleDateString('es-EC')
  : 'N/A'}
  </span>
  </div>
@@ -1374,25 +1373,21 @@ function DashboardView({
  </div>
  <div className="flex items-center justify-between">
  <span className="text-sm text-muted-foreground">{t('common.type')}</span>
- <Badge variant="secondary" className="capitalize">
- {license.license_type || 'N/A'}
+ <Badge variant="secondary" className="capitalize">              {license.license_type || 'N/A'}
  </Badge>
  </div>
  <Separator />
  <div className="flex items-center justify-between">
  <span className="text-sm text-muted-foreground">{t('dash.days_remaining')}</span>
- <span className={`text-sm font-bold ${
- (license.license_days_remaining ?? 0) <= 30 ? 'text-amber-500' : 'text-emerald-600'
- }`}>
- {license.license_days_remaining ?? 'N/A'} {t('license.days')}
+ <span className={`text-sm font-bold ${              (license.license_days_remaining ?? 0) <= 30 ? 'text-amber-500' : 'text-emerald-600'
+ }`}>              {license.license_days_remaining ?? 'N/A'} {t('license.days')}
  </span>
  </div>
  <Separator />
  <div className="flex items-center justify-between">
  <span className="text-sm text-muted-foreground">{t('dash.expires_on')}</span>
- <span className="text-sm font-medium">
- {license.license_end_date
- ? new Date(license.license_end_date).toLocaleDateString('es-EC')
+ <span className="text-sm font-medium">              {license.license_end_date
+                ? new Date(license.license_end_date).toLocaleDateString('es-EC')
  : 'N/A'}
  </span>
  </div>
@@ -1402,8 +1397,7 @@ function DashboardView({
  <div className="flex items-center justify-between">
  <span className="text-sm text-muted-foreground">{t('common.status')}</span>
  <Badge variant="destructive">{t('dash.inactive')}</Badge>
- </div>
- {license.license_expired && (
+ </div>              {license.license_expired && (
  <p className="text-xs text-destructive">
  {t('dash.license_expired_note')}
  </p>
@@ -2280,7 +2274,7 @@ function LicenseView({
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">{t('license.days_left')}</span>
-                    <span className="text-sm font-bold text-amber-600">{license.trial_days_remaining} {t('license.days')}</span>
+                    <span className="text-sm font-bold text-amber-600">              {license.trial_days_remaining} {t('license.days')}</span>
                   </div>
                   {license.trial_start_date && (
                     <div className="flex justify-between items-center">

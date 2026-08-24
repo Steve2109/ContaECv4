@@ -107,6 +107,14 @@ async def _ensure_new_columns(conn) -> None:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS parent_user_id UUID",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_subaccount BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_modules TEXT",
+        # Usuarios: campos de licencia y trial (puede no existir en DBs antiguas)
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS license_type VARCHAR(20) NOT NULL DEFAULT 'monthly'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS license_start_date TIMESTAMPTZ",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS license_end_date TIMESTAMPTZ",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_trial BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_start_date TIMESTAMPTZ",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_end_date TIMESTAMPTZ",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS backup_encryption_key TEXT",
         # Cargas familiares: porcentaje y tipo de discapacidad
         "ALTER TABLE cargas_familiares ADD COLUMN IF NOT EXISTS porcentaje_discapacidad INTEGER",
         "ALTER TABLE cargas_familiares ADD COLUMN IF NOT EXISTS tipo_discapacidad VARCHAR(50)",
