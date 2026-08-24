@@ -640,6 +640,13 @@ function ProfileTab({
       setPhone(config.user.phone || companyConfig?.telefono || '');
     }
   }, [config.user.phone, companyConfig?.telefono]);
+
+  // Sync full_name from config when it changes (e.g. after company creation syncs name to user)
+  useEffect(() => {
+    if (config.user.full_name && config.user.full_name !== fullName) {
+      setFullName(config.user.full_name);
+    }
+  }, [config.user.full_name]);
   const [language, setLanguage] = useState(config.user.language || 'es_EC');
   // El select de tema se inicializa y se mantiene sincronizado con el tema
   // realmente aplicado (incluido el toggle de la parte superior). Así no se
@@ -771,7 +778,7 @@ function ProfileTab({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="profile-name">Nombre Completo</Label>
-                <NumericInput id="profile-name"
+                <Input id="profile-name"
  value={fullName}
  onChange={(e) => setFullName(e.target.value)}
  placeholder="Juan Perez"
