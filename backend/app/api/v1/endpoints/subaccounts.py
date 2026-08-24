@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user, get_password_hash
 from app.core.email_service import send_temporary_password_email
+from app.core.config import get_settings
 from app.core.validation import validate_uuid
 from app.models.user import User
 from app.schemas.subaccounts import (
@@ -125,7 +126,19 @@ async def create_subaccount(
         motivo="subcuenta",
     )
 
-    return SubAccountResponse.model_validate(sub)
+    response = SubAccountResponse.model_validate(sub)
+
+    # Verificar si el SMTP está configurado para enviar el correo
+    _settings = get_settings()
+    if not _settings.SMTP_ENABLED or not _settings.SMTP_HOST or not _settings.SMTP_USER:
+        response.email_warning = (
+            "El correo SMTP del sistema no esta configurado. "
+            "La contrasena temporal NO fue enviada por correo. "
+            "Comunique la contrasena manualmente al empleado o "
+            "configure SMTP en Configuracion > Correo."
+        )
+
+    return response
 
 
 @router.get("", response_model=list[SubAccountResponse])

@@ -6,7 +6,8 @@ limitado a módulos específicos de la aplicación.
 from uuid import UUID
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+import json
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 # Módulos disponibles para asignar a una sub-cuenta
 AVAILABLE_MODULES = [
@@ -16,7 +17,8 @@ AVAILABLE_MODULES = [
     {"key": "proveedores", "label": "Proveedores"},
     {"key": "inventario", "label": "Inventario y almacenes"},
     {"key": "compras", "label": "Compras y cuentas por pagar"},
-    {"key": "contabilidad", "label": "Contabilidad y presupuestos"},
+    {"key": "contabilidad", "label": "Contabilidad"},
+    {"key": "presupuestos", "label": "Presupuestos"},
     {"key": "proyectos", "label": "Proyectos"},
     {"key": "crm", "label": "CRM"},
     {"key": "rh", "label": "Recursos Humanos"},
@@ -76,5 +78,36 @@ class SubAccountResponse(BaseModel):
     )
     must_change_password: bool = Field(..., description="Debe cambiar contraseña")
     created_at: datetime = Field(..., description="Fecha de creación")
+    email_warning: str | None = Field(
+        None,
+        description="Advertencia sobre el envío de correo (ej: SMTP no configurado)",
+    )
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_allowed_modules(cls, data):
+        """Convierte allowed_modules de JSON string a list si es necesario.
+        
+        La BD almacena allowed_modules como JSON string (ej: '["facturacion","clientes"]'),
+        pero el esquema Pydantic espera list[str]. Tambien maneja None -> [].
+        """
+        def _parse(val):
+            if val is None:
+                return []
+            if isinstance(val, list):
+                return val
+            if isinstance(val, str):
+                try:
+                    parsed = json.loads(val)
+                    return parsed if isinstance(parsed, list) else []
+                except (json.JSONDecodeError, TypeError):
+                    return []
+            return []
+
+        if hasattr(data, 'allowed_modules'):
+            data.allowed_modules = _parse(data.allowed_modules)
+        elif isinstance(data, dict):
+            data['allowed_modules'] = _parse(data.get('allowed_modules'))
+        return data

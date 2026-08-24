@@ -769,6 +769,7 @@ interface SignatureValidation {
   not_after: string;
   days_until_expiry: number | null;
   has_private_key: boolean;
+  additional_certs_count: number;
   warnings: string[];
 }
 
@@ -887,6 +888,10 @@ async function uploadCompanyLogo(file: File): Promise<{ message: string; logo_pa
 
 async function deleteDigitalSignature(): Promise<{ message: string }> {
   return apiDelete<{ message: string }>('/v1/config/digital-signature');
+}
+
+async function getSignatureInfo(): Promise<SignatureValidation> {
+  return apiGet<SignatureValidation>('/v1/config/signature-info');
 }
 
 async function deleteCompanyLogo(): Promise<{ message: string }> {
@@ -4928,6 +4933,7 @@ interface SubAccount {
   allowed_modules: string[];
   must_change_password: boolean;
   created_at: string;
+  email_warning?: string | null;
 }
 
 const SUBACCOUNT_MODULES: { key: string; label: string }[] = [
@@ -4937,7 +4943,8 @@ const SUBACCOUNT_MODULES: { key: string; label: string }[] = [
   { key: 'proveedores', label: 'Proveedores' },
   { key: 'inventario', label: 'Inventario y almacenes' },
   { key: 'compras', label: 'Compras y cuentas por pagar' },
-  { key: 'contabilidad', label: 'Contabilidad y presupuestos' },
+  { key: 'contabilidad', label: 'Contabilidad' },
+  { key: 'presupuestos', label: 'Presupuestos' },
   { key: 'proyectos', label: 'Proyectos' },
   { key: 'crm', label: 'CRM' },
   { key: 'rh', label: 'Recursos Humanos' },
@@ -5114,6 +5121,7 @@ export {
   deleteDigitalSignature,
   deleteCompanyLogo,
   validateSignature,
+  getSignatureInfo,
   // Comprobante functions
   getComprobantes,
   getComprobante,

@@ -86,6 +86,8 @@ import {
   deleteCompanyLogo,
   deleteDigitalSignature,
   validateSignature,
+  getSignatureInfo,
+  setBackupKey,
   getBackups,
   createBackup,
   downloadBackup,
@@ -432,13 +434,17 @@ function SubAccountsTab() {
     }
     setSaving(true);
     try {
-      await createSubAccount({
+      const result = await createSubAccount({
         email: form.email,
         full_name: form.full_name,
         password: form.password,
         allowed_modules: form.allowed_modules,
       });
-      toast.success('Sub-cuenta creada. La contraseña temporal fue enviada por correo.');
+      if (result.email_warning) {
+        toast.warning(result.email_warning, { duration: 8000 });
+      } else {
+        toast.success('Sub-cuenta creada. La contraseña temporal fue enviada por correo.');
+      }
       setShowCreate(false);
       setForm({ email: '', full_name: '', password: '', confirm_password: '', allowed_modules: [] });
       loadData();
@@ -1017,10 +1023,21 @@ function SignatureTab({
  const [validation, setValidation] = useState<SignatureValidation | null>(null);
  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
  const [showPassword, setShowPassword] = useState(false);
- const [deletingSig, setDeletingSig] = useState(false);
- const [confirmSigDelete, setConfirmSigDelete] = useState(false);
+ const [deletingSig, setDeletingSig] = useState(false);  const [confirmSigDelete, setConfirmSigDelete] = useState(false);
+  const [storedSigInfo, setStoredSigInfo] = useState<SignatureValidation | null>(null);
 
- async function handleUpload() {
+  // Cargar info detallada de la firma almacenada al montar / cambiar config
+  useEffect(() => {
+    if ((config.has_digital_signature || companyConfig?.firma_electronica_path) && selectedCompanyId) {
+      getSignatureInfo()
+        .then(setStoredSigInfo)
+        .catch(() => setStoredSigInfo(null));
+    } else {
+      setStoredSigInfo(null);
+    }
+  }, [config.has_digital_signature, companyConfig?.firma_electronica_path, selectedCompanyId]);
+
+  async function handleUpload() {
  if (!sigFile || !sigPassword) return;
  setUploading(true);
  setMessage(null);
@@ -1210,6 +1227,123 @@ function SignatureTab({
  Eliminar Firma
  </Button>
  </div>
+ </>
+ )}
+
+ {/* Detalle del certificado almacenado */}
+ {storedSigInfo && (
+ <>
+ <Separator />
+ <h4 className="text-sm font-medium flex items-center gap-2">
+ <FileKey className="h-4 w-4 text-primary" />
+ Información del Certificado
+ </h4>
+
+ {/* Grid de estado del certificado */}
+ <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Válida</span>
+ {storedSigInfo.is_valid ? (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ ) : (
+ <XCircle className="h-4 w-4 text-destructive" />
+ )}
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Expirada</span>
+ {storedSigInfo.is_expired ? (
+ <XCircle className="h-4 w-4 text-destructive" />
+ ) : (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ )}
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Firma EC</span>
+ {storedSigInfo.is_ec_signature ? (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ ) : (
+ <AlertTriangle className="h-4 w-4 text-amber-500" />
+ )}
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Clave Privada</span>
+ {storedSigInfo.has_private_key ? (
+ <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+ ) : (
+ <XCircle className="h-4 w-4 text-destructive" />
+ )}
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Serial</span>
+ <span className="text-xs font-mono font-medium truncate" title={storedSigInfo.serial_number}>
+ {storedSigInfo.serial_number.length > 16 ? storedSigInfo.serial_number.slice(0, 16) + '…' : storedSigInfo.serial_number}
+ </span>
+ </div>
+ <div className="flex items-center justify-between rounded-md border px-3 py-2">
+ <span className="text-xs text-muted-foreground">Certs. adic.</span>
+ <span className="text-xs font-medium">{storedSigInfo.additional_certs_count}</span>
+ </div>
+ </div>
+
+ {/* Sujeto e Issuer */}
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+ <div>
+ <h4 className="text-xs font-medium mb-2 text-muted-foreground uppercase tracking-wide">Sujeto</h4>
+ <div className="space-y-1 text-xs">
+ {Object.entries(storedSigInfo.subject).map(([key, value]) => (
+ <div key={key} className="flex justify-between">
+ <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+ <span className="font-medium truncate ml-2">{value}</span>
+ </div>
+ ))}
+ {Object.keys(storedSigInfo.subject).length === 0 && (
+ <span className="text-muted-foreground italic">Sin información disponible</span>
+ )}
+ </div>
+ </div>
+ <div>
+ <h4 className="text-xs font-medium mb-2 text-muted-foreground uppercase tracking-wide">Emisor</h4>
+ <div className="space-y-1 text-xs">
+ {Object.entries(storedSigInfo.issuer).map(([key, value]) => (
+ <div key={key} className="flex justify-between">
+ <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+ <span className="font-medium truncate ml-2">{value}</span>
+ </div>
+ ))}
+ {Object.keys(storedSigInfo.issuer).length === 0 && (
+ <span className="text-muted-foreground italic">Sin información disponible</span>
+ )}
+ </div>
+ </div>
+ </div>
+
+ {/* Fechas de vigencia */}
+ <div className="grid grid-cols-2 gap-3">
+ <div>
+ <span className="text-xs text-muted-foreground block mb-1">Válido desde</span>
+ <span className="text-xs font-medium">
+ {new Date(storedSigInfo.not_before).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
+ </span>
+ </div>
+ <div>
+ <span className="text-xs text-muted-foreground block mb-1">Válido hasta</span>
+ <span className="text-xs font-medium">
+ {new Date(storedSigInfo.not_after).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })}
+ </span>
+ </div>
+ </div>
+
+ {/* Advertencias */}
+ {storedSigInfo.warnings.length > 0 && (
+ <div className="space-y-2">
+ {storedSigInfo.warnings.map((w, i) => (
+ <Alert key={i} variant="destructive" className="py-2">
+ <AlertTriangle className="h-4 w-4" />
+ <AlertDescription className="text-xs">{w}</AlertDescription>
+ </Alert>
+ ))}
+ </div>
+ )}
  </>
  )}
  </CardContent>
@@ -1533,16 +1667,30 @@ function EnvironmentTab({
   // Use company-level environment mode when available, fallback to user-level
   const currentMode = (companyConfig?.environment_mode || config.environment_mode) as 'sandbox' | 'production';
 
+  // Indicador de firma para producción
+  const signatureReady = config.signature_status === 'valid' || config.signature_status === 'expiring_soon';
+  const signatureBlocked = config.signature_status === 'expired' || config.signature_status === 'none';
+  const signatureNeedsVerification = config.signature_status === 'uploaded';
+
   // Mensaje de advertencia segun el estado real de la firma electronica.
   const signatureWarning =
     config.signature_status === 'expired'
-      ? 'Su firma electronica esta expirada. El SRI rechazara los comprobantes emitidos en produccion hasta que renueve la firma en la pestana Firma Electronica.'
-      : config.signature_status === 'uploaded'
-        ? 'Su firma electronica no tiene informacion de expiracion registrada. Verifique que este vigente antes de operar en produccion, ya que el SRI podria rechazar los comprobantes.'
-        : 'No tiene una firma electronica registrada. Para operar en produccion, el SRI requiere una firma electronica valida. Registre su firma en la pestana Firma Electronica antes de emitir comprobantes.';
+      ? 'Su firma electronica esta EXPIRADA. El SRI rechazara los comprobantes emitidos en produccion. Debe renovar su firma electronica antes de poder cambiar a Produccion.'
+      : config.signature_status === 'none'
+        ? 'No tiene una firma electronica registrada. Para operar en produccion, el SRI requiere una firma electronica valida. Registre su firma en la pestana Firma Electronica antes de cambiar a Produccion.'
+        : config.signature_status === 'uploaded'
+          ? 'Su firma electronica no tiene informacion de expiracion registrada. Verifique que este vigente antes de operar en produccion, ya que el SRI podria rechazar los comprobantes.'
+          : '';
 
   async function handleSwitchMode(mode: 'sandbox' | 'production') {
-    if (mode === 'production' && config.signature_status !== 'valid') {
+    // Bloquear cambio a produccion si la firma esta expirada o no existe
+    if (mode === 'production' && signatureBlocked) {
+      setPendingMode(mode);
+      setShowConfirmDialog(true);
+      return;
+    }
+    // Advertencia si la firma no tiene info de expiracion (uploaded pero sin fecha)
+    if (mode === 'production' && signatureNeedsVerification) {
       setPendingMode(mode);
       setShowConfirmDialog(true);
       return;
@@ -1707,7 +1855,13 @@ function EnvironmentTab({
  Comprobantes con validez fiscal
  </li>
  <li className="flex items-center gap-1.5">
+ {signatureReady ? (
+ <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+ ) : signatureBlocked ? (
+ <XCircle className="h-3 w-3 text-destructive" />
+ ) : (
  <AlertTriangle className="h-3 w-3 text-amber-500" />
+ )}
  Requiere firma electronica valida
  </li>
  <li className="flex items-center gap-1.5">
@@ -1715,11 +1869,37 @@ function EnvironmentTab({
  No se pueden eliminar comprobantes
  </li>
  </ul>
+ {/* Signature readiness indicator */}
+ <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs ${
+ signatureReady
+ ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400'
+ : signatureBlocked
+ ? 'bg-destructive/10 text-destructive'
+ : 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400'
+ }`}>
+ {signatureReady ? (
+ <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+ ) : signatureBlocked ? (
+ <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
+ ) : (
+ <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+ )}
+ <span className="font-medium">
+ {signatureReady
+ ? 'Firma electronica configurada y vigente'
+ : signatureBlocked
+ ? config.signature_status === 'expired'
+ ? 'Firma expirada — renovar antes de produccion'
+ : 'Sin firma electronica — registrar en Firma Electronica'
+ : 'Firma cargada — verificar vigencia'
+ }
+ </span>
+ </div>
  <Button
  variant={currentMode === 'production' ? 'default' : 'outline'}
  size="sm"
  className="w-full"
- disabled={currentMode === 'production' || switching}
+ disabled={currentMode === 'production' || switching || signatureBlocked}
  onClick={(e) => {
  e.stopPropagation();
  handleSwitchMode('production');
@@ -1728,7 +1908,7 @@ function EnvironmentTab({
  {switching ? (
  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
  ) : null}
- Cambiar a Producción
+ {signatureBlocked ? 'Firma requerida' : 'Cambiar a Producción'}
  </Button>
  </CardContent>
  </Card>
@@ -1752,6 +1932,8 @@ function EnvironmentTab({
  >
  Cancelar
  </Button>
+ {/* Solo permitir "Intentar" si la firma esta cargada pero sin info de expiracion */}
+ {!signatureBlocked && signatureNeedsVerification && (
  <Button
  variant="destructive"
  size="sm"
@@ -1761,8 +1943,15 @@ function EnvironmentTab({
  {switching ? (
  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
  ) : null}
- Intentar de todos modos
+ Entendido, cambiar de todos modos
  </Button>
+ )}
+ {/* Si la firma esta expirada o no existe, solo puede cancelar */}
+ {signatureBlocked && (
+ <p className="text-xs text-muted-foreground mt-1">
+ Debe configurar una firma electronica valida en la pestana <strong>Firma Electronica</strong> antes de cambiar a Produccion.
+ </p>
+ )}
  </div>
  </AlertDescription>
  </Alert>
@@ -2458,7 +2647,7 @@ function SecurityTab({
   const [clamavAvailable, setClamavAvailable] = useState(config.clamav_available);
   const [virustotalAvailable] = useState(config.virustotal_available);
   const [recheckingClamav, setRecheckingClamav] = useState(false);
-  const [backupKey, setBackupKey] = useState('');
+  const [backupKeyValue, setBackupKeyValue] = useState('');
   const [backupKeyConfirm, setBackupKeyConfirm] = useState('');
   const [savingKey, setSavingKey] = useState(false);
   const [showBackupKey, setShowBackupKey] = useState(false);
@@ -2536,20 +2725,20 @@ function SecurityTab({
   }
 
   async function handleSaveBackupKey() {
-    if (backupKey !== backupKeyConfirm) {
+    if (backupKeyValue !== backupKeyConfirm) {
       setMessage({ type: 'error', text: 'Las claves no coinciden' });
       return;
     }
-    if (backupKey.length < 8) {
+    if (backupKeyValue.length < 8) {
       setMessage({ type: 'error', text: 'La clave debe tener al menos 8 caracteres' });
       return;
     }
     setSavingKey(true);
     setMessage(null);
     try {
-      await setBackupKey(backupKey);
+      await setBackupKey(backupKeyValue);
       setMessage({ type: 'success', text: 'Clave de cifrado configurada correctamente. Ya puede crear respaldos.' });
-      setBackupKey('');
+      setBackupKeyValue('');
       setBackupKeyConfirm('');
       setChangingKey(false);
       setShowBackupKey(false);
@@ -2673,7 +2862,7 @@ function SecurityTab({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {config.has_backup_key && !changingKey && !backupKey ? (
+          {config.has_backup_key && !changingKey && !backupKeyValue ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-emerald-600">
                 <CheckCircle2 className="h-4 w-4" />
@@ -2692,8 +2881,8 @@ function SecurityTab({
                   <Input
                     id="backup-key"
                     type={showBackupKey ? 'text' : 'password'}
-                    value={backupKey}
-                    onChange={(e) => setBackupKey(e.target.value)}
+                    value={backupKeyValue}
+                    onChange={(e) => setBackupKeyValue(e.target.value)}
                     placeholder="Mínimo 8 caracteres"
                     className="pr-10"
                   />
@@ -2721,12 +2910,12 @@ function SecurityTab({
                   value={backupKeyConfirm}
                   onChange={(e) => setBackupKeyConfirm(e.target.value)}
                   placeholder="Repita la clave"
-                  className={backupKeyConfirm && backupKeyConfirm !== backupKey ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  className={backupKeyConfirm && backupKeyConfirm !== backupKeyValue ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
-                {backupKeyConfirm && backupKeyConfirm !== backupKey && (
+                {backupKeyConfirm && backupKeyConfirm !== backupKeyValue && (
                   <p className="text-xs text-destructive">Las claves no coinciden</p>
                 )}
-                {backupKeyConfirm && backupKeyConfirm === backupKey && backupKey.length >= 8 && (
+                {backupKeyConfirm && backupKeyConfirm === backupKeyValue && backupKeyValue.length >= 8 && (
                   <p className="text-xs text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" />
                     Las claves coinciden
@@ -2737,7 +2926,7 @@ function SecurityTab({
               <div className="flex gap-2">
                 <Button
                   onClick={handleSaveBackupKey}
-                  disabled={savingKey || !backupKey || !backupKeyConfirm}
+                  disabled={savingKey || !backupKeyValue || !backupKeyConfirm}
                 >
                   {savingKey ? (
                     <>
@@ -2751,8 +2940,8 @@ function SecurityTab({
                     </>
                   )}
                 </Button>
-                {(config.has_backup_key && (backupKey || changingKey)) && (
-                  <Button variant="outline" onClick={() => { setBackupKey(''); setBackupKeyConfirm(''); setChangingKey(false); }}>
+                {(config.has_backup_key && (backupKeyValue || changingKey)) && (
+                  <Button variant="outline" onClick={() => { setBackupKeyValue(''); setBackupKeyConfirm(''); setChangingKey(false); }}>
                     Cancelar
                   </Button>
                 )}

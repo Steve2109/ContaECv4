@@ -19,7 +19,7 @@ api_router.include_router(admin.router)
 api_router.include_router(companies.router)
 
 # Sub-Cuentas (cuentas de empleados con acceso limitado)
-api_router.include_router(subaccounts.router)
+api_router.include_router(subaccounts.router, dependencies=[Depends(require_modules("configuracion"))])
 
 # Configuración de usuario
 api_router.include_router(config.router, dependencies=[Depends(require_modules("configuracion"))])

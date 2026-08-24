@@ -461,7 +461,7 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
     hr: 'rh',
     suppliers: 'proveedores',
     purchases: 'compras',
-    budgets: 'contabilidad',
+    budgets: 'contabilidad',  // Also accepts 'presupuestos' (handled in filter)
     crm: 'crm',
     projects: 'proyectos',
     integrations: 'integraciones',
@@ -470,12 +470,21 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
     settings: 'configuracion',
   };
 
+  // Módulos alternativos que acepta cada item (matchea require_modules del backend)
+  const NAV_ALT: Partial<Record<NavItem, string[]>> = {
+    budgets: ['contabilidad', 'presupuestos'],
+  };
+
   const filteredNavItems: { id: NavItem; label: string; icon: React.ReactNode; locked?: boolean; requiredTier?: string }[] = userNavItems
     .filter(item => {
       // Sub-cuentas: ocultar módulos no autorizados por el dueño de la cuenta
       if (user.is_subaccount && Array.isArray(user.allowed_modules) && user.allowed_modules.length > 0) {
+        const alts = NAV_ALT[item.id];
         const mod = NAV_MODULE[item.id];
-        if (mod && !user.allowed_modules.includes(mod)) return false;
+        const allowed = alts
+          ? alts.some(a => user.allowed_modules.includes(a))
+          : mod ? user.allowed_modules.includes(mod) : true;
+        if (!allowed) return false;
       }
       if (!item.locked) return true;
       if (!item.requiredTier) return true;

@@ -199,6 +199,145 @@ async def get_user_config(
     }
 
 
+@router.get("/signature-info")
+async def get_signature_info(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Obtener información detallada del certificado de firma electrónica almacenado.
+    Lee el archivo .p12/.pfx del disco y extrae subject, issuer, serial, vigencia, etc.
+    """
+    result = await db.execute(
+        select(UserConfig).where(UserConfig.user_id == current_user.id)
+    )
+    config = result.scalars().first()
+
+    if not config or not config.digital_signature_path:
+        # Fallback: buscar en la empresa activa
+        from app.models.company import Company
+        from app.core.permissions import effective_owner_id
+        owner_id = effective_owner_id(current_user)
+        comp_result = await db.execute(
+            select(Company).where(Company.user_id == owner_id, Company.is_active == True)
+        )
+        active_company = None
+        for c in comp_result.scalars().all():
+            if c.firma_electronica_path:
+                active_company = c
+                break
+        if not active_company:
+            raise HTTPException(status_code=404, detail="No hay firma electrónica registrada.")
+        # Leer desde la empresa
+        _base = Path(__file__).resolve().parent.parent.parent.parent.parent
+        _src = (_base / active_company.firma_electronica_path.lstrip('/')).resolve()
+        if not _src.is_file():
+            raise HTTPException(status_code=404, detail="Archivo de firma no encontrado.")
+        _cert_data = _src.read_bytes()
+        _pw = ''
+        if active_company.firma_electronica_password:
+            try:
+                _pw = decrypt_field(active_company.firma_electronica_password, settings.ENCRYPTION_KEY)
+            except Exception:
+                _pw = active_company.firma_electronica_password
+    else:
+        try:
+            stored_path = decrypt_field(config.digital_signature_path, settings.ENCRYPTION_KEY)
+        except Exception:
+            raise HTTPException(status_code=404, detail="No se pudo decryptar la ruta de la firma.")
+        if not stored_path or not os.path.isfile(stored_path):
+            raise HTTPException(status_code=404, detail="Archivo de firma no encontrado en disco.")
+        _cert_data = open(stored_path, 'rb').read()
+        _pw = ''
+        if config.digital_signature_password:
+            try:
+                _pw = decrypt_field(config.digital_signature_password, settings.ENCRYPTION_KEY)
+            except Exception:
+                pass
+
+    # Parsear el certificado PKCS#12
+    try:
+        from cryptography.hazmat.primitives.serialization import pkcs12
+
+        private_key, certificate, additional_certs = pkcs12.load_key_and_certificates(
+            _cert_data, _pw.encode() if _pw else b''
+        )
+        if not certificate:
+            raise HTTPException(status_code=400, detail="No se encontró certificado en el archivo.")
+
+        now = datetime.now(timezone.utc)
+        not_before = certificate.not_valid_before_utc
+        not_after = certificate.not_valid_after_utc
+        is_valid = not_before <= now <= not_after
+        is_expired = now > not_after
+        days_until_expiry = (not_after - now).days if not_after else None
+
+        def get_name_attrs(name):
+            attrs = {}
+            for attr in name:
+                oid = attr.oid.dotted_string
+                if oid == "2.5.4.3":
+                    attrs["nombre_comun"] = attr.value
+                elif oid == "2.5.4.6":
+                    attrs["pais"] = attr.value
+                elif oid == "2.5.4.7":
+                    attrs["localidad"] = attr.value
+                elif oid == "2.5.4.8":
+                    attrs["provincia"] = attr.value
+                elif oid == "2.5.4.10":
+                    attrs["organizacion"] = attr.value
+                elif oid == "2.5.4.11":
+                    attrs["unidad_organizativa"] = attr.value
+                elif oid == "2.5.4.97":
+                    attrs["identificador_organizacion"] = attr.value
+            return attrs
+
+        serial = format(certificate.serial_number, 'x').upper()
+        issuer_cn = ""
+        for attr in certificate.issuer:
+            if attr.oid.dotted_string == "2.5.4.3":
+                issuer_cn = attr.value
+                break
+
+        known_ec_ca = ["BANCO CENTRAL DEL ECUADOR", "SECURITY DATA", "ANF"]
+        is_ec_signature = any(ca in issuer_cn.upper() for ca in known_ec_ca)
+
+        warnings = []
+        if is_expired:
+            warnings.append("La firma electrónica ha EXPIRADO. No puede ser usada para firmar comprobantes.")
+        elif days_until_expiry is not None and days_until_expiry <= 30:
+            warnings.append(f"La firma electrónica expirará en {days_until_expiry} días. Renueve su firma a tiempo.")
+        if not is_ec_signature:
+            warnings.append("El certificado no parece ser de una CA ecuatoriana (BCE, Security Data, ANF).")
+        if private_key is None:
+            warnings.append("No se encontró la clave privada. No se podrá firmar comprobantes.")
+
+        return {
+            "is_valid": is_valid,
+            "is_expired": is_expired,
+            "is_not_yet_valid": now < not_before,
+            "is_ec_signature": is_ec_signature,
+            "subject": get_name_attrs(certificate.subject),
+            "issuer": get_name_attrs(certificate.issuer),
+            "issuer_cn": issuer_cn,
+            "serial_number": serial,
+            "not_before": not_before.isoformat(),
+            "not_after": not_after.isoformat(),
+            "days_until_expiry": days_until_expiry,
+            "has_private_key": private_key is not None,
+            "additional_certs_count": len(additional_certs) if additional_certs else 0,
+            "warnings": warnings,
+        }
+    except HTTPException:
+        raise
+    except ValueError as e:
+        if "password" in str(e).lower() or "mac" in str(e).lower():
+            raise HTTPException(status_code=400, detail="Contraseña incorrecta para la firma electrónica.")
+        raise HTTPException(status_code=400, detail=f"Archivo PKCS#12 inválido: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al leer la firma electrónica: {str(e)}")
+
+
 @router.post("/digital-signature")
 async def upload_digital_signature(
     file: UploadFile = File(...),
