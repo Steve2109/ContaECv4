@@ -258,6 +258,20 @@ export function ContaECDashboard({ user, onLogout }: ContaECDashboardProps) {
       if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) setDocumentTypes(results[3].value);
       if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) setIdentTypes(results[4].value);
       if (results[5].status === 'fulfilled') setInvoiceStats(results[5].value);
+
+      // Retry SRI catalogs individually if they failed (backend may still be starting)
+      const sriFailed = [2, 3, 4].some(i => results[i].status === 'rejected');
+      if (sriFailed) {
+        await new Promise(r => setTimeout(r, 2000));
+        const retryResults = await Promise.allSettled([
+          getSRIIVARates(),
+          getSRIDocumentTypes(),
+          getSRITipoIdentificacion(),
+        ]);
+        if (retryResults[0].status === 'fulfilled' && Array.isArray(retryResults[0].value)) setIvaRates(retryResults[0].value);
+        if (retryResults[1].status === 'fulfilled' && Array.isArray(retryResults[1].value)) setDocumentTypes(retryResults[1].value);
+        if (retryResults[2].status === 'fulfilled' && Array.isArray(retryResults[2].value)) setIdentTypes(retryResults[2].value);
+      }
     } catch {
       toast.error(t('dash.load_error'));
     } finally {
