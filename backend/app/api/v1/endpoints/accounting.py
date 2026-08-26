@@ -242,12 +242,17 @@ async def eliminar_cuenta_contable(
 
 def _load_catalogo_oficial() -> list[dict]:
     """Carga el catálogo oficial de cuentas contables Ecuador 2026 desde JSON."""
-    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
-    json_path = os.path.join(data_dir, "catalogo_cuentas_ecuador_2026.json")
-    if not os.path.exists(json_path):
-        # Try relative to backend root
-        json_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "catalogo_cuentas_ecuador_2026.json")
-    if not os.path.exists(json_path):
+    json_name = "catalogo_cuentas_ecuador_2026.json"
+    # Candidatos: backend/app/api/v1/endpoints → subir hasta backend/ y raíz del repo
+    endpoints_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.normpath(os.path.join(endpoints_dir, "..", "..", "..", "data", json_name)),   # backend/data
+        os.path.normpath(os.path.join(endpoints_dir, "..", "..", "..", "..", "data", json_name)),  # <repo>/data
+        os.path.normpath(os.path.join(endpoints_dir, "..", "data", json_name)),                # backend/app/data
+        os.path.normpath(os.path.join(endpoints_dir, "data", json_name)),                      # endpoints/data
+    ]
+    json_path = next((p for p in candidates if os.path.exists(p)), None)
+    if not json_path:
         raise HTTPException(
             status_code=500,
             detail="Archivo de catálogo oficial no encontrado. Contacte al administrador."

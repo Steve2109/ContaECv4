@@ -97,7 +97,12 @@ async def create_backup_data(user_id: str, encryption_key: str) -> dict:
                 "phone": user.phone,
                 "language": user.language,
                 "theme": user.theme,
-                "license_type": user.license_type.value if user.license_type else None,
+                # license_type puede venir como LicenseType (enum) o str plano (VARCHAR en BD)
+                "license_type": (
+                    user.license_type.value
+                    if hasattr(user.license_type, "value")
+                    else user.license_type
+                ),
             },
             "companies": [
                 {

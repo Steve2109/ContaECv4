@@ -319,6 +319,25 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
     }
   }
 
+  function applyCodigoManual(codigo: string) {
+    const trimmed = codigo.trim();
+    // Autocompletar si el código coincide exactamente con el catálogo oficial
+    const match = catalogo.find(c => c.code === trimmed);
+    if (match) {
+      const nivel = match.level || trimmed.split('.').length;
+      setForm(prev => ({
+        ...prev,
+        codigo,
+        nombre: match.name,
+        tipo: (match.tipo || 'activo') as typeof prev.tipo,
+        naturaleza: (match.naturaleza || 'deudora') as typeof prev.naturaleza,
+        nivel,
+      }));
+    } else {
+      setForm(prev => ({ ...prev, codigo }));
+    }
+  }
+
   function selectCode(item: CatalogoItem) {
     const nivel = item.level || item.code.split('.').length;
     setForm({ ...form, codigo: item.code, nombre: item.name, tipo: (item.tipo || 'activo') as typeof form.tipo, naturaleza: (item.naturaleza || 'deudora') as typeof form.naturaleza, nivel });
@@ -456,14 +475,28 @@ function PlanCuentasTab({ companyId, onRefresh }: { companyId: string; onRefresh
               <div className="space-y-2">
                 <Label>Codigo</Label>
                 <div className="flex gap-2">
-                  <Input value={form.codigo} onChange={e => setForm({ ...form, codigo: e.target.value })} placeholder="1.1.01" className="flex-1" />
+                  <Input value={form.codigo} onChange={e => applyCodigoManual(e.target.value)} placeholder="1.1.01" className="flex-1" />
                   <Button variant="outline" type="button" onClick={() => setShowCodeSelector(true)} className="shrink-0">
                     <BookOpen className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Nivel</Label>
+                {/* Sugerencias mientras se escribe el código */}
+                {(() => {
+                  const q = form.codigo.trim().toLowerCase();
+                  if (!q || catalogo.some(c => c.code === q)) return null;
+                  const suggestions = catalogo.filter(c => c.code.toLowerCase().startsWith(q)).slice(0, 5);
+                  if (suggestions.length === 0) return null;
+                  return (
+                    <div className="mt-1 space-y-0.5">
+                      {suggestions.map(s => (
+                        <button key={s.code} type="button" className="block w-full text-left text-xs px-2 py-1 rounded hover:bg-muted transition-colors" onClick={() => applyCodigoManual(s.code)}>
+                          <span className="font-mono text-primary mr-2">{s.code}</span>
+                          <span className="text-muted-foreground">{s.name.length > 60 ? s.name.slice(0, 60) + '…' : s.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <Select value={String(form.nivel || 1)} onValueChange={v => setForm({ ...form, nivel: Number(v) })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
