@@ -512,6 +512,7 @@ class POSProductSearchResponse(BaseModel):
     unidad_medida: str = Field(..., description="Unidad de medida")
     stock: Decimal = Field(..., description="Stock actual")
     stock_minimo: Decimal = Field(..., description="Stock mínimo")
+    iva_incluido: bool | None = Field(None, description="Indica si el IVA está incluido en el precio")
 
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
 

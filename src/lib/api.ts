@@ -2596,6 +2596,7 @@ interface POSProductSearchResult {
   iva_porcentaje: number;
   stock: number;
   unidad_medida: string;
+  iva_incluido?: boolean | null;
 }
 
 interface POSTicketPrintData {

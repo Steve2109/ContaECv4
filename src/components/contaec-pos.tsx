@@ -375,6 +375,12 @@ function POSTerminalView({
 
   // Add to cart
   function addToCart(product: POSProductSearchResult) {
+    // Si el IVA está incluido en el precio, extraer el precio base (sin IVA)
+    let precioBase = product.precio_unitario;
+    if (product.iva_incluido && product.iva_porcentaje > 0) {
+      precioBase = product.precio_unitario / (1 + product.iva_porcentaje / 100);
+      precioBase = Math.round(precioBase * 100) / 100;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id);
       if (existing) {
@@ -389,7 +395,7 @@ function POSTerminalView({
           codigoPrincipal: product.codigo_principal,
           descripcion: product.descripcion,
           cantidad: 1,
-          precioUnitario: product.precio_unitario,
+          precioUnitario: precioBase,
           descuento: 0,
           ivaCodigo: product.iva_codigo,
           ivaPorcentaje: product.iva_porcentaje,

@@ -2052,7 +2052,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
                         <SelectItem key={cat.codigo} value={cat.codigo}>
                           {cat.codigo} - {cat.descripcion}
                         </SelectItem>
-                      )) || <SelectItem value="" disabled>Cargando...</SelectItem>}
+                      )) || <SelectItem value="__loading" disabled>Cargando...</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2082,7 +2082,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
                         <SelectItem key={cat.codigo} value={cat.codigo}>
                           {cat.codigo} - {cat.descripcion}
                         </SelectItem>
-                      )) || <SelectItem value="" disabled>Cargando...</SelectItem>}
+                      )) || <SelectItem value="__loading" disabled>Cargando...</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2180,7 +2180,7 @@ function NuevaFacturaWizard({ companyId, onCreated, companies }: { companyId: st
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem value="" disabled>No hay comprobantes autorizados</SelectItem>
+                            <SelectItem value="__none" disabled>No hay comprobantes autorizados</SelectItem>
                           )}
                         </SelectContent>
                       </Select>
@@ -2606,21 +2606,26 @@ function ItemsEditor({
  (p) =>
  (p.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
  (p.codigo_principal || '').toLowerCase().includes(search.toLowerCase())
- );
-
- function addFromProduct(product: ProductResponse) {
- const newItem: ComprobanteDetalleCreate = {
- product_id: product.id,
- codigo_principal: product.codigo_principal,
- codigo_auxiliar: product.codigo_auxiliar || undefined,
- descripcion: product.descripcion,
- cantidad: 1,
- unidad_medida: product.unidad_medida,
- precio_unitario: product.precio_unitario,
- descuento: product.descuento || undefined,
- iva_codigo: product.iva_codigo,
- iva_porcentaje: product.iva_porcentaje,
- };
+ );  function addFromProduct(product: ProductResponse) {
+    // Si el IVA está incluido en el precio, extraer el precio base (sin IVA)
+    // para que el comprobante muestre: base + IVA = precio total
+    let precioBase = product.precio_unitario;
+    if (product.iva_incluido && product.iva_porcentaje > 0) {
+      precioBase = product.precio_unitario / (1 + product.iva_porcentaje / 100);
+      precioBase = Math.round(precioBase * 100) / 100; // Redondear a 2 decimales
+    }
+    const newItem: ComprobanteDetalleCreate = {
+      product_id: product.id,
+      codigo_principal: product.codigo_principal,
+      codigo_auxiliar: product.codigo_auxiliar || undefined,
+      descripcion: product.descripcion,
+      cantidad: 1,
+      unidad_medida: product.unidad_medida,
+      precio_unitario: precioBase,
+      descuento: product.descuento || undefined,
+      iva_codigo: product.iva_codigo,
+      iva_porcentaje: product.iva_porcentaje,
+    };
  const newItems = [...items, newItem];
  onChange(newItems);
  setExpandedIndex(newItems.length - 1);
@@ -3265,17 +3270,17 @@ function ProductosTab({ companyId }: { companyId: string }) {
               <div className="space-y-2">
                 <Label>ICE</Label>
                 <Select
-                  value={form.ice_codigo || ''}
+                  value={form.ice_codigo || '__none__'}
                   onValueChange={(v) => {
-                    setForm({ ...form, ice_codigo: v === '' ? undefined : v });
-                    if (!v) setForm({ ...form, ice_codigo: undefined, valor_ice_unitario: 0 });
+                    setForm({ ...form, ice_codigo: v === '__none__' ? undefined : v });
+                    if (!v || v === '__none__') setForm({ ...form, ice_codigo: undefined, valor_ice_unitario: 0 });
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sin ICE" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin ICE</SelectItem>
+                    <SelectItem value="__none__">Sin ICE</SelectItem>
                     <SelectItem value="1">Código 1</SelectItem>
                     <SelectItem value="2">Código 2</SelectItem>
                     <SelectItem value="3">Código 3</SelectItem>
@@ -3325,7 +3330,7 @@ function ProductosTab({ companyId }: { companyId: string }) {
               </div>
               <div className="space-y-2">
                 <Label>Unidad de Medida</Label>
-                <NumericInput value={form.unidad_medida || ''}
+                <Input value={form.unidad_medida || ''}
  onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })}
  placeholder="Unidad"
  />
@@ -4627,27 +4632,31 @@ function ProformaItemsEditor({
  (p) =>
  (p.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
  (p.codigo_principal || '').toLowerCase().includes(search.toLowerCase())
- );
-
- function addFromProduct(product: ProductResponse) {
- const newItem: ProformaDetalleCreate = {
- product_id: product.id,
- codigo_principal: product.codigo_principal,
- codigo_auxiliar: product.codigo_auxiliar || undefined,
- descripcion: product.descripcion,
- cantidad: 1,
- unidad_medida: product.unidad_medida,
- precio_unitario: product.precio_unitario,
- descuento: product.descuento || undefined,
- iva_codigo: product.iva_codigo,
- iva_porcentaje: product.iva_porcentaje,
- };
- const newItems = [...items, newItem];
- onChange(newItems);
- setExpandedIndex(newItems.length - 1);
- setShowSearch(false);
- setSearch('');
- }
+ ); function addFromProduct(product: ProductResponse) {
+    // Si el IVA está incluido en el precio, extraer el precio base (sin IVA)
+    let precioBase = product.precio_unitario;
+    if (product.iva_incluido && product.iva_porcentaje > 0) {
+      precioBase = product.precio_unitario / (1 + product.iva_porcentaje / 100);
+      precioBase = Math.round(precioBase * 100) / 100;
+    }
+    const newItem: ProformaDetalleCreate = {
+      product_id: product.id,
+      codigo_principal: product.codigo_principal,
+      codigo_auxiliar: product.codigo_auxiliar || undefined,
+      descripcion: product.descripcion,
+      cantidad: 1,
+      unidad_medida: product.unidad_medida,
+      precio_unitario: precioBase,
+      descuento: product.descuento || undefined,
+      iva_codigo: product.iva_codigo,
+      iva_porcentaje: product.iva_porcentaje,
+    };
+    const newItems = [...items, newItem];
+    onChange(newItems);
+    setExpandedIndex(newItems.length - 1);
+    setShowSearch(false);
+    setSearch('');
+  }
 
  function addEmptyItem() {
  const newItem: ProformaDetalleCreate = {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 
 /**
@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
  * Resuelve: con type="number" nativo, si el usuario escribe un punto, el
  * navegador lo interpreta como decimal incompleto y el componente React
  * recibe "" o "NaN", provocando que el campo se borre o reinicie a 0.
+ *
+ * El formateo visual (thousands separator, decimal fix) solo se aplica al
+ * pierder el foco (blur), para no interrumpir la escritura del usuario.
  */
 interface NumericInputProps {
   id?: string;
@@ -43,6 +46,16 @@ function formatDisplay(value: number, decimals: number, thousands: boolean): str
   return fixed.replace('.', ',');
 }
 
+/**
+ * Parse raw display text (with commas as decimal separators) back to a number.
+ */
+function parseDisplayText(raw: string): number | null {
+  if (!raw || raw === '-' || raw === ',') return null;
+  const normalized = raw.replace(/,/g, '.');
+  const parsed = parseFloat(normalized);
+  return isNaN(parsed) ? null : parsed;
+}
+
 export function NumericInput({
   id,
   ref,
@@ -66,11 +79,16 @@ export function NumericInput({
 
   const numericValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
 
+  // Track whether the current text was set by user typing vs external value change
+  const isTypingRef = useRef(false);
+
   const [text, setText] = useState<string>(() =>
     numericValue ? formatDisplay(numericValue, maxDecimals, thousands) : ''
   );
 
+  // Only sync text from external value when we're NOT in the middle of typing
   useEffect(() => {
+    if (isTypingRef.current) return;
     const display = numericValue ? formatDisplay(numericValue, maxDecimals, thousands) : '';
     setText(display);
   }, [numericValue, maxDecimals, thousands]);
@@ -123,24 +141,29 @@ export function NumericInput({
         }
       }
 
+      // Mark that we're typing so the useEffect doesn't overwrite our text
+      isTypingRef.current = true;
       setText(raw);
 
-      if (raw === '' || raw === '-' || raw === ',') {
-        return;
-      }
-
-      const normalized = raw.replace(/,/g, '.');
-      const parsed = parseFloat(normalized);
-      if (!isNaN(parsed)) {
+      // Parse and emit the numeric value for state updates
+      const parsed = parseDisplayText(raw);
+      if (parsed !== null) {
         const clamped = Math.min(max, Math.max(min, parsed));
         callOnChange(clamped);
       }
+
+      // Allow the next useEffect cycle to check isTypingRef before clearing it
+      // We use a micro-task so the effect runs before we clear the flag
+      Promise.resolve().then(() => {
+        isTypingRef.current = false;
+      });
     },
     [callOnChange, maxDecimals, integer, min, max]
   );
 
   const handleBlur = useCallback(
     (e: React.FocusEvent<HTMLInputElement>) => {
+      // Format the display value when losing focus
       const display = numericValue ? formatDisplay(numericValue, maxDecimals, thousands) : '';
       setText(display);
       onBlurProp?.(e);
